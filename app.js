@@ -106,16 +106,51 @@ async function callGeminiClient(prompt, temperature = 0.9) {
   return JSON.parse(textContent);
 }
 
-// 클라이언트 단어 생성 (25개 풀 & 5개 셔플링)
-const CLIENT_WORD_POOL_CACHE = {};
-async function generateWordsClient(mode, userInput, count = 5, excludeWords = []) {
-  const cacheKey = `${mode}:${userInput.trim()}`;
-  let pool = CLIENT_WORD_POOL_CACHE[cacheKey];
+// =================================================================
+// 📚 오프라인 내장 엄선 단어 라이브러리 (API 불가 / 오프라인 완전 대응)
+// =================================================================
+const OFFLINE_BUILTIN_SETS = {
+  "기억술": [
+    { word: "기억의궁전", definition: "친숙한 공간에 정보를 배치하는 고대 기억술", importance_reason: "공간기억과 시각화 결합의 정점", visual_anchor: "🏛️ 웅장한 대리석 궁전" },
+    { word: "시각앵커", definition: "추상적 개념을 구체적 사물로 고정하는 연결고리", importance_reason: "망각을 방지하는 강력한 트리거", visual_anchor: "⚓ 거대한 황금 닻" },
+    { word: "정교화부호화", definition: "새 정보를 기존 기억과 연결하여 심층 저장하는 기법", importance_reason: "장기기억 전환율을 극대화함", visual_anchor: "🔗 얽혀있는 황금 사슬" },
+    { word: "초두효과", definition: "목록의 맨 앞 정보를 가장 쉽게 기억하는 심리", importance_reason: "암기 순서 배치의 핵심 원리", visual_anchor: "🥇 1등 금메달" },
+    { word: "작업기억", definition: "의식적 사고와 정보 처리를 담당하는 단기 두뇌 용량", importance_reason: "전두엽 집중력의 척도", visual_anchor: "💻 번쩍이는 두뇌 RAM" }
+  ],
+  "뇌과학": [
+    { word: "해마", definition: "새로운 기억의 형성 및 장기 기억 전환을 총괄하는 기관", importance_reason: "학습과 기억 형성의 관문", visual_anchor: "🌊 푸른 바다의 해마" },
+    { word: "시냅스가소성", definition: "학습에 따라 뉴런 간 연결 강도가 변하는 특성", importance_reason: "두뇌 훈련을 통한 뇌 회로 재구성", visual_anchor: "⚡ 번쩍이는 신경 스파크" },
+    { word: "전전두엽", definition: "의사결정, 충동 조절, 고차원 계획을 담당하는 뇌 영역", importance_reason: "집중력과 실행기능의 총사령관", visual_anchor: "👑 이마 위의 황금 왕관" },
+    { word: "도파민", definition: "성취감과 보상 회로를 자극하는 신경전달물질", importance_reason: "학습 동기부여와 몰입 유지", visual_anchor: "🎯 타오르는 과녁 불꽃" },
+    { word: "편도체", definition: "공포, 분노 등 감정적 반응을 처리하는 뇌 중심부", importance_reason: "기억에 감정적 낙인을 찍음", visual_anchor: "🔥 붉게 달아오른 아몬드" }
+  ],
+  "인공지능": [
+    { word: "트랜스포머", definition: "어텐션 메커니즘을 기반으로 한 현대 딥러닝 핵심 아키텍처", importance_reason: "LLM 및 생성형 AI의 근간", visual_anchor: "🤖 변신하는 거대 로봇" },
+    { word: "어텐션", definition: "입력 데이터 중 중요한 부분에 동적으로 가중치를 두는 기법", importance_reason: "문맥 파악 및 번역 혁신", visual_anchor: "🔍 환하게 비추는 스포트라이트" },
+    { word: "역전파", definition: "출력 오차를 역방향으로 전달하여 가중치를 학습시키는 알고리즘", importance_reason: "인공신경망 훈련의 기본 엔진", visual_anchor: "↩️ 되감기는 나선형 태엽" },
+    { word: "과적합", definition: "훈련 데이터에만 지나치게 맞춰져 실전 성능이 떨어지는 현상", importance_reason: "AI 모델 일반화의 최대 적", visual_anchor: "👔 몸에 꽉 끼는 작은 정장" },
+    { word: "잠재공간", definition: "데이터의 본질적 특성이 압축된 고차원 벡터 공간", importance_reason: "생성 모델의 데이터 생성 원천", visual_anchor: "🌌 은하수가 펼쳐진 우주" }
+  ]
+};
 
+// 클라이언트 단어 생성 (영구 로컬 캐시 + Gemini 호출 + 오프라인 폴백 완비)
+async function generateWordsClient(mode, userInput, count = 5, excludeWords = []) {
+  const cleanInput = (userInput || '').trim();
+  const cacheKey = `brainlock_pool_${mode}_${cleanInput}`;
+  
+  // 1. localStorage 영구 캐시 확인
+  let pool = [];
+  try {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) pool = JSON.parse(cached);
+  } catch (e) {}
+
+  // 2. 캐시가 부족하면 Gemini API 호출 시도
   if (!pool || pool.length < count) {
-    const prompt = `
-[역할]: '${userInput}' 분야 전공 교수
-주제 '${userInput}'에 관련된 핵심 전문 용어 총 25개를 기초부터 심화까지 아주 다양하게 엄선하세요.
+    try {
+      const prompt = `
+[역할]: '${cleanInput}' 분야 전공 교수
+주제 '${cleanInput}'에 관련된 핵심 전문 용어 총 25개를 기초부터 심화까지 아주 다양하게 엄선하세요.
 [필수 JSON 포맷]:
 {
   "quiz_data": [
@@ -129,23 +164,42 @@ async function generateWordsClient(mode, userInput, count = 5, excludeWords = []
 }
 - 25개 단어, 한국어로 작성.
 `;
-    const res = await callGeminiClient(prompt, 0.95);
-    pool = (res.quiz_data || []).map(item => ({
-      ...item,
-      chosung: extractChosung(item.word)
-    }));
-    // 셔플
-    pool.sort(() => Math.random() - 0.5);
-    CLIENT_WORD_POOL_CACHE[cacheKey] = pool;
+      const res = await callGeminiClient(prompt, 0.95);
+      pool = (res.quiz_data || []).map(item => ({
+        ...item,
+        chosung: extractChosung(item.word)
+      }));
+      pool.sort(() => Math.random() - 0.5);
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(pool));
+      } catch (e) {}
+    } catch (apiErr) {
+      console.warn("Gemini API 미연결 또는 오류 -> 오프라인 내장 단어장으로 자동 폴백:", apiErr);
+      
+      // 3. 오프라인 폴백: 내장 단어장 매칭 또는 기본 기억술 세트 제공
+      let matchedCategory = Object.keys(OFFLINE_BUILTIN_SETS).find(k => cleanInput.includes(k));
+      if (!matchedCategory) matchedCategory = "기억술";
+      
+      pool = OFFLINE_BUILTIN_SETS[matchedCategory].map(item => ({
+        ...item,
+        chosung: extractChosung(item.word)
+      }));
+      pool.sort(() => Math.random() - 0.5);
+    }
   }
 
   const excludeSet = new Set(excludeWords || []);
   const available = pool.filter(w => !excludeSet.has(w.word));
-  const picked = available.slice(0, count);
-  CLIENT_WORD_POOL_CACHE[cacheKey] = pool.filter(w => !picked.includes(w));
+  const picked = (available.length >= count ? available : pool).slice(0, count);
+
+  // 남은 단어 풀 업데이트
+  const remaining = pool.filter(w => !picked.some(p => p.word === w.word));
+  try {
+    localStorage.setItem(cacheKey, JSON.stringify(remaining));
+  } catch (e) {}
 
   return {
-    source_name: userInput,
+    source_name: cleanInput || "기억술 훈련",
     quiz_data: picked
   };
 }
@@ -562,6 +616,7 @@ function setupPdfDropzone() {
       return;
     }
     state.selectedPdfName = file.name;
+    state.selectedPdfFile = file; // 원본 File 객체 보관 (클라이언트 파싱용)
     const reader = new FileReader();
     reader.onload = () => {
       state.selectedPdfBase64 = reader.result;
@@ -571,6 +626,27 @@ function setupPdfDropzone() {
     };
     reader.readAsDataURL(file);
   }
+}
+
+// 📄 브라우저 순수 PDF 텍스트 추출 (서버 없는 GitHub Pages 완전 대응)
+async function extractPdfTextClient(file, startPage = 1, endPage = 0) {
+  if (!window.pdfjsLib) {
+    throw new Error('PDF.js 라이브러리가 로드되지 않았습니다.');
+  }
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const totalPages = pdf.numPages;
+  const start = Math.max(1, startPage);
+  const end = (endPage > 0 && endPage <= totalPages) ? endPage : Math.min(start + 5, totalPages);
+
+  let fullText = '';
+  for (let i = start; i <= end; i++) {
+    const page = await pdf.getPage(i);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items.map(item => item.str).join(' ');
+    fullText += `\n--- [Page ${i}] ---\n` + pageText;
+  }
+  return fullText.trim();
 }
 
 // 단어 개수 조절
@@ -684,10 +760,27 @@ document.getElementById('btnStartGenerate').addEventListener('click', async () =
         body: JSON.stringify(payload)
       });
       data = await res.json();
-      if (data.error) throw new Error(data.error);
     } catch (serverErr) {
       // 🌐 서버 없는 GitHub Pages 환경 -> 브라우저 내장 Gemini API 엔진으로 직접 생성!
-      data = await generateWordsClient(payload.mode || 'topic', payload.input || '', payload.count || 5);
+      let targetInput = payload.input || '';
+      let targetMode = payload.mode || 'topic';
+
+      if (state.activeTab === 'pdf') {
+        try {
+          toggleLoading(true, 'PDF.js로 브라우저에서 직접 교재 텍스트를 파싱하고 있습니다...');
+          const startP = parseInt(document.getElementById('inputStartPage').value) || 1;
+          const endP = parseInt(document.getElementById('inputEndPage').value) || 0;
+          targetInput = await extractPdfTextClient(state.selectedPdfFile, startP, endP);
+          targetMode = 'text';
+          toggleLoading(true, 'AI가 추출된 교재 내용에서 핵심 개념어를 분류 중입니다...');
+        } catch (pdfErr) {
+          console.warn('PDF 클라이언트 파싱 실패, 기본 파일명 모드로 전환:', pdfErr);
+          targetInput = state.selectedPdfName.replace('.pdf', '') + ' 핵심 개념';
+          targetMode = 'topic';
+        }
+      }
+
+      data = await generateWordsClient(targetMode, targetInput, payload.count || 5);
     }
     toggleLoading(false);
 
