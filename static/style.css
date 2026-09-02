@@ -2300,3 +2300,195 @@ textarea:focus {
   background: var(--error);
   color: white;
 }
+
+/* =================================================================
+   13. 📱 모바일 / 태블릿 완벽 반응형 UI 최적화 (Mobile First Design)
+   ================================================================= */
+@media (max-width: 768px) {
+  .app-container {
+    padding: 10px 12px 60px;
+  }
+
+  /* 헤더 2단 분리 (1행: 로고 + 마스터/테마, 2행: 모드 스와이프 탭) */
+  .app-header {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: var(--radius-lg);
+  }
+
+  .logo-area h1 {
+    font-size: 17px;
+  }
+
+  .logo-icon {
+    font-size: 20px;
+  }
+
+  .nav-mode-switcher {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding: 4px;
+    gap: 6px;
+    justify-content: flex-start;
+  }
+
+  .nav-mode-switcher::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mode-nav-btn {
+    font-size: 12px;
+    padding: 6px 14px;
+    flex-shrink: 0;
+  }
+
+  .user-profile-chip {
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+
+  .btn-logout-chip {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+
+  /* 대시보드 1열 배치 */
+  .dashboard-kpi-grid,
+  .dashboard-launchers {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .kpi-card {
+    padding: 14px 16px;
+  }
+
+  .kpi-value {
+    font-size: 22px;
+  }
+
+  .launcher-card {
+    padding: 20px;
+  }
+
+  /* 테이블 가로 스크롤 터치 지원 */
+  .db-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--radius-md);
+  }
+
+  .db-log-table th,
+  .db-log-table td {
+    padding: 8px 10px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  /* 9x9 스도쿠 모바일 최적화 */
+  .sudoku-control-card {
+    padding: 16px;
+  }
+
+  .sudoku-ctrl-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .sudoku-status-indicators {
+    justify-content: space-between;
+  }
+
+  .status-pill {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .sudoku-action-row {
+    justify-content: center;
+  }
+
+  .sudoku-action-row button {
+    flex: 1;
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+
+  .sudoku-arena-card {
+    padding: 16px 10px;
+  }
+
+  .sudoku-board-wrapper {
+    max-width: 100%;
+    aspect-ratio: 1 / 1;
+    padding: 4px;
+  }
+
+  .sudoku-cell {
+    font-size: 16px;
+    touch-action: manipulation;
+  }
+
+  /* 모바일 온스크린 키패드 터치 영역 확대 */
+  .sudoku-keypad {
+    max-width: 100%;
+    padding: 10px;
+  }
+
+  .keypad-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+  }
+
+  .btn-keypad-num,
+  .btn-keypad-erase {
+    padding: 12px 0;
+    font-size: 18px;
+    touch-action: manipulation;
+  }
+
+  /* 순간 기억력 격자 모바일 반응형 */
+  .spatial-arena-card {
+    padding: 16px 10px;
+  }
+
+  .spatial-grid-wrapper {
+    max-width: 100%;
+    padding: 6px;
+  }
+
+  .spatial-tile {
+    font-size: 18px;
+    touch-action: manipulation;
+  }
+
+  /* 플래시카드 모바일 */
+  .memorize-card-wrapper {
+    padding: 20px 16px;
+    min-height: 260px;
+  }
+
+  .memorize-word {
+    font-size: 26px;
+  }
+
+  .memorize-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .memorize-actions button {
+    width: 100%;
+  }
+
+  /* 마스터 게이트웨이 모바일 */
+  .auth-hero-card {
+    margin: 20px 10px;
+    padding: 24px 18px;
+  }
+}
