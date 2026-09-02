@@ -790,6 +790,22 @@
         </div>
         <div class="modal-body">
           <div class="form-group" style="margin-bottom: 16px;">
+            <label for="selectAiModel"><strong>🤖 Gemini AI 모델 선택</strong></label>
+            <select id="selectAiModel" style="width:100%; padding:10px; margin-top:6px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:var(--radius-md); color:var(--text-primary); font-size:13px;">
+              <option value="gemini-2.5-flash">⚡ Gemini 2.5 Flash (초고속 반응 / 일상 훈련 추천)</option>
+              <option value="gemini-3.1-flash-lite">🚀 Gemini 3.1 Flash-Lite (최저 지연시간 경량화)</option>
+              <option value="gemini-3.8-flash">🧠 Gemini 3.8 Flash (최신 모델 / 심층 연상 및 고난도 전공어)</option>
+            </select>
+            <span class="help-text" style="font-size:11px; color:var(--text-muted); display:block; margin-top:4px;">목적에 따라 실시간으로 AI 엔진을 전환할 수 있습니다.</span>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label for="inputGeminiKey"><strong>🔑 Gemini API Key (개인 발급 키)</strong></label>
+            <input type="password" id="inputGeminiKey" placeholder="AIzaSy... 키를 입력하세요" style="width:100%; padding:10px; margin-top:6px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:var(--radius-md); color:var(--text-primary); font-size:13px;">
+            <span class="help-text" style="font-size:11px; color:var(--text-muted); display:block; margin-top:4px;">구글 AI 스튜디오(aistudio.google.com)에서 발급받은 무료 키를 입력하면 브라우저에 안전하게 저장됩니다.</span>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 16px;">
             <label for="inputSheetUrl"><strong>🔗 구글 시트 웹 앱 URL</strong></label>
             <input type="text" id="inputSheetUrl" placeholder="https://script.google.com/macros/s/.../exec" style="width:100%; padding:10px; margin-top:6px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:var(--radius-md); color:var(--text-primary); font-size:13px;">
             <span class="help-text" style="font-size:11px; color:var(--text-muted); display:block; margin-top:4px;">구글 시트 Apps Script에서 배포한 웹 앱 URL을 입력하세요.</span>
@@ -797,7 +813,7 @@
 
           <div style="display:flex; gap:10px; margin-bottom: 20px;">
             <button id="btnTestWebhook" class="btn-secondary btn-sm" style="flex:1;">🔗 연결 핑 테스트</button>
-            <button id="btnSaveSheetUrl" class="btn-primary btn-sm" style="flex:1;">💾 URL 저장</button>
+            <button id="btnSaveSheetUrl" class="btn-primary btn-sm" style="flex:1;">💾 설정 전체 저장</button>
           </div>
 
           <div id="webhookTestResult" class="test-result-box" style="display:none; padding:10px; border-radius:var(--radius-md); font-size:12px; margin-bottom:20px;"></div>

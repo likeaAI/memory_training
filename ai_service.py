@@ -33,9 +33,12 @@ OLLAMA_MODEL = "mistral"
 # 🌐 AI LLM 통신 기반 레이어 (Gemini REST / Ollama)
 # =================================================================
 
-def call_gemini_rest(prompt: str, model: str = "gemini-3.1-flash-lite", temperature: float = 0.9) -> dict:
+DEFAULT_GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+
+def call_gemini_rest(prompt: str, model: str = None, temperature: float = 0.9) -> dict:
     """순수 HTTP REST API로 Gemini 호출 (초고속 JSON 응답)"""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
+    target_model = model or DEFAULT_GEMINI_MODEL
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{target_model}:generateContent?key={GEMINI_API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {

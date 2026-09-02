@@ -42,7 +42,8 @@ const state = {
 // 🌐 100% 서버리스 클라이언트 엔진 (GitHub Pages + Google Sheets + Gemini)
 // =================================================================
 const SERVERLESS_CONFIG = {
-  getGeminiKey: () => localStorage.getItem('brainlock_gemini_key') || 'AIzaSyAbrfSqVrNnlXzivdVhRW8I4Gu7PWzA1Jk',
+  getModel: () => localStorage.getItem('brainlock_ai_model') || 'gemini-2.5-flash',
+  getGeminiKey: () => localStorage.getItem('brainlock_gemini_key') || '',
   getSheetUrl: () => localStorage.getItem('brainlock_sheet_url') || '',
   isStandalone: () => !window.location.origin.includes('localhost') && !window.location.origin.includes('127.0.0.1')
 };
@@ -62,10 +63,19 @@ function extractChosung(text) {
   return res;
 }
 
-// 순수 브라우저 Gemini API REST 호출
+// 순수 브라우저 Gemini API REST 호출 (동적 모델 & 실시간 키 대응)
 async function callGeminiClient(prompt, temperature = 0.9) {
   const key = SERVERLESS_CONFIG.getGeminiKey();
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
+  const model = SERVERLESS_CONFIG.getModel();
+
+  if (!key) {
+    alert('🔑 Gemini API Key가 등록되지 않았습니다!\n우측 상단 ⚙️(설정) 버튼을 눌러 본인의 Gemini API Key를 입력해주세요.\n(Google AI Studio에서 무료 발급 가능)');
+    const modal = document.getElementById('settingsModal');
+    if (modal) modal.style.display = 'flex';
+    throw new Error('API Key 누락');
+  }
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
   const payload = {
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: {
@@ -73,11 +83,24 @@ async function callGeminiClient(prompt, temperature = 0.9) {
       temperature: temperature
     }
   };
+
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    const errMsg = errData.error?.message || `HTTP ${res.status}`;
+    if (res.status === 403) {
+      alert(`⚠️ API Key 권한 오류 (${errMsg})\n우측 상단 ⚙️ 설정에서 올바른 API 키를 등록해주세요.`);
+    } else if (res.status === 404) {
+      alert(`⚠️ 선택하신 모델 [${model}]은 현재 지원되지 않거나 이름을 확인해야 합니다.\n설정에서 [Gemini 2.5 Flash]로 변경해보세요.`);
+    }
+    throw new Error(`Gemini API Error: ${errMsg}`);
+  }
+
   const json = await res.json();
   const textContent = json.candidates[0].content.parts[0].text;
   return JSON.parse(textContent);
@@ -2485,6 +2508,8 @@ function setupSettingsModal() {
   const modal = document.getElementById('settingsModal');
   const btnOpen = document.getElementById('btnOpenSettings');
   const btnClose = document.getElementById('btnCloseSettings');
+  const selectModel = document.getElementById('selectAiModel');
+  const inputKey = document.getElementById('inputGeminiKey');
   const inputUrl = document.getElementById('inputSheetUrl');
   const btnTest = document.getElementById('btnTestWebhook');
   const btnSave = document.getElementById('btnSaveSheetUrl');
@@ -2495,8 +2520,11 @@ function setupSettingsModal() {
     btnOpen.onclick = () => {
       modal.style.display = 'flex';
       resultBox.style.display = 'none';
-      // 현재 저장된 웹훅 URL 불러오기
-      fetch('/api/dashboard?user_id=1').catch(() => {});
+
+      // 저장된 설정값 불러오기
+      if (selectModel) selectModel.value = localStorage.getItem('brainlock_ai_model') || 'gemini-2.5-flash';
+      if (inputKey) inputKey.value = localStorage.getItem('brainlock_gemini_key') || '';
+      if (inputUrl) inputUrl.value = localStorage.getItem('brainlock_sheet_url') || '';
     };
   }
 
@@ -2551,29 +2579,32 @@ function setupSettingsModal() {
     };
   }
 
-  // 💾 웹훅 URL 저장
+  // 💾 전체 설정 저장 (AI 모델, API Key, 구글 시트 URL)
   if (btnSave) {
     btnSave.onclick = async () => {
-      const url = inputUrl.value.trim();
-      if (!url) {
-        alert('저장할 URL을 입력해주세요.');
-        return;
-      }
+      const selectedModel = selectModel ? selectModel.value : 'gemini-2.5-flash';
+      const key = inputKey ? inputKey.value.trim() : '';
+      const url = inputUrl ? inputUrl.value.trim() : '';
+
+      // 1. 브라우저 로컬스토리지에 영구 보관 (100% 서버리스 즉시 반영)
+      localStorage.setItem('brainlock_ai_model', selectedModel);
+      if (key) localStorage.setItem('brainlock_gemini_key', key);
+      if (url) localStorage.setItem('brainlock_sheet_url', url);
+
+      // 2. 서버가 켜져 있으면 서버 환경변수에도 저장 시도
       try {
-        const res = await fetch('/api/set-sheet-url', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url })
-        });
-        const data = await res.json();
-        if (data.success) {
-          alert('✅ Google Sheets 웹훅 URL이 성공적으로 저장되었습니다!\n이제 모든 훈련 기록이 구글 시트에 실시간 영구 보존됩니다.');
-          modal.style.display = 'none';
-          loadMainDashboard();
+        if (url) {
+          await fetch('/api/set-sheet-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+          });
         }
-      } catch (err) {
-        alert('저장 오류: ' + err);
-      }
+      } catch (e) {}
+
+      alert(`✅ 설정이 성공적으로 저장되었습니다!\n\n• AI 모델: ${selectedModel}\n• API 키: ${key ? '등록 완료' : '미등록'}\n• 시트 연동: ${url ? '설정 완료' : '미등록'}`);
+      modal.style.display = 'none';
+      loadMainDashboard();
     };
   }
 
