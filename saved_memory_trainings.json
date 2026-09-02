@@ -1,0 +1,182 @@
+{
+    "머신런닝": {
+        "date": "2026-08-16 18:35:17",
+        "quiz_data": [
+            {
+                "word": "지도 학습 (Supervised Learning)",
+                "definition": "정답(레이블)이 있는 데이터를 사용하여 모델을 학습시키는 머신러닝의 한 유형입니다.",
+                "importance_reason": "머신러닝의 가장 기본적이고 널리 사용되는 학습 방식으로, 분류 및 회귀 문제의 기초 개념이므로 시험에 필수적으로 출제됩니다.",
+                "visual_anchor": "🧑‍🏫 선생님과 학생",
+                "chosung": "ㅈㄷ ㅎㅅ (Supervised Learning)"
+            },
+            {
+                "word": "비지도 학습 (Unsupervised Learning)",
+                "definition": "정답(레이블)이 없는 데이터를 사용하여 데이터 내의 숨겨진 구조나 패턴을 찾아 학습하는 머신러닝의 한 유형입니다.",
+                "importance_reason": "데이터의 탐색 및 전처리, 군집화, 차원 축소 등에 활용되며 지도 학습과 대비되는 핵심 개념으로 시험에 자주 비교하여 출제됩니다.",
+                "visual_anchor": "🔍 탐정의 돋보기",
+                "chosung": "ㅂㅈㄷ ㅎㅅ (Unsupervised Learning)"
+            },
+            {
+                "word": "과적합 (Overfitting)",
+                "definition": "모델이 훈련 데이터에 너무 맞춰져 새로운 데이터에 대한 예측 성능이 오히려 떨어지는 현상입니다.",
+                "importance_reason": "모델 개발 시 가장 흔히 발생하는 문제 중 하나로, 이를 방지하기 위한 다양한 기법의 필요성을 이해하는 것이 중요하며 시험에서 예시와 함께 출제됩니다.",
+                "visual_anchor": "👕 너무 큰 옷",
+                "chosung": "ㄱㅈㅎ (Overfitting)"
+            },
+            {
+                "word": "정규화 (Regularization)",
+                "definition": "모델의 복잡도를 제한하여 과적합을 방지하고 일반화 성능을 향상시키기 위한 기법입니다.",
+                "importance_reason": "과적합을 해결하는 대표적인 방법론(L1, L2 정규화 등)으로, 모델 성능 개선에 필수적인 개념이며 각 정규화 기법의 특징이 출제 포인트입니다.",
+                "visual_anchor": "📏 자와 균형",
+                "chosung": "ㅈㄱㅎ (Regularization)"
+            },
+            {
+                "word": "경사 하강법 (Gradient Descent)",
+                "definition": "손실 함수(Cost Function)의 값을 최소화하는 방향으로 모델의 파라미터를 점진적으로 업데이트하는 최적화 알고리즘입니다.",
+                "importance_reason": "대부분의 머신러닝 모델, 특히 딥러닝에서 모델을 학습시키는 핵심적인 최적화 원리로, 작동 방식과 종류를 이해하는 것이 중요합니다.",
+                "visual_anchor": "⛰️ 산비탈 내려가기",
+                "chosung": "ㄱㅅ ㅎㄱㅂ (Gradient Descent)"
+            },
+            {
+                "word": "교차 검증 (Cross-Validation)",
+                "definition": "모델의 일반화 성능을 정확하게 평가하기 위해 전체 데이터를 여러 폴드로 나누어 번갈아 가며 훈련 및 테스트하는 방법입니다.",
+                "importance_reason": "모델 평가의 신뢰도를 높이고 특정 데이터셋에 대한 과적합된 평가를 방지하는 표준적인 기법으로, 다양한 교차 검증 방식의 특징이 출제됩니다.",
+                "visual_anchor": "🔄 순환하는 화살표",
+                "chosung": "ㄱㅊ ㄱㅈ (Cross-Validation)"
+            },
+            {
+                "word": "특성 공학 (Feature Engineering)",
+                "definition": "원본 데이터로부터 모델의 성능을 향상시킬 수 있는 새로운 특성(Feature)을 생성하거나 선택하는 과정입니다.",
+                "importance_reason": "모델의 입력 데이터를 최적화하여 예측 정확도를 크게 높일 수 있는 실용적이고 중요한 전처리 기법으로, 실제 데이터 분석 과정에서 필수적입니다.",
+                "visual_anchor": "🛠️ 망치와 렌치",
+                "chosung": "ㅌㅅ ㄱㅎ (Feature Engineering)"
+            },
+            {
+                "word": "혼동 행렬 (Confusion Matrix)",
+                "definition": "분류 모델의 성능을 평가하기 위해 실제 클래스와 예측 클래스 간의 관계를 표 형태로 나타낸 것입니다.",
+                "importance_reason": "분류 모델의 정확도, 정밀도, 재현율, F1-점수 등 다양한 성능 지표를 계산하는 데 기초가 되며, 시험에서 직접 계산 문제로 자주 출제됩니다.",
+                "visual_anchor": "📊 4분할된 표",
+                "chosung": "ㅎㄷ ㅎㄹ (Confusion Matrix)"
+            },
+            {
+                "word": "활성화 함수 (Activation Function)",
+                "definition": "인공 신경망에서 뉴런의 출력 값을 다음 뉴런으로 전달할 때 비선형성을 도입하여 모델의 표현력을 높이는 함수입니다.",
+                "importance_reason": "신경망이 복잡한 패턴을 학습할 수 있게 하는 핵심 요소로, ReLU, Sigmoid, Tanh 등 다양한 종류와 그 특성, 장단점을 이해하는 것이 중요합니다.",
+                "visual_anchor": "🎢 롤러코스터 트랙",
+                "chosung": "ㅎㅅㅎ ㅎㅅ (Activation Function)"
+            },
+            {
+                "word": "역전파 (Backpropagation)",
+                "definition": "신경망의 출력 오차를 이용하여 가중치와 편향을 업데이트하기 위해 오차를 네트워크의 역방향으로 전파시키는 알고리즘입니다.",
+                "importance_reason": "딥러닝 모델을 효과적으로 학습시키는 데 사용되는 핵심 알고리즘으로, 신경망 학습의 근간을 이루므로 작동 원리를 숙지해야 합니다.",
+                "visual_anchor": "⬅️ 뒤로 돌아가는 화살표",
+                "chosung": "ㅇㅈㅍ (Backpropagation)"
+            }
+        ],
+        "user_story": "지도 할거냐 비지도 할거냐 화물에 과적한상태에서 경사 하강한 화물차를 봤다는 걸 보고 교차검증을 해야했다.  이런 화물차의 공학적 특성은 혼돈 스럽다.  또는 이것을 다른 화물차에게 자랑하듯 역전파하거나 활성화 한다는데 있다.",
+        "history": [
+            {
+                "date": "2026-08-16 09:35:05",
+                "memorize_sec": "104.1",
+                "test_sec": "45.9",
+                "correct": 8,
+                "total": 10,
+                "accuracy": 80
+            }
+        ]
+    },
+    "머신런닝 심화": {
+        "date": "2026-08-18 10:44:17",
+        "quiz_data": [
+            {
+                "word": "역전파 (Backpropagation)",
+                "definition": "신경망의 가중치를 업데이트하기 위해 손실 함수의 기울기를 효율적으로 계산하는 알고리즘입니다.",
+                "importance_reason": "딥러닝 모델 학습의 핵심 원리로, 다층 신경망의 가중치 최적화 과정에 대한 이해를 묻는 문제가 자주 출제됩니다.",
+                "visual_anchor": "⚙️ 신경망 내부 신호 흐름",
+                "chosung": "ㅇㅈㅍ (Backpropagation)"
+            },
+            {
+                "word": "경사 하강법 (Gradient Descent)",
+                "definition": "모델의 손실 함수 값을 최소화하기 위해 가중치를 손실 함수의 음의 기울기 방향으로 점진적으로 업데이트하는 최적화 알고리즘입니다.",
+                "importance_reason": "다양한 머신러닝 및 딥러닝 모델의 기본 최적화 방법이며, 확률적 경사 하강법(SGD), Adam 등 파생 알고리즘과 함께 심층적으로 다뤄집니다.",
+                "visual_anchor": "⛰️ 산비탈을 내려가는 사람",
+                "chosung": "ㄱㅅ ㅎㄱㅂ (Gradient Descent)"
+            },
+            {
+                "word": "과적합 (Overfitting)",
+                "definition": "모델이 훈련 데이터에 너무 잘 맞춰져 새로운, 보지 못한 데이터에 대한 예측 성능이 오히려 떨어지는 현상입니다.",
+                "importance_reason": "머신러닝 모델의 일반화 성능을 저해하는 가장 중요한 문제이며, 이를 식별하고 해결하는 다양한 기법에 대한 이해가 필수적입니다.",
+                "visual_anchor": "🧤 너무 꽉 끼는 장갑",
+                "chosung": "ㄱㅈㅎ (Overfitting)"
+            },
+            {
+                "word": "정규화 (Regularization)",
+                "definition": "모델의 복잡도를 제어하고 과적합을 방지하여 일반화 성능을 향상시키는 기법으로, 주로 손실 함수에 패널티 항을 추가하는 방식입니다.",
+                "importance_reason": "L1, L2 정규화, 드롭아웃 등 다양한 정규화 기법의 원리와 적용 방법에 대한 이해는 모델의 안정성과 성능을 보장하는 데 중요합니다.",
+                "visual_anchor": "⚖️ 균형을 잡는 저울",
+                "chosung": "ㅈㄱㅎ (Regularization)"
+            },
+            {
+                "word": "컨볼루션 신경망 (Convolutional Neural Network, CNN)",
+                "definition": "이미지, 비디오 등 그리드 형태의 데이터 처리에 특화된 딥러닝 모델로, 컨볼루션 계층을 통해 특징을 추출합니다.",
+                "importance_reason": "컴퓨터 비전 분야의 핵심 아키텍처이며, 특징 맵, 필터, 풀링 등 CNN의 구성 요소와 작동 원리를 묻는 문제가 자주 출제됩니다.",
+                "visual_anchor": "📸 돋보기로 이미지 특징 보는 카메라",
+                "chosung": "ㅋㅂㄹㅅ ㅅㄱㅁ (Convolutional Neural Network, CNN)"
+            },
+            {
+                "word": "순환 신경망 (Recurrent Neural Network, RNN)",
+                "definition": "시퀀스 데이터를 처리하는 데 적합한 딥러닝 모델로, 이전 단계의 정보를 기억하고 다음 단계의 예측에 활용하는 순환 구조를 가집니다.",
+                "importance_reason": "자연어 처리, 시계열 예측 등 순차 데이터 분석의 기본 모델이며, 장단기 기억(LSTM), 게이트 순환 유닛(GRU) 등 파생 모델의 필요성과 구조를 이해해야 합니다.",
+                "visual_anchor": "🔄 반복되는 고리 체인",
+                "chosung": "ㅅㅎ ㅅㄱㅁ (Recurrent Neural Network, RNN)"
+            },
+            {
+                "word": "트랜스포머 (Transformer)",
+                "definition": "어텐션(Attention) 메커니즘만을 사용하여 시퀀스 데이터의 장거리 의존성을 효과적으로 모델링하는 딥러닝 아키텍처입니다.",
+                "importance_reason": "자연어 처리 분야의 패러다임을 바꾼 모델로, 셀프 어텐션의 원리, 인코더-디코더 구조, Positional Encoding 등 고급 개념을 이해하는 것이 중요합니다.",
+                "visual_anchor": "💡 여러 곳을 동시에 비추는 서치라이트",
+                "chosung": "ㅌㄹㅅㅍㅁ (Transformer)"
+            },
+            {
+                "word": "생성적 적대 신경망 (Generative Adversarial Network, GAN)",
+                "definition": "생성자(Generator)와 판별자(Discriminator)가 서로 경쟁하며 학습하여 실제와 유사한 데이터를 생성하는 딥러닝 모델입니다.",
+                "importance_reason": "이미지 생성, 스타일 변환 등 다양한 분야에서 혁신적인 성과를 보여주며, GAN의 학습 과정, 목적 함수, 다양한 변형 모델에 대한 심층적 이해가 요구됩니다.",
+                "visual_anchor": "🎨 위조 지폐 만드는 예술가와 감정사",
+                "chosung": "ㅅㅅㅈ ㅈㄷ ㅅㄱㅁ (Generative Adversarial Network, GAN)"
+            },
+            {
+                "word": "전이 학습 (Transfer Learning)",
+                "definition": "특정 작업에서 학습된 모델의 가중치를 다른 유사한 작업의 새로운 모델 초기값으로 사용하여 학습 효율과 성능을 높이는 기법입니다.",
+                "importance_reason": "실제 머신러닝 프로젝트에서 매우 흔하게 사용되는 실용적인 기법이며, 사전 학습 모델의 활용법, 미세 조정(Fine-tuning) 전략에 대한 이해가 중요합니다.",
+                "visual_anchor": "🏗️ 재활용 가능한 부품을 사용하는 건축 현장",
+                "chosung": "ㅈㅇ ㅎㅅ (Transfer Learning)"
+            },
+            {
+                "word": "강화 학습 (Reinforcement Learning)",
+                "definition": "에이전트가 환경과 상호작용하며 시행착오를 통해 최적의 행동 정책을 학습하는 머신러닝 패러다임입니다.",
+                "importance_reason": "게임, 로봇 제어, 자율 주행 등 의사 결정이 필요한 분야의 핵심 기술이며, 보상, 상태, 행동, 정책, 가치 함수 등 강화 학습의 기본 요소와 알고리즘에 대한 이해가 중요합니다.",
+                "visual_anchor": "🕹️ 게임 캐릭터가 레벨업하는 모습",
+                "chosung": "ㄱㅎ ㅎㅅ (Reinforcement Learning)"
+            }
+        ],
+        "user_story": "정규화 과정을 통해 수술을 하는 순환하는 혈관을  따라  컨 볼 루 션 신경망을 잘 확인하는 수술이다.  이게 수술이 사람이 아니고 트랜스 포머인데 그로인해 생성적 적대 를 하고 그것이 다른 로봇에 전이 학습되는 부작용이 생겼다.  그것이 강화되고 ㅣ결국파국을 맞이했다.",
+        "history": [
+            {
+                "date": "2026-08-18 01:38:12",
+                "memorize_sec": "77.4",
+                "test_sec": "73.2",
+                "correct": 4,
+                "total": 10,
+                "accuracy": 40
+            },
+            {
+                "date": "2026-08-18 01:43:43",
+                "memorize_sec": "431.5",
+                "test_sec": "64.1",
+                "correct": 9,
+                "total": 10,
+                "accuracy": 90
+            }
+        ]
+    }
+}
