@@ -148,7 +148,7 @@ class MemoryAppHandler(SimpleHTTPRequestHandler):
             except Exception as e:
                 return self._send_json({"error": f"공간기억 저장 실패: {e}"}, status=500)
 
-        # [신규] 7-3. 두뇌 활성 스도쿠 훈련 자동 저장 API
+        # 8. 두뇌 스도쿠 훈련 자동 저장 API
         elif path == "/api/save-sudoku":
             user_id = int(data.get("user_id", 1))
             try:
@@ -162,6 +162,62 @@ class MemoryAppHandler(SimpleHTTPRequestHandler):
                 return self._send_json({"success": True, "session_id": session_id})
             except Exception as e:
                 return self._send_json({"error": f"스도쿠 저장 실패: {e}"}, status=500)
+
+        # 9. 🗑️ 단어장 영구 삭제 API
+        elif path == "/api/delete-training":
+            title = data.get("title", "").strip()
+            user_id = int(data.get("user_id", 1))
+            if not title:
+                return self._send_json({"error": "삭제할 단어장 제목이 없습니다."}, status=400)
+            db.delete_training(title, user_id=user_id)
+            return self._send_json({"success": True, "deleted_title": title})
+
+        # 10. 🧹 전체 훈련 로그 초기화 API
+        elif path == "/api/clear-logs":
+            user_id = int(data.get("user_id", 1))
+            db.clear_all_logs(user_id=user_id)
+            return self._send_json({"success": True, "message": "모든 훈련 로그가 초기화되었습니다."})
+
+        # 11. 🔗 구글 시트 웹훅 연결 핑(Ping) 테스트 API
+        elif path == "/api/test-sheet-webhook":
+            test_url = data.get("url", "").strip() or db.get_google_sheet_url()
+            if not test_url:
+                return self._send_json({"success": False, "error": "웹훅 URL이 입력되지 않았습니다."}, status=400)
+            import time
+            start_t = time.time()
+            try:
+                req = urllib.request.Request(
+                    test_url,
+                    data=json.dumps({"type": "ping"}).encode("utf-8"),
+                    headers={"Content-Type": "application/json"}
+                )
+                with urllib.request.urlopen(req, timeout=8) as res:
+                    latency = round((time.time() - start_t) * 1000)
+                    resp_json = json.loads(res.read().decode("utf-8"))
+                    return self._send_json({
+                        "success": True,
+                        "latency_ms": latency,
+                        "server_response": resp_json
+                    })
+            except Exception as e:
+                return self._send_json({
+                    "success": False,
+                    "error": f"웹훅 연결 실패: {e}"
+                }, status=500)
+
+        # 12. ⚙️ 구글 시트 URL 저장/업데이트 API
+        elif path == "/api/set-sheet-url":
+            new_url = data.get("url", "").strip()
+            env_path = os.path.join(BASE_DIR, ".env")
+            lines = []
+            if os.path.exists(env_path):
+                with open(env_path, "r", encoding="utf-8") as f:
+                    lines = [l for l in f if not l.startswith("GOOGLE_SHEET_URL=")]
+            lines.append(f"GOOGLE_SHEET_URL={new_url}\n")
+            with open(env_path, "w", encoding="utf-8") as f:
+                f.writelines(lines)
+            os.environ["GOOGLE_SHEET_URL"] = new_url
+            return self._send_json({"success": True, "url": new_url})
 
         # 8. 수동 세트 저장 API
         elif path == "/api/save":

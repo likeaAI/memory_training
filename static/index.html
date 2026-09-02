@@ -40,6 +40,7 @@
             <button id="btnLogout" class="btn-logout-chip" title="로그아웃">로그아웃</button>
           </div>
         </div>
+        <button id="btnOpenSettings" class="btn-icon" title="구글 시트 DB 웹훅 설정">⚙️</button>
         <button id="btnToggleTheme" class="btn-icon" title="다크/라이트 테마 변경">🌓</button>
       </div>
     </header>
@@ -779,6 +780,36 @@
 
       </main>
     </div> <!-- .app-layout -->
+
+    <!-- ⚙️ 구글 시트 DB 웹훅 및 데이터 관리 모달 -->
+    <div id="settingsModal" class="modal-overlay" style="display:none;">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>⚙️ Google Sheets DB & 시스템 설정</h3>
+          <button id="btnCloseSettings" class="btn-icon">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label for="inputSheetUrl"><strong>🔗 구글 시트 웹 앱 URL</strong></label>
+            <input type="text" id="inputSheetUrl" placeholder="https://script.google.com/macros/s/.../exec" style="width:100%; padding:10px; margin-top:6px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:var(--radius-md); color:var(--text-primary); font-size:13px;">
+            <span class="help-text" style="font-size:11px; color:var(--text-muted); display:block; margin-top:4px;">구글 시트 Apps Script에서 배포한 웹 앱 URL을 입력하세요.</span>
+          </div>
+
+          <div style="display:flex; gap:10px; margin-bottom: 20px;">
+            <button id="btnTestWebhook" class="btn-secondary btn-sm" style="flex:1;">🔗 연결 핑 테스트</button>
+            <button id="btnSaveSheetUrl" class="btn-primary btn-sm" style="flex:1;">💾 URL 저장</button>
+          </div>
+
+          <div id="webhookTestResult" class="test-result-box" style="display:none; padding:10px; border-radius:var(--radius-md); font-size:12px; margin-bottom:20px;"></div>
+
+          <div class="modal-divider" style="border-top:1px dashed var(--border-color); padding-top:16px; margin-top:16px;">
+            <label style="color:var(--error); font-weight:800; font-size:13px;">⚠️ 위험 구역 (데이터 초기화)</label>
+            <p style="font-size:11px; color:var(--text-muted); margin:4px 0 10px;">전체 훈련 로그를 초기화합니다 (단어장 보관함은 유지됩니다).</p>
+            <button id="btnClearAllLogs" class="btn-secondary btn-sm" style="color:var(--error); border-color:var(--error); width:100%;">🧹 전체 훈련 세션 로그 초기화</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- 로딩 오버레이 -->
     <div id="loadingOverlay" class="loading-overlay">

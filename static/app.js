@@ -85,6 +85,7 @@ function switchView(viewName) {
 document.addEventListener('DOMContentLoaded', () => {
   setupThemeToggle();
   setupAuth();
+  setupSettingsModal();
   setupModeSwitcher();
   setupSpatialGame();
   setupSudokuGame();
@@ -1634,9 +1635,14 @@ async function loadMainDashboard() {
             <td>${hasStory}</td>
             <td>${timeStr}</td>
             <td>
-              <button class="btn-primary btn-sm btn-train-set" data-title="${title}" style="padding: 4px 12px; font-size: 12px;">
-                🚀 바로 훈련하기 ➔
-              </button>
+              <div style="display:flex; gap:6px;">
+                <button class="btn-primary btn-sm btn-train-set" data-title="${title}" style="padding: 4px 10px; font-size: 11px;">
+                  🚀 훈련 ➔
+                </button>
+                <button class="btn-delete-chip btn-delete-set" data-title="${title}" title="단어장 삭제">
+                  🗑️
+                </button>
+              </div>
             </td>
           `;
 
@@ -1644,6 +1650,13 @@ async function loadMainDashboard() {
             state.sessionData = item;
             renderPrepareView();
             switchView('viewPrepare');
+          };
+
+          tr.querySelector('.btn-delete-set').onclick = async (e) => {
+            e.stopPropagation();
+            if (confirm(`'${title}' 단어장을 정말 영구 삭제하시겠습니까?\n(구글 시트와 로컬 DB 모두에서 삭제됩니다)`)) {
+              await deleteTrainingSet(title);
+            }
           };
 
           savedTableBody.appendChild(tr);
@@ -2191,11 +2204,156 @@ function createPuzzleFromSolution(solutionBoard, blanksCount) {
     [positions[i], positions[j]] = [positions[j], positions[i]];
   }
 
-  for (let i = 0; i < blanksCount && i < positions.length; i++) {
-    const { r, c } = positions[i];
-    puzzle[r][c] = 0;
+// =================================================================
+// 🗑️ 단어장 삭제 유틸리티 (SQLite + Google Sheets 양방향 삭제)
+// =================================================================
+async function deleteTrainingSet(title) {
+  try {
+    const userId = state.currentUser ? state.currentUser.user_id : 1;
+    toggleLoading(true, `'${title}' 단어장을 삭제하는 중입니다...`);
+    const res = await fetch('/api/delete-training', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, user_id: userId })
+    });
+    toggleLoading(false);
+    const data = await res.json();
+    if (data.success) {
+      alert(`'${title}' 단어장이 정상적으로 삭제되었습니다.`);
+      await loadMainDashboard();
+      await loadSavedList();
+    } else {
+      alert('삭제 실패: ' + (data.error || '알 수 없는 오류'));
+    }
+  } catch (err) {
+    toggleLoading(false);
+    alert('삭제 통신 오류: ' + err);
+  }
+}
+
+// =================================================================
+// ⚙️ Google Sheets DB 웹훅 설정 및 관리 모달 유틸리티
+// =================================================================
+function setupSettingsModal() {
+  const modal = document.getElementById('settingsModal');
+  const btnOpen = document.getElementById('btnOpenSettings');
+  const btnClose = document.getElementById('btnCloseSettings');
+  const inputUrl = document.getElementById('inputSheetUrl');
+  const btnTest = document.getElementById('btnTestWebhook');
+  const btnSave = document.getElementById('btnSaveSheetUrl');
+  const resultBox = document.getElementById('webhookTestResult');
+  const btnClearLogs = document.getElementById('btnClearAllLogs');
+
+  if (btnOpen && modal) {
+    btnOpen.onclick = () => {
+      modal.style.display = 'flex';
+      resultBox.style.display = 'none';
+      // 현재 저장된 웹훅 URL 불러오기
+      fetch('/api/dashboard?user_id=1').catch(() => {});
+    };
   }
 
-  return puzzle;
+  if (btnClose && modal) {
+    btnClose.onclick = () => {
+      modal.style.display = 'none';
+    };
+  }
+
+  // 모달 바깥 클릭 시 닫기
+  if (modal) {
+    modal.onclick = (e) => {
+      if (e.target === modal) modal.style.display = 'none';
+    };
+  }
+
+  // 🔗 웹훅 연결 테스트 (Ping)
+  if (btnTest) {
+    btnTest.onclick = async () => {
+      const url = inputUrl.value.trim();
+      if (!url) {
+        alert('테스트할 구글 시트 웹 앱 URL을 먼저 입력해주세요.');
+        return;
+      }
+
+      resultBox.style.display = 'block';
+      resultBox.style.background = 'rgba(59, 130, 246, 0.1)';
+      resultBox.style.color = '#3b82f6';
+      resultBox.innerText = '구글 시트 웹훅 서버로 핑을 전송하고 있습니다...';
+
+      try {
+        const res = await fetch('/api/test-sheet-webhook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        const data = await res.json();
+        if (data.success) {
+          resultBox.style.background = 'rgba(16, 185, 129, 0.12)';
+          resultBox.style.color = '#10b981';
+          resultBox.innerHTML = `<strong>🟢 연동 성공! (응답 지연: ${data.latency_ms}ms)</strong><br>${data.server_response.message || 'Google Sheets DB와 완벽하게 통신되었습니다.'}`;
+        } else {
+          resultBox.style.background = 'rgba(239, 68, 68, 0.12)';
+          resultBox.style.color = '#ef4444';
+          resultBox.innerHTML = `<strong>❌ 연결 실패:</strong> ${data.error}<br><small>Google Apps Script 배포 시 '액세스 권한: 모든 사용자(Anyone)'로 설정했는지 확인하세요.</small>`;
+        }
+      } catch (err) {
+        resultBox.style.background = 'rgba(239, 68, 68, 0.12)';
+        resultBox.style.color = '#ef4444';
+        resultBox.innerText = '통신 에러: ' + err;
+      }
+    };
+  }
+
+  // 💾 웹훅 URL 저장
+  if (btnSave) {
+    btnSave.onclick = async () => {
+      const url = inputUrl.value.trim();
+      if (!url) {
+        alert('저장할 URL을 입력해주세요.');
+        return;
+      }
+      try {
+        const res = await fetch('/api/set-sheet-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('✅ Google Sheets 웹훅 URL이 성공적으로 저장되었습니다!\n이제 모든 훈련 기록이 구글 시트에 실시간 영구 보존됩니다.');
+          modal.style.display = 'none';
+          loadMainDashboard();
+        }
+      } catch (err) {
+        alert('저장 오류: ' + err);
+      }
+    };
+  }
+
+  // 🧹 전체 훈련 로그 초기화
+  if (btnClearLogs) {
+    btnClearLogs.onclick = async () => {
+      if (confirm('⚠️ 정말로 모든 훈련 로그를 초기화하시겠습니까?\n(SQLite 및 구글 시트의 로그가 모두 삭제되며 복구할 수 없습니다)')) {
+        try {
+          const userId = state.currentUser ? state.currentUser.user_id : 1;
+          const res = await fetch('/api/clear-logs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId })
+          });
+          const data = await res.json();
+          if (data.success) {
+            alert('모든 훈련 로그가 깔끔하게 초기화되었습니다.');
+            modal.style.display = 'none';
+            await loadMainDashboard();
+            await loadSavedList();
+          }
+        } catch (err) {
+          alert('초기화 통신 오류: ' + err);
+        }
+      }
+    };
+  }
 }
+
 

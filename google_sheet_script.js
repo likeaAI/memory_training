@@ -76,6 +76,43 @@ function doPost(e) {
     const type = data.type;
     const nowStr = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd HH:mm:ss');
 
+    // 1. 🔗 웹훅 연결 테스트 (Ping)
+    if (type === 'ping') {
+      return ContentService.createTextOutput(JSON.stringify({
+        status: 'success',
+        message: 'Google Sheets DB 웹훅이 정상 작동 중입니다!',
+        timestamp: nowStr
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 2. 🗑️ 단어장 영구 삭제
+    if (type === 'delete_training') {
+      const sheet = ss.getSheetByName('단어장_보관함');
+      let deleted = false;
+      if (sheet) {
+        const rows = sheet.getDataRange().getValues();
+        for (let i = rows.length - 1; i >= 1; i--) {
+          if (rows[i][1] === data.title) { // 2번째 열(제목)
+            sheet.deleteRow(i + 1);
+            deleted = true;
+          }
+        }
+      }
+      return ContentService.createTextOutput(JSON.stringify({ status: 'success', deleted: deleted })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 3. 🧹 전체 훈련 로그 초기화
+    if (type === 'clear_all_logs') {
+      ['개념훈련_로그', '공간기억_로그', '스도쿠_로그'].forEach(name => {
+        const sheet = ss.getSheetByName(name);
+        if (sheet && sheet.getLastRow() > 1) {
+          sheet.deleteRows(2, sheet.getLastRow() - 1);
+        }
+      });
+      return ContentService.createTextOutput(JSON.stringify({ status: 'success', message: '로그가 모두 초기화되었습니다.' })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 4. 일반 데이터 저장
     if (type === 'save_training') {
       appendRow(ss, '단어장_보관함', [nowStr, data.title, data.word_count, JSON.stringify(data.quiz_data), data.user_story || '']);
     } else if (type === 'log_concept') {

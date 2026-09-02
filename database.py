@@ -279,6 +279,38 @@ def save_or_update_training(title, quiz_data, user_story="", source_type="topic"
 
     return training_id
 
+def delete_training(title, user_id=1):
+    """단어 세트 삭제 (SQLite + 구글 시트 양방향 삭제)"""
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("DELETE FROM trainings WHERE title = ? AND (user_id = ? OR user_id = 1)", (title, user_id))
+    cur.execute("DELETE FROM training_sessions WHERE title = ? AND (user_id = ? OR user_id = 1)", (title, user_id))
+    conn.commit()
+    conn.close()
+
+    # 🌐 구글 시트에서도 비동기 행 삭제
+    async_send_to_google_sheet({
+        "type": "delete_training",
+        "title": title
+    })
+    return True
+
+def clear_all_logs(user_id=1):
+    """전체 훈련 로그 초기화 (SQLite + 구글 시트 양방향)"""
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("DELETE FROM training_sessions WHERE user_id = ? OR user_id = 1", (user_id,))
+    cur.execute("DELETE FROM spatial_memory_sessions WHERE user_id = ? OR user_id = 1", (user_id,))
+    cur.execute("DELETE FROM sudoku_sessions WHERE user_id = ? OR user_id = 1", (user_id,))
+    conn.commit()
+    conn.close()
+
+    # 🌐 구글 시트 로그 시트도 초기화
+    async_send_to_google_sheet({
+        "type": "clear_all_logs"
+    })
+    return True
+
 def auto_save_session(session_data, user_id=1):
     """시험 종료 즉시 SQLite 세션 자동 영구 저장"""
     conn = sqlite3.connect(DB_FILE)
