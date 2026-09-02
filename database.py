@@ -1,10 +1,63 @@
 import os
 import json
 import sqlite3
+import urllib.request
+import threading
 from utils import hash_password
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_FILE = os.path.join(BASE_DIR, "memory_app.db")
+
+# .env 및 환경변수에서 구글 시트 웹 앱 URL 자동 로드
+def get_google_sheet_url():
+    url = os.environ.get("GOOGLE_SHEET_URL", "")
+    if url:
+        return url.strip()
+    env_path = os.path.join(BASE_DIR, ".env")
+    if os.path.exists(env_path):
+        try:
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("GOOGLE_SHEET_URL="):
+                        return line.split("=", 1)[1].strip()
+        except Exception:
+            pass
+    return ""
+
+GOOGLE_SHEET_URL = get_google_sheet_url()
+
+# 🌐 백그라운드 스레드 비동기 전송 (사용자 UI 지연 0초!)
+def async_send_to_google_sheet(payload):
+    def _worker():
+        sheet_url = get_google_sheet_url()
+        if not sheet_url:
+            return
+        try:
+            req = urllib.request.Request(
+                sheet_url,
+                data=json.dumps(payload, ensure_ascii=False).encode('utf-8'),
+                headers={'Content-Type': 'application/json'}
+            )
+            urllib.request.urlopen(req, timeout=10)
+        except Exception as e:
+            print(f"[GoogleSheetSync] 전송 오류(무시됨): {e}")
+
+    threading.Thread(target=_worker, daemon=True).start()
+
+# 🌐 구글 시트에서 온디맨드 전체 데이터 조회
+def fetch_google_sheet_data():
+    sheet_url = get_google_sheet_url()
+    if not sheet_url:
+        return None
+    try:
+        url = f"{sheet_url}?action=get_all"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=8) as res:
+            return json.loads(res.read().decode('utf-8'))
+    except Exception as e:
+        print(f"[GoogleSheetSync] 조회 실패 (SQLite 폴백): {e}")
+        return None
 
 # =================================================================
 # 🗄️ SQLite 데이터베이스 초기화 및 자동 마이그레이션
@@ -214,6 +267,16 @@ def save_or_update_training(title, quiz_data, user_story="", source_type="topic"
     
     conn.commit()
     conn.close()
+
+    # 🌐 구글 시트 비동기 영구 저장 (백그라운드 전송)
+    async_send_to_google_sheet({
+        "type": "save_training",
+        "title": title,
+        "word_count": len(quiz_data),
+        "quiz_data": quiz_data,
+        "user_story": user_story
+    })
+
     return training_id
 
 def auto_save_session(session_data, user_id=1):
@@ -263,6 +326,18 @@ def auto_save_session(session_data, user_id=1):
     session_id = cur.lastrowid
     conn.commit()
     conn.close()
+
+    # 🌐 구글 시트 비동기 영구 저장 (백그라운드 전송)
+    async_send_to_google_sheet({
+        "type": "log_concept",
+        "title": title,
+        "accuracy": acc,
+        "correct_words": correct,
+        "total_words": total,
+        "memorize_sec": mem_sec,
+        "test_sec": test_sec
+    })
+
     return session_id
 
 def auto_save_spatial_session(user_id, grid_size, target_count, exposure_sec, reaction_time_ms, is_success, cleared_count):
@@ -277,6 +352,16 @@ def auto_save_spatial_session(user_id, grid_size, target_count, exposure_sec, re
     session_id = cur.lastrowid
     conn.commit()
     conn.close()
+
+    # 🌐 구글 시트 비동기 영구 저장 (백그라운드 전송)
+    async_send_to_google_sheet({
+        "type": "log_spatial",
+        "grid_size": grid_size,
+        "target_count": target_count,
+        "is_success": 1 if is_success else 0,
+        "reaction_time_ms": reaction_time_ms
+    })
+
     return session_id
 
 def get_spatial_dashboard(user_id=1):
@@ -292,7 +377,6 @@ def get_spatial_dashboard(user_id=1):
         LIMIT 40
     """, (user_id,))
     rows = cur.fetchall()
-    
     history = [dict(r) for r in rows]
     
     # 최고 기억 용량 (최대 성공 숫자 수)
@@ -303,8 +387,20 @@ def get_spatial_dashboard(user_id=1):
         WHERE user_id = ? OR user_id = 1
     """, (user_id,))
     stats = dict(cur.fetchone() or {})
-    
     conn.close()
+
+    # 구글 시트에 원격 데이터가 있으면 병합
+    sheet_data = fetch_google_sheet_data()
+    if sheet_data and sheet_data.get("spatial_history"):
+        remote_history = sheet_data.get("spatial_history", [])
+        if len(remote_history) > len(history):
+            history = remote_history
+            wins = sum(1 for h in history if h.get("is_success") == 1)
+            stats["total_plays"] = len(history)
+            stats["total_wins"] = wins
+            spans = [h.get("target_count", 0) for h in history if h.get("is_success") == 1]
+            stats["max_span"] = max(spans) if spans else 0
+    
     return {
         "history": history,
         "max_span": stats.get("max_span") or 0,
@@ -356,8 +452,19 @@ def get_dashboard_data(user_id=1):
             "user_story": t["user_story"],
             "created_at": t["created_at"]
         }
-    
     conn.close()
+
+    # 🌐 구글 시트 원격 데이터가 있으면 우선 병합
+    sheet_data = fetch_google_sheet_data()
+    if sheet_data:
+        if sheet_data.get("trainings"):
+            for k, v in sheet_data["trainings"].items():
+                trainings[k] = v
+        if sheet_data.get("concept_sessions"):
+            remote_sessions = sheet_data["concept_sessions"]
+            if len(remote_sessions) > len(sessions):
+                sessions = remote_sessions
+    
     return {
         "sessions": sessions,
         "trainings": trainings
@@ -375,6 +482,16 @@ def auto_save_sudoku_session(user_id, difficulty, clear_time_sec, hints_used=0, 
     session_id = cur.lastrowid
     conn.commit()
     conn.close()
+
+    # 🌐 구글 시트 비동기 영구 저장 (백그라운드 전송)
+    async_send_to_google_sheet({
+        "type": "log_sudoku",
+        "difficulty": difficulty,
+        "clear_time_sec": clear_time_sec,
+        "hints_used": hints_used,
+        "is_cleared": is_cleared
+    })
+
     return session_id
 
 def get_sudoku_dashboard(user_id=1):
@@ -399,8 +516,19 @@ def get_sudoku_dashboard(user_id=1):
         WHERE (user_id = ? OR user_id = 1) AND is_cleared = 1
     """, (user_id,))
     stats = dict(cur.fetchone() or {})
-    
     conn.close()
+
+    # 구글 시트에 원격 데이터가 있으면 병합
+    sheet_data = fetch_google_sheet_data()
+    if sheet_data and sheet_data.get("sudoku_history"):
+        remote_history = sheet_data.get("sudoku_history", [])
+        if len(remote_history) > len(history):
+            history = remote_history
+            cleared_times = [h["clear_time_sec"] for h in history if h.get("is_cleared") == 1]
+            stats["total_clears"] = len(cleared_times)
+            stats["best_time"] = min(cleared_times) if cleared_times else 0
+            stats["avg_time"] = round(sum(cleared_times) / len(cleared_times), 1) if cleared_times else 0
+    
     return {
         "history": history,
         "best_time": stats.get("best_time") or 0,
