@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#4f46e5">
+  <link rel="manifest" href="/manifest.json">
+  <title>BrainLock - 초집중 AI 기억술 훈련</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- 앱 헤더 -->
+    <header class="app-header">
+      <div class="logo-area">
+        <span class="logo-icon">🧠</span>
+        <h1>BrainLock</h1>
+        <span class="badge">Focus AI</span>
+      </div>
+
+      <!-- [개편] 훈련 대분류 & 대시보드 모드 전환 네비게이션 -->
+      <div class="nav-mode-switcher">
+        <button id="btnModeDashboard" class="mode-nav-btn active">🏠 종합 대시보드</button>
+        <button id="btnModeConcept" class="mode-nav-btn">🧠 AI 개념 연상술</button>
+        <button id="btnModeSpatial" class="mode-nav-btn">⚡ 공간 순간 기억력</button>
+        <button id="btnModeSudoku" class="mode-nav-btn">🔢 두뇌 활성 스도쿠</button>
+      </div>
+
+      <!-- [우측 상단] 마스터 로그인 정보 & 글로벌 도구 -->
+      <div class="header-actions">
+        <div class="user-auth-bar" id="userAuthBar">
+          <div class="user-profile-chip" id="userProfileChip" style="display:none;">
+            <span class="user-avatar">👑</span>
+            <span class="user-name" id="displayUsername">마스터</span>
+            <button id="btnLogout" class="btn-logout-chip" title="로그아웃">로그아웃</button>
+          </div>
+        </div>
+        <button id="btnOpenSettings" class="btn-icon" title="구글 시트 DB 웹훅 설정">⚙️</button>
+        <button id="btnToggleTheme" class="btn-icon" title="다크/라이트 테마 변경">🌓</button>
+      </div>
+    </header>
+
+    <!-- [마스터 게이트웨이] 마스터 전용 로그인 뷰 (미인증 시 이 화면만 노출) -->
+    <section id="viewAuth" class="view active">
+      <div class="auth-hero-card">
+        <div class="auth-hero-header">
+          <span class="auth-logo-icon">👑</span>
+          <h2>BrainLock 마스터 게이트웨이</h2>
+          <p class="subtitle">마스터 관리자 권한 계정으로 로그인하세요</p>
+        </div>
+
+        <div class="auth-card-box">
+          <form id="authForm" class="auth-form">
+            <div class="form-group">
+              <label for="authUsername">마스터 아이디</label>
+              <input type="text" id="authUsername" placeholder="아이디를 입력하세요 (기본: admin)" value="admin" required autofocus>
+            </div>
+            <div class="form-group">
+              <label for="authPassword">비밀번호</label>
+              <input type="password" id="authPassword" placeholder="비밀번호를 입력하세요 (기본: admin1234)" value="admin1234" required>
+            </div>
+            <button type="submit" id="btnSubmitAuth" class="btn-primary btn-hero">
+              👑 마스터 접속하기 ➔
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- 메인 컨텐츠 영역 (2열 레이아웃 - 로그인 성공 시에만 활성화) -->
+    <div class="app-layout" id="mainAppLayout" style="display:none;">
+      
+      <!-- [좌측 패널] 훈련 기록 + 저장된 단어장 라이브러리 (상시 노출) -->
+      <aside class="history-sidebar">
+        <!-- 1. 실시간 훈련 세션 기록 -->
+        <div class="sidebar-header">
+          <h3>📊 실시간 훈련 기록</h3>
+          <span class="history-badge" id="historyCount">0회</span>
+        </div>
+        <div class="history-summary" id="historySummaryBox">
+          <div class="summary-stat">
+            <span class="stat-label">평균 정답률</span>
+            <strong id="avgAccuracy">-%</strong>
+          </div>
+          <div class="summary-stat">
+            <span class="stat-label">평균 암기속도</span>
+            <strong id="avgMemTime">-초</strong>
+          </div>
+        </div>
+        <div class="history-list" id="sidebarHistoryList" style="max-height: 220px; overflow-y: auto;">
+          <p class="empty-history">아직 훈련 기록이 없습니다.<br>첫 단어장을 생성해보세요!</p>
+        </div>
+
+        <!-- 2. [좌측 하단] 영구 저장된 단어장 보관함 -->
+        <div class="sidebar-header" style="margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--border-color);">
+          <h3>📁 저장된 단어장</h3>
+          <span class="history-badge" id="sidebarSavedCount" style="background: rgba(59,130,246,0.15); color: #3b82f6;">0개</span>
+        </div>
+        <div class="history-list" id="sidebarSavedList" style="max-height: 220px; overflow-y: auto;">
+          <p class="empty-history">저장된 단어장이 없습니다.</p>
+        </div>
+      </aside>
+
+      <!-- [우측 메인 영역] 뷰 전환 영역 -->
+      <main class="main-content">
+        
+        <!-- ============================================================= -->
+        <!-- [신규 뷰 0] 🏠 메인 종합 대시보드 (DB 데이터 시각화 & 퀵 런처) -->
+        <!-- ============================================================= -->
+        <section id="viewDashboard" class="view active">
+          <div class="hero-text">
+            <h2>종합 인지 훈련 센터 & <span class="highlight">DB 분석 대시보드</span></h2>
+            <p class="subtitle">축적된 뇌 훈련 데이터를 한눈에 분석하고 매일 최적화된 인지 훈련을 시작하세요</p>
+          </div>
+
+          <!-- 4대 핵심 인지 지표 KPI 카드 -->
+          <div class="dashboard-kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-icon-wrap icon-blue">🎯</div>
+              <div class="kpi-info">
+                <span class="kpi-label">개념 연상 평균 정답률</span>
+                <strong class="kpi-value" id="dashAvgAcc">-%</strong>
+                <span class="kpi-sub">누적 개념 훈련 기반</span>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-icon-wrap icon-purple">⚡</div>
+              <div class="kpi-info">
+                <span class="kpi-label">최대 순간 기억 용량</span>
+                <strong class="kpi-value" id="dashMaxSpan">-개</strong>
+                <span class="kpi-sub">침팬지 공간 지각 Span</span>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-icon-wrap icon-emerald">⚡</div>
+              <div class="kpi-info">
+                <span class="kpi-label">평균 반응 속도</span>
+                <strong class="kpi-value" id="dashAvgRt">-ms</strong>
+                <span class="kpi-sub">순간 시각 인출 속도</span>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-icon-wrap icon-amber">🔥</div>
+              <div class="kpi-info">
+                <span class="kpi-label">총 누적 훈련 횟수</span>
+                <strong class="kpi-value" id="dashTotalPlays">0회</strong>
+                <span class="kpi-sub">영구 DB 자동 기록</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3대 훈련 퀵 런처 카드 -->
+          <div class="quick-launcher-grid">
+            <div class="launcher-card" id="launchConceptCard">
+              <div class="launcher-header">
+                <span class="launcher-badge">기억술 훈련</span>
+                <span class="launcher-icon">🧠</span>
+              </div>
+              <h3>AI 개념 연상술 훈련</h3>
+              <p>단일/다중 융합 단어, AI 시각 닻, 1-Card 암기 및 백지 인출 시험으로 장기기억 형성</p>
+              <button class="btn-primary btn-launcher">
+                🚀 개념 연상 훈련 시작 ➔
+              </button>
+            </div>
+
+            <div class="launcher-card launcher-spatial" id="launchSpatialCard">
+              <div class="launcher-header">
+                <span class="launcher-badge badge-amber">뇌 가소성 확장</span>
+                <span class="launcher-icon">⚡</span>
+              </div>
+              <h3>공간 순간 기억력 (침팬지 테스트)</h3>
+              <p>0.8~3초 만에 격자 숫자를 시공간적으로 각인하고 순서대로 인출하여 작업기억 확장</p>
+              <button class="btn-primary btn-launcher btn-launcher-amber">
+                ⚡ 순간 기억 훈련 시작 ➔
+              </button>
+            </div>
+
+            <div class="launcher-card launcher-sudoku" id="launchSudokuCard">
+              <div class="launcher-header">
+                <span class="launcher-badge badge-emerald">논리 & 집중력</span>
+                <span class="launcher-icon">🔢</span>
+              </div>
+              <h3>두뇌 활성 9x9 스도쿠</h3>
+              <p>4단계 맞춤형 난이도(쉬움~전문가)로 전두엽 논리 추론과 집중력/작업기억 활성화</p>
+              <button class="btn-primary btn-launcher btn-launcher-emerald">
+                🔢 스도쿠 훈련 시작 ➔
+              </button>
+            </div>
+          </div>
+
+          <!-- DB 데이터 종합 관리: 저장된 단어장 & 훈련 로그 분리 테이블 -->
+          <div class="db-visual-card">
+            <div class="visual-header">
+              <div class="visual-tabs">
+                <button class="visual-tab-btn active" id="tabDashSavedBtn">📁 저장된 단어장 보관함 (<span id="dashSavedCount">0</span>개)</button>
+                <button class="visual-tab-btn" id="tabDashLogsBtn">📊 실시간 훈련 세션 로그</button>
+              </div>
+              <span class="visual-badge">SQLite 영구 보관소</span>
+            </div>
+
+            <!-- 1. [독립 테이블] 📁 영구 저장된 단어장 보관함 -->
+            <div class="db-table-container" id="dashSavedTableContainer">
+              <table class="db-log-table">
+                <thead>
+                  <tr>
+                    <th>단어장 제목</th>
+                    <th>단어 수</th>
+                    <th>연상 스토리</th>
+                    <th>생성 일시</th>
+                    <th>액션</th>
+                  </tr>
+                </thead>
+                <tbody id="dashSavedTableBody">
+                  <tr>
+                    <td colspan="5" class="empty-table-msg">저장된 단어장이 없습니다. 상단 훈련에서 '💾 이 세트 영구 저장'을 눌러보세요!</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- 2. [독립 테이블] 📊 최근 훈련 세션 통합 로그 -->
+            <div class="db-table-container" id="dashLogsTableContainer" style="display:none;">
+              <table class="db-log-table">
+                <thead>
+                  <tr>
+                    <th>일시</th>
+                    <th>훈련 유형</th>
+                    <th>주제 / 설정</th>
+                    <th>성과 / 정답률</th>
+                    <th>소요 시간</th>
+                  </tr>
+                </thead>
+                <tbody id="dashLogTableBody">
+                  <tr>
+                    <td colspan="5" class="empty-table-msg">아직 훈련 기록이 없습니다. 위 훈련 카드를 눌러 첫 훈련을 시작하세요!</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- [뷰 1] 생성 & 난이도 설정 뷰 (AI 개념 연상술) -->
+        <section id="viewSetup" class="view">
+          <div class="hero-text">
+            <h2>브레인포그를 뚫는 <span class="highlight">초집중 연상 기억술</span></h2>
+            <p class="subtitle">작업기억의 부하를 덜어주는 AI 시각 앵커와 3단계 힌트 사다리 훈련</p>
+          </div>
+
+        <!-- 난이도 선택 (ADHD 맞춤형) -->
+        <div class="difficulty-card">
+          <label class="section-label">🎯 오늘의 뇌 컨디션 (난이도 선택)</label>
+          <div class="difficulty-options">
+            <div class="diff-option selected" data-level="easy">
+              <div class="diff-icon">🌱</div>
+              <div class="diff-info">
+                <div class="diff-title">쉬움 (회복 / 웜업)</div>
+                <div class="diff-desc">초성 힌트 + 시각 앵커 상시 노출. 뇌 피로도가 심할 때 추천</div>
+              </div>
+            </div>
+            <div class="diff-option" data-level="normal">
+              <div class="diff-icon">⚡</div>
+              <div class="diff-info">
+                <div class="diff-title">보통 (표준 훈련)</div>
+                <div class="diff-desc">기본 블라인드, 막힐 때 [힌트 열기] 버튼으로 초성 확인</div>
+              </div>
+            </div>
+            <div class="diff-option" data-level="hard">
+              <div class="diff-icon">🔥</div>
+              <div class="diff-info">
+                <div class="diff-title">어려움 (마스터 도전)</div>
+                <div class="diff-desc">힌트 완전 차단. 맑은 집중 상태에서 순수 기억 인출</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 단어 추출 설정 폼 -->
+        <div class="setup-form-card">
+          <div class="tab-buttons">
+            <button class="tab-btn active" data-tab="topic">💡 단일 주제</button>
+            <button class="tab-btn" data-tab="multi">🔀 다중 주제 믹스 (10단어)</button>
+            <button class="tab-btn" data-tab="text">📝 학습 원문 추출</button>
+            <button class="tab-btn" data-tab="pdf">📄 PDF 교재 업로드</button>
+          </div>
+
+          <div class="tab-content">
+            <!-- 단일 주제 탭 -->
+            <div id="tabTopic" class="tab-pane active">
+              <label for="inputTopic" class="input-label">공부할 단일 주제를 입력하세요</label>
+              <input type="text" id="inputTopic" placeholder="예: 전기기사 전자기학, 거시경제학, 운영체제" value="전기기사 전자기학">
+            </div>
+
+            <!-- [신규] 다중 주제 믹스 탭 -->
+            <div id="tabMulti" class="tab-pane">
+              <label for="inputMultiTopics" class="input-label">융합할 여러 주제를 쉼표(,)로 입력하세요</label>
+              <input type="text" id="inputMultiTopics" placeholder="예: 전자기학, 거시경제학, 운영체제, 민법, 인지심리학" value="전자기학, 거시경제학, 운영체제, 민법, 심리학">
+              
+              <div class="preset-chips-container">
+                <span class="preset-label">⚡ 빠른 융합 프리셋:</span>
+                <div class="preset-chips">
+                  <button type="button" class="chip-preset" data-preset="전자기학, 양자물리학, 컴퓨터네트워크, 유기화학">🔬 이공계 올스타</button>
+                  <button type="button" class="chip-preset" data-preset="거시경제학, 재무회계, 상법총칙, 마케팅원론">💼 비즈니스 & 법률</button>
+                  <button type="button" class="chip-preset" data-preset="인지심리학, 뇌신경과학, 서양철학사, 언어학">🧠 뇌과학 & 인문</button>
+                  <button type="button" class="chip-preset" data-preset="천문학, 건축공학, 형사소송법, 미생물학, 행동경제학">🎲 완전 무작위 10선</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="tabText" class="tab-pane">
+              <label for="inputText" class="input-label">요약할 텍스트나 원문을 붙여넣으세요</label>
+              <textarea id="inputText" rows="4" placeholder="교재, 논문, 아티클 원문을 입력하면 AI가 핵심 개념을 추려냅니다."></textarea>
+            </div>
+
+            <div id="tabPdf" class="tab-pane">
+              <label class="input-label">PDF 교재 파일 선택 (드래그 & 드롭)</label>
+              <div class="pdf-dropzone" id="pdfDropzone">
+                <input type="file" id="inputPdfFile" accept="application/pdf" style="display:none;">
+                <div class="dropzone-icon">📄</div>
+                <div class="dropzone-text" id="pdfDropText">PDF 파일을 여기에 끌어다 놓거나 클릭하여 선택하세요</div>
+                <div class="pdf-file-info" id="pdfFileInfo" style="display:none;"></div>
+              </div>
+
+              <div class="pdf-page-range">
+                <div class="range-field">
+                  <label for="inputStartPage">시작 페이지</label>
+                  <input type="number" id="inputStartPage" min="1" value="1" placeholder="1">
+                </div>
+                <div class="range-field">
+                  <label for="inputEndPage">끝 페이지 (선택)</label>
+                  <input type="number" id="inputEndPage" min="1" placeholder="전체">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="count-selector">
+              <label for="wordCount" class="input-label">단어 개수</label>
+              <div class="counter-control">
+                <button type="button" class="btn-count" id="btnCountMinus">-</button>
+                <input type="number" id="wordCount" min="3" max="15" value="5" readonly>
+                <button type="button" class="btn-count" id="btnCountPlus">+</button>
+              </div>
+              <span class="count-hint">💡 ADHD 집중에는 3~5개가 가장 효과적입니다</span>
+            </div>
+
+            <div class="setup-action-group">
+              <button id="btnStartGenerate" class="btn-primary btn-hero">
+                <span class="btn-text">🚀 AI 시각 단어장 생성</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 하단 메인 대시보드 복귀 버튼 -->
+          <div class="return-home-row">
+            <button class="btn-return-dashboard btn-text-link">
+              🏠 메인 대시보드로 돌아가기
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- [뷰 2] 단어 확인 & 연상 스토리 작성 뷰 -->
+      <section id="viewPrepare" class="view">
+        <div class="prepare-header-card">
+          <div class="prepare-title-area">
+            <span class="step-badge">STEP 1</span>
+            <h2>단어 확인 및 시각 앵커 검토</h2>
+          </div>
+          <div class="prepare-controls">
+            <div class="live-timer-chip">
+              <span class="live-timer-icon">⏱️</span>
+              <span>연상/암기 시간: <strong id="prepareTimerText">00.0s</strong></span>
+            </div>
+            <div class="prepare-action-buttons">
+              <button id="btnDirectToTest" class="btn-primary" title="연상법으로 다 외웠다면 바로 시험을 봅니다">
+                ✍️ 연상 완료 ➔ 바로 시험보기
+              </button>
+              <button id="btnGoToMemorize" class="btn-secondary" title="한 장씩 집중해서 카드를 넘기며 외웁니다">
+                📇 1-Card 플래시카드 암기 ➔
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 단어 카드 리스트 (메인) -->
+        <div class="word-cards-container" id="prepareCardsList"></div>
+
+        <!-- 콤팩트 연상 스토리 메모 카드 (1000자 제한) -->
+        <div class="story-editor-card">
+          <div class="editor-header">
+            <div class="editor-title-wrap">
+              <span class="editor-icon">✍️</span>
+              <h3>나만의 연상 스토리 메모 <span class="editor-sub">(선택 사항)</span></h3>
+            </div>
+            <span class="char-count" id="storyCharCount">0 / 1000자</span>
+          </div>
+          <textarea id="inputUserStory" maxlength="1000" rows="3" placeholder="단어들의 시각 앵커를 엮은 한 줄 스토리를 가볍게 메모해보세요. (예: 🎈 풍선을 불다가 ⚖️ 저울로 쾅 내리쳤다...)"></textarea>
+        </div>
+      </section>
+
+      <!-- [뷰 3] 초집중 1-Card 암기 뷰 (스톱워치) -->
+      <section id="viewMemorize" class="view">
+        <div class="memorize-header">
+          <div class="timer-display">
+            <span class="timer-icon">⏱️</span>
+            <span id="memorizeTimer">00.0s</span>
+            <button id="btnToggleZen" class="btn-icon-sub" title="타이머 숨기기 (불안 방지 Zen 모드)">👁️</button>
+          </div>
+          <div class="card-progress">
+            <span id="cardProgressText">단어 1 / 5</span>
+          </div>
+        </div>
+
+        <!-- 1-Card Focus 인터랙션 카드 -->
+        <div class="focus-card-arena">
+          <button id="btnPrevCard" class="card-nav-btn" title="이전 단어 (←)">◀</button>
+          
+          <div class="focus-card" id="focusCard">
+            <div class="focus-num" id="focusNum">01</div>
+            <div class="focus-word" id="focusWord">
+              <span class="focus-emoji">🧲</span> 자계
+            </div>
+            <div class="focus-def" id="focusDef">자기력이 작용하는 공간</div>
+            <div class="focus-anchor" id="focusAnchor">💡 연상 힌트: 🌍 지구본(지구장)</div>
+          </div>
+
+          <button id="btnNextCard" class="card-nav-btn" title="다음 단어 (→)">▶</button>
+        </div>
+
+        <!-- 하단 액션 바 -->
+        <div class="memorize-actions">
+          <div class="user-story-preview" id="storyPreviewBar">
+            <span class="story-tag">내 연상법:</span>
+            <span id="storyPreviewText">스토리 없음</span>
+          </div>
+          <button id="btnFinishMemorize" class="btn-hero-action">
+            ✨ 다 외웠습니다! 시험 보기 (Enter / Space)
+          </button>
+        </div>
+      </section>
+
+      <!-- [뷰 4] 인출 테스트 뷰 (일괄 태그 입력) -->
+      <section id="viewTest" class="view">
+        <div class="test-header-card">
+          <div class="test-title-wrap">
+            <span class="step-badge step-test">STEP 2</span>
+            <h2>기억한 단어들을 백지 인출하세요</h2>
+            <p class="subtitle">단어를 입력하고 <strong>Enter</strong> 또는 <strong>쉼표(,)</strong>를 누르면 단어가 쏙쏙 들어갑니다</p>
+          </div>
+          <div class="test-timer-badge">
+            <span class="timer-icon">⏱️</span>
+            <span>인출 시간: <strong id="testTimer">00.0s</strong></span>
+          </div>
+        </div>
+
+        <!-- 힌트 사다리 영역 (독립 분리된 아일랜드) -->
+        <div id="hintLadderBox" class="hint-ladder-box">
+          <div class="hint-header">
+            <div class="hint-title-group">
+              <span class="hint-icon">💡</span>
+              <span class="hint-title">뇌정지 방지 힌트 사다리</span>
+            </div>
+            <button id="btnOpenHint" class="btn-hint">❓ 힌트 열기 (Tab)</button>
+          </div>
+          <div class="hints-grid" id="hintsGrid"></div>
+        </div>
+
+        <!-- 메인 답안 인출 아레나 카드 -->
+        <div class="test-arena-card">
+          <div class="arena-progress-header">
+            <div class="progress-info">
+              <span class="progress-label">🎯 인출 달성도</span>
+              <span class="progress-count"><strong id="tagCountNum">0</strong> / <span id="targetCountNum">5</span>개</span>
+            </div>
+            <div class="input-progress-bar-wrap">
+              <div class="input-progress-bar" id="inputProgressBar"></div>
+            </div>
+          </div>
+
+          <!-- 태그 입력 영역 -->
+          <div class="tags-input-arena" id="tagsContainer">
+            <!-- 단어 태그 칩들이 여기에 팝업 애니메이션과 함께 렌더링됨 -->
+            <div class="tag-input-row">
+              <span class="input-cursor-icon">✍️</span>
+              <input type="text" id="tagInput" placeholder="단어를 입력하고 Enter를 누르세요..." autocomplete="off" autofocus>
+            </div>
+          </div>
+
+          <!-- 하단 액션 제출 바 -->
+          <div class="test-arena-footer">
+            <span class="input-guide-text">💡 오타가 나도 AI가 자비롭게 채점해주니 편하게 입력하세요!</span>
+            <button id="btnSubmitTest" class="btn-primary btn-submit-test">
+              🚀 답안 제출 및 AI 채점 받기
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- [뷰 5] 채점 리포트 & 피드백 뷰 -->
+      <section id="viewResult" class="view">
+        <div class="result-header-card">
+          <div class="result-score-circle">
+            <span class="score-number" id="resultScore">80%</span>
+            <span class="score-label">정답률</span>
+          </div>
+          <div class="result-stats">
+            <h2 id="resultTitle">멋집니다! 성공적인 인출 훈련이었습니다 🎉</h2>
+            <div class="stats-row">
+              <div class="stat-item">
+                <span class="stat-label">⏱️ 암기 시간</span>
+                <strong id="statMemTime">24.5초</strong>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">⚡ 인출 시간</span>
+                <strong id="statTestTime">8.2초</strong>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">✅ 맞힌 개수</span>
+                <strong id="statCorrect">4 / 5개</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 상세 채점 결과 테이블 -->
+        <div class="result-details-card">
+          <h3>📊 단어별 채점 및 피드백</h3>
+          <div class="result-table" id="resultTable"></div>
+        </div>
+
+        <!-- [실험적] AI 연상법 정밀 코칭 카드 -->
+        <div class="ai-coaching-card" id="aiCoachingCard">
+          <div class="coaching-header">
+            <div class="coaching-title">
+              <span class="coaching-icon">🧠</span>
+              <h3>AI 기억술 코치 정밀 분석 <span class="exp-badge">실험적</span></h3>
+            </div>
+            <div class="technique-score-badge" id="techScoreBadge">
+              연상법 점수: <strong id="techScoreNum">-점</strong>
+            </div>
+          </div>
+          <div class="coaching-body">
+            <div class="coaching-section">
+              <span class="coach-label">📝 스토리 종합 평가:</span>
+              <p id="coachSummaryText">분석 중...</p>
+            </div>
+            <div class="coaching-section" id="coachWeakSection">
+              <span class="coach-label">⚠️ 약했던 연결고리 & 원인:</span>
+              <p id="coachWeakText">-</p>
+            </div>
+            <div class="coaching-section tip-section">
+              <span class="coach-label">💡 다음을 위한 실전 팁:</span>
+              <p id="coachTipText">-</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 복기용 연상 스토리 -->
+        <div class="review-story-card" id="reviewStoryCard">
+          <h3>📖 내가 사용한 연상 스토리</h3>
+          <p id="reviewStoryText"></p>
+        </div>
+
+        <!-- 하단 액션 버튼들 -->
+        <div class="result-actions">
+          <button id="btnNextSetExclude" class="btn-primary" title="동일한 주제로 생성하되 이미 맞힌 단어는 제외하고 새로운 핵심 단어를 가져옵니다">
+            ⚡ 맞힌 단어 제외하고 다음 단어 도전 ➔
+          </button>
+          <button id="btnRetryWrong" class="btn-secondary" title="방금 틀렸던 단어들만 모아서 집중 재도전합니다">
+            ⚠️ 틀린 단어만 집중 복습
+          </button>
+          <button id="btnRetrySame" class="btn-secondary">🔁 전체 단어 재도전</button>
+          <button id="btnSaveSet" class="btn-secondary">💾 이 세트 영구 저장</button>
+          <button id="btnNewTraining" class="btn-secondary">🏠 새로운 주제로 이동</button>
+        </div>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- [뷰 5] ⚡ 순간 공간 기억력 훈련 뷰 (침팬지 테스트 & 뇌 가소성 훈련) -->
+      <!-- ============================================================= -->
+      <section id="viewSpatial" class="view">
+        <div class="hero-text">
+          <h2>순간 시공간 지각 <span class="highlight">침팬지 기억력 훈련</span></h2>
+          <p class="subtitle">숫자의 공간적 위치를 0.8~3초 만에 뇌에 각인하고 순서대로 인출하여 작업기억을 확장하세요</p>
+        </div>
+
+        <!-- 게임 컨트롤 패널 -->
+        <div class="spatial-control-card">
+          <div class="spatial-ctrl-grid">
+            <div class="ctrl-group">
+              <label for="spatialGridSelect" class="input-label">격자 크기</label>
+              <select id="spatialGridSelect" class="custom-select">
+                <option value="3">3 x 3 (9칸 / 웜업)</option>
+                <option value="4" selected>4 x 4 (16칸 / 표준)</option>
+                <option value="5">5 x 5 (25칸 / 프로)</option>
+                <option value="6">6 x 6 (36칸 / 마스터)</option>
+              </select>
+            </div>
+
+            <div class="ctrl-group">
+              <label for="spatialModeSelect" class="input-label">훈련 룰</label>
+              <select id="spatialModeSelect" class="custom-select">
+                <option value="adaptive" selected>🚀 적응형 레벨업 (성공시 +1개)</option>
+                <option value="chimp">🐒 침팬지 룰 (1번 터치시 숨김)</option>
+                <option value="timed">⏱️ 시간제 블라인드 (초 후 숨김)</option>
+              </select>
+            </div>
+
+            <div class="ctrl-group">
+              <label for="spatialTimeSelect" class="input-label">노출 시간</label>
+              <select id="spatialTimeSelect" class="custom-select">
+                <option value="5.0">5.0초 (여유)</option>
+                <option value="3.0" selected>3.0초 (표준)</option>
+                <option value="1.5">1.5초 (스피드)</option>
+                <option value="0.8">0.8초 (순간 각인)</option>
+              </select>
+            </div>
+
+            <div class="ctrl-group">
+              <label class="input-label">현재 기억 용량</label>
+              <div class="target-span-display">
+                <strong id="displayTargetCount">5</strong>개 숫자
+              </div>
+            </div>
+          </div>
+
+          <div class="spatial-action-row">
+            <button id="btnStartSpatial" class="btn-primary btn-hero">
+              ⚡ 공간 기억 훈련 시작
+            </button>
+            <button id="btnResetSpatial" class="btn-secondary btn-hero">
+              ⏹️ 정지 / 초기화
+            </button>
+            <label class="spatial-nosave-toggle" for="spatialNoSaveCheck" title="체크 시 이번 훈련 결과를 DB에 저장하지 않는 연습 모드로 작동합니다">
+              <input type="checkbox" id="spatialNoSaveCheck">
+              <span>🚫 DB에 저장 안함 (연습 모드)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 훈련 아레나 카드 -->
+        <div class="spatial-arena-card">
+          <div class="arena-header">
+            <div class="arena-status" id="spatialStatusText">
+              훈련 설정 후 [시작] 버튼을 누르세요.
+            </div>
+            <div class="arena-timer-bar">
+              <div class="timer-progress" id="spatialProgressBar"></div>
+            </div>
+          </div>
+
+          <!-- 동적 타일 격자 판 -->
+          <div class="spatial-grid-wrapper">
+            <div class="spatial-grid" id="spatialGridArea"></div>
+          </div>
+
+          <!-- 실시간 반응속도 및 스코어 피드백 -->
+          <div class="spatial-live-stats">
+            <div class="live-stat-pill">
+              <span>최고 연속 기억:</span> <strong id="statSpatialMaxSpan">0개</strong>
+            </div>
+            <div class="live-stat-pill">
+              <span>평균 반응속도:</span> <strong id="statSpatialAvgRt">0ms</strong>
+            </div>
+            <div class="live-stat-pill">
+              <span>승률:</span> <strong id="statSpatialWinRate">0%</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- 카드 밖 하단 독립 메인 대시보드 복귀 영역 -->
+        <div class="return-home-row" style="margin-top: 24px;">
+          <button class="btn-return-dashboard btn-text-link">
+            🏠 메인 대시보드로 돌아가기
+          </button>
+        </div>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- [뷰 6] 🔢 두뇌 활성 9x9 스도쿠 훈련 뷰 (논리 추론 & 작업기억) -->
+      <!-- ============================================================= -->
+      <section id="viewSudoku" class="view">
+        <div class="hero-text">
+          <h2>논리 추론 & 작업기억 <span class="highlight">두뇌 활성 9x9 스도쿠</span></h2>
+          <p class="subtitle">행, 열, 3x3 박스에 1~9 숫자를 중복 없이 채워 전두엽을 활성화하고 집중력을 극대화하세요</p>
+        </div>
+
+        <!-- 스도쿠 컨트롤 & 난이도 선택 패널 -->
+        <div class="sudoku-control-card">
+          <div class="sudoku-ctrl-top">
+            <div class="ctrl-group">
+              <label for="sudokuDiffSelect" class="input-label">🎯 훈련 난이도</label>
+              <select id="sudokuDiffSelect" class="custom-select">
+                <option value="easy">🌱 쉬움 (입문 / 30빈칸)</option>
+                <option value="normal" selected>⚡ 보통 (표준 / 42빈칸)</option>
+                <option value="hard">🔥 어려움 (심화 / 52빈칸)</option>
+                <option value="expert">👑 전문가 (마스터 / 58빈칸)</option>
+              </select>
+            </div>
+
+            <div class="sudoku-status-indicators">
+              <div class="status-pill timer-pill">
+                <span>⏱️ 시간:</span> <strong id="sudokuTimerDisplay">00:00</strong>
+              </div>
+              <div class="status-pill mistakes-pill">
+                <span>❌ 오류:</span> <strong id="sudokuMistakesDisplay">0 / 3</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="sudoku-action-row">
+            <button id="btnNewSudokuGame" class="btn-primary">
+              🚀 새 퍼즐 생성
+            </button>
+            <button id="btnSudokuHint" class="btn-secondary" title="현재 선택된 빈칸의 정답을 채워줍니다">
+              💡 힌트 (<span id="sudokuHintCount">3</span>회)
+            </button>
+            <button id="btnSudokuRestart" class="btn-secondary">
+              🔄 퍼즐 초기화
+            </button>
+            <button id="btnSudokuCheck" class="btn-secondary">
+              ✔️ 정답 검증
+            </button>
+          </div>
+        </div>
+
+        <!-- 스도쿠 보드 & 키패드 아레나 카드 -->
+        <div class="sudoku-arena-card">
+          <div class="sudoku-board-wrapper">
+            <div class="sudoku-board" id="sudokuBoard">
+              <!-- 9x9 = 81개 셀 JavaScript 동적 생성 -->
+            </div>
+          </div>
+
+          <!-- 온스크린 스마트 숫자 키패드 -->
+          <div class="sudoku-keypad">
+            <button class="btn-keypad-num" data-num="1">1</button>
+            <button class="btn-keypad-num" data-num="2">2</button>
+            <button class="btn-keypad-num" data-num="3">3</button>
+            <button class="btn-keypad-num" data-num="4">4</button>
+            <button class="btn-keypad-num" data-num="5">5</button>
+            <button class="btn-keypad-num" data-num="6">6</button>
+            <button class="btn-keypad-num" data-num="7">7</button>
+            <button class="btn-keypad-num" data-num="8">8</button>
+            <button class="btn-keypad-num" data-num="9">9</button>
+            <button class="btn-keypad-erase" id="btnKeypadErase" title="선택한 셀 지우기">⌫ 지우기</button>
+          </div>
+
+          <!-- 스도쿠 SQLite 영구 통계 바 -->
+          <div class="spatial-live-stats" style="margin-top: 15px;">
+            <div class="live-stat-pill">
+              <span>최단 클리어:</span> <strong id="statSudokuBestTime">-초</strong>
+            </div>
+            <div class="live-stat-pill">
+              <span>평균 시간:</span> <strong id="statSudokuAvgTime">-초</strong>
+            </div>
+            <div class="live-stat-pill">
+              <span>총 완주 성공:</span> <strong id="statSudokuTotalClears">0회</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- 카드 밖 하단 독립 메인 대시보드 복귀 영역 -->
+        <div class="return-home-row" style="margin-top: 24px;">
+          <button class="btn-return-dashboard btn-text-link">
+            🏠 메인 대시보드로 돌아가기
+          </button>
+        </div>
+      </section>
+
+      </main>
+    </div> <!-- .app-layout -->
+
+    <!-- ⚙️ 구글 시트 DB 웹훅 및 데이터 관리 모달 -->
+    <div id="settingsModal" class="modal-overlay" style="display:none;">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>⚙️ Google Sheets DB & 시스템 설정</h3>
+          <button id="btnCloseSettings" class="btn-icon">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label for="inputSheetUrl"><strong>🔗 구글 시트 웹 앱 URL</strong></label>
+            <input type="text" id="inputSheetUrl" placeholder="https://script.google.com/macros/s/.../exec" style="width:100%; padding:10px; margin-top:6px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:var(--radius-md); color:var(--text-primary); font-size:13px;">
+            <span class="help-text" style="font-size:11px; color:var(--text-muted); display:block; margin-top:4px;">구글 시트 Apps Script에서 배포한 웹 앱 URL을 입력하세요.</span>
+          </div>
+
+          <div style="display:flex; gap:10px; margin-bottom: 20px;">
+            <button id="btnTestWebhook" class="btn-secondary btn-sm" style="flex:1;">🔗 연결 핑 테스트</button>
+            <button id="btnSaveSheetUrl" class="btn-primary btn-sm" style="flex:1;">💾 URL 저장</button>
+          </div>
+
+          <div id="webhookTestResult" class="test-result-box" style="display:none; padding:10px; border-radius:var(--radius-md); font-size:12px; margin-bottom:20px;"></div>
+
+          <div class="modal-divider" style="border-top:1px dashed var(--border-color); padding-top:16px; margin-top:16px;">
+            <label style="color:var(--error); font-weight:800; font-size:13px;">⚠️ 위험 구역 (데이터 초기화)</label>
+            <p style="font-size:11px; color:var(--text-muted); margin:4px 0 10px;">전체 훈련 로그를 초기화합니다 (단어장 보관함은 유지됩니다).</p>
+            <button id="btnClearAllLogs" class="btn-secondary btn-sm" style="color:var(--error); border-color:var(--error); width:100%;">🧹 전체 훈련 세션 로그 초기화</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 로딩 오버레이 -->
+    <div id="loadingOverlay" class="loading-overlay">
+      <div class="spinner"></div>
+      <p id="loadingText">AI가 시각 앵커를 설계하고 있습니다...</p>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
