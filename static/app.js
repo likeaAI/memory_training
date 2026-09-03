@@ -297,13 +297,18 @@ function saveHybrid(type, payload) {
 
   // 2. 구글 시트 웹훅 URL이 있으면 비동기 전송
   const sheetUrl = SERVERLESS_CONFIG.getSheetUrl();
-  if (sheetUrl) {
+  if (sheetUrl && sheetUrl.includes('script.google.com')) {
+    // Google Apps Script는 text/plain으로 전송해야 브라우저 CORS 차단 없이 e.postData.contents로 100% 정상 수신됩니다!
     fetch(sheetUrl, {
       method: 'POST',
       mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ type, ...payload })
-    }).catch(e => console.log('Google sheet sync:', e));
+    }).then(() => {
+      console.log(`[GoogleSheet] 전송 성공: ${type}`);
+    }).catch(e => {
+      console.error('[GoogleSheet] 전송 오류:', e);
+    });
   }
 }
 

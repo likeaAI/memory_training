@@ -3,6 +3,7 @@ import json
 import sqlite3
 import urllib.request
 import threading
+import requests
 from utils import hash_password
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -27,21 +28,24 @@ def get_google_sheet_url():
 
 GOOGLE_SHEET_URL = get_google_sheet_url()
 
-# 🌐 백그라운드 스레드 비동기 전송 (사용자 UI 지연 0초!)
+# 🌐 백그라운드 스레드 비동기 전송 (requests로 302 리다이렉트 완벽 지원)
 def async_send_to_google_sheet(payload):
     def _worker():
         sheet_url = get_google_sheet_url()
         if not sheet_url:
             return
         try:
-            req = urllib.request.Request(
+            # Google Apps Script는 302 Redirect를 반환하므로 requests가 필수적임!
+            res = requests.post(
                 sheet_url,
-                data=json.dumps(payload, ensure_ascii=False).encode('utf-8'),
-                headers={'Content-Type': 'application/json'}
+                json=payload,
+                timeout=12,
+                allow_redirects=True,
+                headers={"Content-Type": "application/json"}
             )
-            urllib.request.urlopen(req, timeout=10)
+            print(f"[GoogleSheetSync] 전송 완료: {payload.get('type')} (HTTP {res.status_code})")
         except Exception as e:
-            print(f"[GoogleSheetSync] 전송 오류(무시됨): {e}")
+            print(f"[GoogleSheetSync] 전송 오류: {e}")
 
     threading.Thread(target=_worker, daemon=True).start()
 
@@ -51,10 +55,10 @@ def fetch_google_sheet_data():
     if not sheet_url:
         return None
     try:
-        url = f"{sheet_url}?action=get_all"
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=8) as res:
-            return json.loads(res.read().decode('utf-8'))
+        res = requests.get(sheet_url, params={"action": "get_all"}, timeout=8, allow_redirects=True)
+        if res.status_code == 200:
+            return res.json()
+        return None
     except Exception as e:
         print(f"[GoogleSheetSync] 조회 실패 (SQLite 폴백): {e}")
         return None
