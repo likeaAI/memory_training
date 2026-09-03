@@ -45,7 +45,9 @@ const SERVERLESS_CONFIG = {
   getModel: () => localStorage.getItem('brainlock_ai_model') || 'gemini-2.5-flash',
   getGeminiKey: () => localStorage.getItem('brainlock_gemini_key') || '',
   getSheetUrl: () => localStorage.getItem('brainlock_sheet_url') || '',
-  isStandalone: () => !window.location.origin.includes('localhost') && !window.location.origin.includes('127.0.0.1')
+  // 🌐 GitHub Pages(github.io) 접속일 때만 정적 서버리스로 동작!
+  // Render(onrender.com)나 localhost는 파이썬 백엔드 서버가 모든 것을 자동 처리하므로 키/URL을 묻지 않음!
+  isStandalone: () => window.location.origin.includes('github.io')
 };
 
 // 한글 초성 분리 유틸
@@ -69,10 +71,8 @@ async function callGeminiClient(prompt, temperature = 0.9) {
   const model = SERVERLESS_CONFIG.getModel();
 
   if (!key) {
-    alert('🔑 Gemini API Key가 등록되지 않았습니다!\n우측 상단 ⚙️(설정) 버튼을 눌러 본인의 Gemini API Key를 입력해주세요.\n(Google AI Studio에서 무료 발급 가능)');
-    const modal = document.getElementById('settingsModal');
-    if (modal) modal.style.display = 'flex';
-    throw new Error('API Key 누락');
+    console.log('Gemini API Key 미입력 -> 오프라인 내장 단어장 엔진으로 자동 전환');
+    throw new Error('API Key 누락 (오프라인 폴백 전환)');
   }
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
