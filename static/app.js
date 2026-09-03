@@ -94,15 +94,24 @@ async function callGeminiClient(prompt, temperature = 0.9) {
     const errData = await res.json().catch(() => ({}));
     const errMsg = errData.error?.message || `HTTP ${res.status}`;
     if (res.status === 403) {
-      alert(`⚠️ API Key 권한 오류 (${errMsg})\n우측 상단 ⚙️ 설정에서 올바른 API 키를 등록해주세요.`);
+      alert(`⚠️ API Key 권한 오류: ${errMsg}\n우측 상단 ⚙️ 설정에서 본인의 올바른 Gemini API Key를 등록해주세요.`);
     } else if (res.status === 404) {
-      alert(`⚠️ 선택하신 모델 [${model}]은 현재 지원되지 않거나 이름을 확인해야 합니다.\n설정에서 [Gemini 2.5 Flash]로 변경해보세요.`);
+      alert(`⚠️ 선택하신 모델 [${model}]은 현재 사용이 불가능합니다.\n우측 상단 ⚙️ 설정에서 [Gemini 2.5 Flash]로 변경해주세요.`);
+    } else {
+      alert(`⚠️ Gemini API 오류 (${res.status}): ${errMsg}`);
     }
     throw new Error(`Gemini API Error: ${errMsg}`);
   }
 
   const json = await res.json();
-  const textContent = json.candidates[0].content.parts[0].text;
+  const part = json.candidates?.[0]?.content?.parts?.find(p => p.text) || json.candidates?.[0]?.content?.parts?.[0];
+  let textContent = (part?.text || '').trim();
+
+  // 마크다운 코드블록(```json ... ```) 안전 제거
+  if (textContent.startsWith('```')) {
+    textContent = textContent.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
+  }
+
   return JSON.parse(textContent);
 }
 
@@ -753,15 +762,24 @@ document.getElementById('btnStartGenerate').addEventListener('click', async () =
 
   try {
     let data;
-    try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      data = await res.json();
-    } catch (serverErr) {
-      // 🌐 서버 없는 GitHub Pages 환경 -> 브라우저 내장 Gemini API 엔진으로 직접 생성!
+    const isStandalone = SERVERLESS_CONFIG.isStandalone();
+
+    if (!isStandalone) {
+      // 로컬/Render 파이썬 백엔드 서버가 켜져 있는 환경
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          data = await res.json();
+        }
+      } catch (e) {}
+    }
+
+    // 서버가 없거나 응답이 비어있으면 클라이언트 브라우저 Gemini API 직행!
+    if (!data || !data.quiz_data) {
       let targetInput = payload.input || '';
       let targetMode = payload.mode || 'topic';
 
