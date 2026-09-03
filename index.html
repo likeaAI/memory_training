@@ -526,44 +526,76 @@
 
       <!-- [뷰 4-2] 🎯 4지선다 객관식 퀴즈 뷰 (신규!) -->
       <section id="viewQuizMCQ" class="view">
-        <div class="test-header-card">
-          <div class="test-title-wrap">
-            <span class="step-badge" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4);">QUIZ MCQ</span>
-            <h2>4지선다 객관식 인출 퀴즈</h2>
-            <p class="subtitle">제시된 설명과 시각 앵커를 보고 올바른 단어를 탭하세요</p>
-          </div>
-          <div class="test-timer-badge">
-            <span class="timer-icon">⏱️</span>
-            <span>퀴즈 시간: <strong id="mcqTimer">00.0s</strong></span>
-          </div>
-        </div>
-
-        <div class="mcq-arena-card">
-          <div class="arena-progress-header">
-            <div class="progress-info">
-              <span class="progress-label">🎯 퀴즈 진행도</span>
-              <span class="progress-count"><strong id="mcqCurrentNum">1</strong> / <span id="mcqTotalNum">5</span>문제</span>
+        
+        <!-- [1단계] 📇 퀴즈 대비 단어 각인/암기 프리뷰 영역 -->
+        <div id="mcqPreviewStep">
+          <div class="test-header-card">
+            <div class="test-title-wrap">
+              <span class="step-badge" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4);">STEP 1</span>
+              <h2>먼저 훈련할 단어들을 뇌에 각인하세요!</h2>
+              <p class="subtitle">시각 앵커와 설명을 가볍게 훑어보고, 준비가 되면 아래 <strong>[퀴즈 시작하기]</strong>를 누르세요</p>
             </div>
-            <div class="input-progress-bar-wrap">
-              <div class="input-progress-bar" id="mcqProgressBar" style="width: 20%; background: linear-gradient(90deg, #10b981, #059669);"></div>
+            <div class="test-timer-badge">
+              <span class="timer-icon">⏱️</span>
+              <span>각인 시간: <strong id="mcqPreviewTimer">00.0s</strong></span>
             </div>
           </div>
 
-          <!-- 문제 카드 -->
-          <div class="mcq-question-card">
-            <div class="mcq-anchor-badge" id="mcqQuestionAnchor">💡 연상 힌트</div>
-            <h3 class="mcq-question-def" id="mcqQuestionDef">문제 설명이 들어갑니다</h3>
-            <div class="mcq-question-sub" id="mcqQuestionReason"></div>
+          <!-- 단어 카드 프리뷰 그리드 -->
+          <div class="mcq-preview-grid" id="mcqPreviewGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin: 20px 0;">
+            <!-- 자바스크립트로 5개 단어 카드가 렌더링됨 -->
           </div>
 
-          <!-- 4지선다 보기 버튼 리스트 (2x2 그리드) -->
-          <div class="mcq-options-grid" id="mcqOptionsGrid">
-            <!-- 4개 선택지 버튼이 동적 생성됨 -->
+          <!-- 하단 액션 버튼 -->
+          <div style="text-align: center; margin-top: 24px;">
+            <button id="btnStartSolveMcq" class="btn-primary" style="font-size: 17px; padding: 16px 36px; background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 18px rgba(16, 185, 129, 0.35);">
+              🚀 다 외웠습니다! 4지선다 퀴즈 시작 ➔
+            </button>
           </div>
-
-          <!-- 피드백 메시지 바 -->
-          <div class="mcq-feedback-bar" id="mcqFeedbackBar" style="display:none;"></div>
         </div>
+
+        <!-- [2단계] 🎯 실전 4지선다 퀴즈 풀기 영역 (처음엔 숨김) -->
+        <div id="mcqSolveStep" style="display: none;">
+          <div class="test-header-card">
+            <div class="test-title-wrap">
+              <span class="step-badge" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4);">STEP 2</span>
+              <h2>4지선다 객관식 인출 퀴즈</h2>
+              <p class="subtitle">제시된 설명과 시각 앵커를 보고 방금 외운 단어를 탭하세요</p>
+            </div>
+            <div class="test-timer-badge">
+              <span class="timer-icon">⏱️</span>
+              <span>퀴즈 시간: <strong id="mcqTimer">00.0s</strong></span>
+            </div>
+          </div>
+
+          <div class="mcq-arena-card">
+            <div class="arena-progress-header">
+              <div class="progress-info">
+                <span class="progress-label">🎯 퀴즈 진행도</span>
+                <span class="progress-count"><strong id="mcqCurrentNum">1</strong> / <span id="mcqTotalNum">5</span>문제</span>
+              </div>
+              <div class="input-progress-bar-wrap">
+                <div class="input-progress-bar" id="mcqProgressBar" style="width: 20%; background: linear-gradient(90deg, #10b981, #059669);"></div>
+              </div>
+            </div>
+
+            <!-- 문제 카드 -->
+            <div class="mcq-question-card">
+              <div class="mcq-anchor-badge" id="mcqQuestionAnchor">💡 연상 힌트</div>
+              <h3 class="mcq-question-def" id="mcqQuestionDef">문제 설명이 들어갑니다</h3>
+              <div class="mcq-question-sub" id="mcqQuestionReason"></div>
+            </div>
+
+            <!-- 4지선다 보기 버튼 리스트 (2x2 그리드) -->
+            <div class="mcq-options-grid" id="mcqOptionsGrid">
+              <!-- 4개 선택지 버튼이 동적 생성됨 -->
+            </div>
+
+            <!-- 피드백 메시지 바 -->
+            <div class="mcq-feedback-bar" id="mcqFeedbackBar" style="display:none;"></div>
+          </div>
+        </div>
+
       </section>
 
       <!-- [뷰 5] 채점 리포트 & 피드백 뷰 -->

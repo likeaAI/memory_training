@@ -1210,24 +1210,87 @@ document.getElementById('btnSubmitTest').addEventListener('click', async () => {
 // =================================================================
 // 🎯 4지선다 객관식 퀴즈 (MCQ) 전용 엔진
 // =================================================================
+let mcqPreviewTimerId = null;
+let mcqPreviewStartTime = 0;
+
 function startMcqQuiz() {
   if (!state.sessionData || !state.sessionData.quiz_data || state.sessionData.quiz_data.length === 0) {
     alert('훈련할 단어 세트가 없습니다. 먼저 단어를 생성하거나 단어장을 선택해주세요.');
     return;
   }
 
-  // 암기 타이머 종료 및 시간 기록
-  if (state.prepareTimerId) {
-    clearInterval(state.prepareTimerId);
-    state.memorizeDuration = ((Date.now() - state.prepareStartTime) / 1000).toFixed(1);
+  // 화면 전환
+  switchView('viewQuizMCQ');
+
+  // 1단계: 단어 각인 프리뷰 영역 표시
+  const previewStep = document.getElementById('mcqPreviewStep');
+  const solveStep = document.getElementById('mcqSolveStep');
+  if (previewStep) previewStep.style.display = 'block';
+  if (solveStep) solveStep.style.display = 'none';
+
+  // 단어 목록 렌더링
+  renderMcqWordPreview();
+
+  // 각인 타이머 시작
+  clearInterval(mcqPreviewTimerId);
+  mcqPreviewStartTime = Date.now();
+  const timerElem = document.getElementById('mcqPreviewTimer');
+  mcqPreviewTimerId = setInterval(() => {
+    const elapsed = ((Date.now() - mcqPreviewStartTime) / 1000).toFixed(1);
+    if (timerElem) timerElem.innerText = `${elapsed}s`;
+  }, 100);
+
+  // [퀴즈 시작하기] 버튼 이벤트 바인딩
+  const btnStartSolve = document.getElementById('btnStartSolveMcq');
+  if (btnStartSolve) {
+    btnStartSolve.onclick = () => {
+      clearInterval(mcqPreviewTimerId);
+      state.memorizeDuration = ((Date.now() - mcqPreviewStartTime) / 1000).toFixed(1);
+      startMcqSolving();
+    };
   }
+}
+
+// 📇 퀴즈 전 단어 각인 카드 렌더링 (시각 앵커 & 정의 강조)
+function renderMcqWordPreview() {
+  const container = document.getElementById('mcqPreviewGrid');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const quizData = state.sessionData.quiz_data || [];
+  quizData.forEach((item, idx) => {
+    const card = document.createElement('div');
+    card.className = 'prepare-word-card';
+    card.style.background = 'var(--bg-surface)';
+    card.style.border = '1px solid var(--border-color)';
+    card.style.borderRadius = 'var(--radius-lg)';
+    card.style.padding = '18px';
+    card.style.boxShadow = 'var(--shadow-sm)';
+    card.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span style="background: rgba(99, 102, 241, 0.15); color: #6366f1; font-weight: 800; font-size: 12px; padding: 2px 8px; border-radius: 6px;">#0${idx + 1}</span>
+        <span style="font-size: 13px; font-weight: 700; color: #f59e0b;">${item.visual_anchor || '💡 시각 앵커'}</span>
+      </div>
+      <div style="font-size: 20px; font-weight: 800; color: var(--text-primary); margin-bottom: 6px;">${item.word}</div>
+      <div style="font-size: 14px; color: var(--text-secondary); line-height: 1.4;">${item.definition || ''}</div>
+      ${item.importance_reason ? `<div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">📌 ${item.importance_reason}</div>` : ''}
+    `;
+    container.appendChild(card);
+  });
+}
+
+// 2단계: 실전 4지선다 퀴즈 풀기 시작
+function startMcqSolving() {
+  const previewStep = document.getElementById('mcqPreviewStep');
+  const solveStep = document.getElementById('mcqSolveStep');
+  if (previewStep) previewStep.style.display = 'none';
+  if (solveStep) solveStep.style.display = 'block';
 
   state.mcqIndex = 0;
   state.mcqScore = 0;
   state.mcqResults = [];
   state.mcqStartTime = Date.now();
 
-  switchView('viewQuizMCQ');
   startMcqTimer();
   renderMcqQuestion();
 }
