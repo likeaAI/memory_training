@@ -529,40 +529,29 @@
         
         <!-- [1단계] 📇 퀴즈 대비 단어 각인/암기 프리뷰 영역 -->
         <div id="mcqPreviewStep">
-          <div class="test-header-card">
-            <div class="test-title-wrap">
-              <span class="step-badge" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4);">STEP 1</span>
-              <h2>먼저 훈련할 단어들을 뇌에 각인하세요!</h2>
-              <p class="subtitle">시각 앵커와 설명을 가볍게 훑어보고, 준비가 되면 아래 <strong>[퀴즈 시작하기]</strong>를 누르세요</p>
-            </div>
-            <div class="test-timer-badge">
-              <span class="timer-icon">⏱️</span>
-              <span>각인 시간: <strong id="mcqPreviewTimer">00.0s</strong></span>
-            </div>
-          </div>
 
-          <!-- 📚 [핵심] 퀴즈 학습 주제 선택 & 즉시 단어 생성기 -->
+          <!-- 📚 [1. 최상단 배치] 퀴즈 학습 주제 선택 & 단어 생성 & 문제 수 조절 -->
           <div class="mcq-topic-selector-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px 22px; margin-bottom: 20px; box-shadow: var(--shadow-sm);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
               <label style="font-size: 15px; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
-                <span>📚 퀴즈 학습 주제 선택</span>
-                <span style="font-size: 12px; color: var(--text-muted); font-weight: 500;">(원하는 주제로 언제든 단어를 바꿔 퀴즈를 풀 수 있습니다)</span>
+                <span>📚 1. 퀴즈 주제 선택 & 단어 생성</span>
+                <span style="font-size: 12px; color: var(--text-muted); font-weight: 500;">(원하는 주제와 문제 수를 선택하고 생성하세요)</span>
               </label>
               <span id="mcqCurrentTopicBadge" style="font-size: 12px; font-weight: 800; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 3px 12px; border-radius: 12px;">
-                현재 주제: 기억술 핵심 개념
+                현재 주제: 전기기사 전자기학 (10문제)
               </span>
             </div>
 
             <div style="display: flex; gap: 10px; margin-bottom: 12px;">
               <input type="text" id="inputMcqTopic" placeholder="공부하고 싶은 주제를 입력하세요 (예: 전기기사, 민법, 경제학, 뇌과학)" value="전기기사 전자기학" style="flex: 1; padding: 12px 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 15px; font-weight: 600;">
               <button id="btnGenerateMcqTopic" class="btn-primary" style="background: linear-gradient(135deg, #10b981, #059669); white-space: nowrap; padding: 12px 22px; font-weight: 800; font-size: 14px;">
-                ⚡ 이 주제로 새 단어 생성
+                ⚡ 새 단어 생성
               </button>
             </div>
 
             <!-- 추천 주제 원클릭 프리셋 칩 -->
             <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-              <span style="font-size: 12px; font-weight: 700; color: var(--text-muted);">⚡ 빠른 주제 추천:</span>
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-muted);">⚡ 빠른 주제:</span>
               <button type="button" class="mcq-preset-chip" data-topic="전기기사 전자기학" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); padding: 5px 12px; border-radius: 14px; font-size: 12px; font-weight: 700; cursor: pointer;">🔬 전자기학</button>
               <button type="button" class="mcq-preset-chip" data-topic="거시경제학 원론" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); padding: 5px 12px; border-radius: 14px; font-size: 12px; font-weight: 700; cursor: pointer;">💼 거시경제학</button>
               <button type="button" class="mcq-preset-chip" data-topic="인지심리학 및 뇌과학" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); padding: 5px 12px; border-radius: 14px; font-size: 12px; font-weight: 700; cursor: pointer;">🧠 뇌과학·심리</button>
@@ -571,7 +560,7 @@
               <button type="button" class="mcq-preset-chip" data-topic="기억술 및 메타인지" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); padding: 5px 12px; border-radius: 14px; font-size: 12px; font-weight: 700; cursor: pointer;">🏛️ 기억술</button>
             </div>
 
-            <!-- 🎯 [신규] 퀴즈 단어 개수 조정 (최소 10개 단위 시작) -->
+            <!-- 🎯 퀴즈 단어 개수 조정 (최소 10개 단위 시작) -->
             <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border-color); flex-wrap: wrap; gap: 10px;">
               <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="font-size: 13px; font-weight: 800; color: var(--text-primary);">🎯 퀴즈 문제 수:</span>
@@ -580,7 +569,7 @@
                   <span id="mcqCountDisplay" style="padding: 6px 14px; font-weight: 800; color: #10b981; font-size: 14px; min-width: 55px; text-align: center;">10개</span>
                   <button type="button" id="btnMcqCountPlus" style="padding: 6px 14px; border: none; background: transparent; color: var(--text-primary); font-size: 16px; font-weight: 800; cursor: pointer;" title="5개 증가">+</button>
                 </div>
-                <small style="color: var(--text-muted); font-size: 11px;">(퀴즈 효과를 위해 10개부터 시작)</small>
+                <small style="color: var(--text-muted); font-size: 11px;">(최소 10개부터 시작)</small>
               </div>
 
               <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
@@ -588,18 +577,38 @@
                 <button type="button" class="mcq-count-chip active" data-count="10" style="padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 800; cursor: pointer; border: 1px solid #10b981; background: rgba(16, 185, 129, 0.15); color: #10b981;">10개 (기본)</button>
                 <button type="button" class="mcq-count-chip" data-count="15" style="padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-secondary);">15개</button>
                 <button type="button" class="mcq-count-chip" data-count="20" style="padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-secondary);">20개</button>
-                <button type="button" class="mcq-count-chip" data-count="25" style="padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-secondary);">25개 (마스터)</button>
+                <button type="button" class="mcq-count-chip" data-count="25" style="padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-secondary);">25개</button>
               </div>
             </div>
           </div>
 
-          <!-- 단어 카드 프리뷰 그리드 -->
-          <div class="mcq-preview-grid" id="mcqPreviewGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin: 20px 0;">
-            <!-- 자바스크립트로 5개 단어 카드가 렌더링됨 -->
+          <!-- 2. 각인 상태 & 타이머 헤더 카드 -->
+          <div class="test-header-card">
+            <div class="test-title-wrap">
+              <span class="step-badge" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4);">STEP 1</span>
+              <h2 id="mcqPreviewHeading">단어를 확인하고 뇌에 각인하세요!</h2>
+              <p class="subtitle" id="mcqPreviewSub">아래 단어 카드를 클릭하면 단어가 공개되며 <strong>각인 타이머가 작동</strong>합니다.</p>
+            </div>
+            <div class="test-timer-badge">
+              <span class="timer-icon">⏱️</span>
+              <span>각인 시간: <strong id="mcqPreviewTimer">00.0s</strong></span>
+            </div>
           </div>
 
-          <!-- 하단 액션 버튼 -->
-          <div style="text-align: center; margin-top: 24px;">
+          <!-- 단어 전체 열람 / 잠금해제 바 -->
+          <div id="mcqRevealActionWrap" style="text-align: center; margin: 16px 0;">
+            <button id="btnRevealAllWords" class="btn-primary" style="font-size: 16px; padding: 13px 28px; background: linear-gradient(135deg, #6366f1, #4f46e5); font-weight: 800; border-radius: var(--radius-md); box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);">
+              👁️ 단어 전체 열람 & 각인 시작 (타이머 START)
+            </button>
+          </div>
+
+          <!-- 단어 카드 프리뷰 그리드 -->
+          <div class="mcq-preview-grid" id="mcqPreviewGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin: 20px 0;">
+            <!-- 자바스크립트로 단어 카드가 렌더링됨 -->
+          </div>
+
+          <!-- 하단 액션 버튼 (처음엔 숨김 -> 단어 열람 시 표시) -->
+          <div id="mcqStartSolveWrap" style="text-align: center; margin-top: 24px; display: none;">
             <button id="btnStartSolveMcq" class="btn-primary" style="font-size: 17px; padding: 16px 36px; background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 18px rgba(16, 185, 129, 0.35);">
               🚀 다 외웠습니다! 4지선다 퀴즈 시작 ➔
             </button>

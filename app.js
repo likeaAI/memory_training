@@ -1311,11 +1311,22 @@ function setupMcqTopicSelector() {
             history: []
           };
           if (badge) badge.innerText = `현재 주제: ${topicVal} (${data.quiz_data.length}문제)`;
-          renderMcqWordPreview();
-
-          // 각인 타이머 리셋
+          
+          // 새 단어 생성 시 블라인드 상태로 리셋 & 타이머 대기
+          state.mcqIsRevealed = false;
           clearInterval(mcqPreviewTimerId);
-          mcqPreviewStartTime = Date.now();
+          const timerElem = document.getElementById('mcqPreviewTimer');
+          if (timerElem) timerElem.innerText = '00.0s';
+          const btnReveal = document.getElementById('btnRevealAllWords');
+          if (btnReveal) btnReveal.style.display = 'inline-block';
+          const solveWrap = document.getElementById('mcqStartSolveWrap');
+          if (solveWrap) solveWrap.style.display = 'none';
+          const heading = document.getElementById('mcqPreviewHeading');
+          const sub = document.getElementById('mcqPreviewSub');
+          if (heading) heading.innerText = '단어를 확인하고 뇌에 각인하세요!';
+          if (sub) sub.innerText = '아래 단어 카드를 클릭하면 단어가 공개되며 각인 타이머가 작동합니다.';
+
+          renderMcqWordPreview();
         } else {
           alert('단어 생성에 실패했습니다. 다시 시도해주세요.');
         }
@@ -1368,17 +1379,26 @@ function startMcqQuiz() {
   if (previewStep) previewStep.style.display = 'block';
   if (solveStep) solveStep.style.display = 'none';
 
-  // 단어 목록 렌더링
+  // 단어 열람 상태 초기화 (처음엔 가려진 상태)
+  state.mcqIsRevealed = false;
+
+  // 타이머는 00.0s에서 대기
+  clearInterval(mcqPreviewTimerId);
+  const timerElem = document.getElementById('mcqPreviewTimer');
+  if (timerElem) timerElem.innerText = '00.0s';
+
+  // 단어 목록 렌더링 (블라인드 가림막 상태)
   renderMcqWordPreview();
 
-  // 각인 타이머 시작
-  clearInterval(mcqPreviewTimerId);
-  mcqPreviewStartTime = Date.now();
-  const timerElem = document.getElementById('mcqPreviewTimer');
-  mcqPreviewTimerId = setInterval(() => {
-    const elapsed = ((Date.now() - mcqPreviewStartTime) / 1000).toFixed(1);
-    if (timerElem) timerElem.innerText = `${elapsed}s`;
-  }, 100);
+  // 전체 열람 버튼 이벤트 바인딩
+  const btnReveal = document.getElementById('btnRevealAllWords');
+  if (btnReveal) {
+    btnReveal.style.display = 'inline-block';
+    btnReveal.onclick = () => revealMcqWordsAndStartTimer();
+  }
+
+  const solveWrap = document.getElementById('mcqStartSolveWrap');
+  if (solveWrap) solveWrap.style.display = 'none';
 
   // [퀴즈 시작하기] 버튼 이벤트 바인딩
   const btnStartSolve = document.getElementById('btnStartSolveMcq');
@@ -1391,30 +1411,81 @@ function startMcqQuiz() {
   }
 }
 
-// 📇 퀴즈 전 단어 각인 카드 렌더링 (시각 앵커 & 정의 강조)
+// 🔓 단어 열람 및 각인 타이머 START 함수
+function revealMcqWordsAndStartTimer() {
+  if (state.mcqIsRevealed) return;
+  state.mcqIsRevealed = true;
+
+  // 1. 헤더 텍스트 변경
+  const heading = document.getElementById('mcqPreviewHeading');
+  const sub = document.getElementById('mcqPreviewSub');
+  if (heading) heading.innerText = '🔥 집중 각인 중! 충분히 외운 후 퀴즈를 시작하세요';
+  if (sub) sub.innerText = '시각 앵커와 설명을 뇌에 강렬히 결합하세요. 완료되면 아래 [퀴즈 시작]을 누릅니다.';
+
+  // 2. 타이머 작동 시작!
+  clearInterval(mcqPreviewTimerId);
+  mcqPreviewStartTime = Date.now();
+  const timerElem = document.getElementById('mcqPreviewTimer');
+  mcqPreviewTimerId = setInterval(() => {
+    const elapsed = ((Date.now() - mcqPreviewStartTime) / 1000).toFixed(1);
+    if (timerElem) timerElem.innerText = `${elapsed}s`;
+  }, 100);
+
+  // 3. 열람 버튼 숨기고 퀴즈 시작 버튼 표시
+  const btnReveal = document.getElementById('btnRevealAllWords');
+  if (btnReveal) btnReveal.style.display = 'none';
+
+  const solveWrap = document.getElementById('mcqStartSolveWrap');
+  if (solveWrap) solveWrap.style.display = 'block';
+
+  // 4. 단어 카드들을 선명하게 재렌더링
+  renderMcqWordPreview();
+}
+
+// 📇 퀴즈 전 단어 각인 카드 렌더링 (블라인드 / 공개 모드 지원)
 function renderMcqWordPreview() {
   const container = document.getElementById('mcqPreviewGrid');
   if (!container) return;
   container.innerHTML = '';
 
   const quizData = state.sessionData.quiz_data || [];
+  const isRevealed = state.mcqIsRevealed;
+
   quizData.forEach((item, idx) => {
     const card = document.createElement('div');
     card.className = 'prepare-word-card';
-    card.style.background = 'var(--bg-surface)';
-    card.style.border = '1px solid var(--border-color)';
+    card.style.background = isRevealed ? 'var(--bg-surface)' : 'var(--bg-card)';
+    card.style.border = isRevealed ? '1px solid var(--border-color)' : '2px dashed #6366f1';
     card.style.borderRadius = 'var(--radius-lg)';
     card.style.padding = '18px';
-    card.style.boxShadow = 'var(--shadow-sm)';
-    card.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-        <span style="background: rgba(99, 102, 241, 0.15); color: #6366f1; font-weight: 800; font-size: 12px; padding: 2px 8px; border-radius: 6px;">#0${idx + 1}</span>
-        <span style="font-size: 13px; font-weight: 700; color: #f59e0b;">${item.visual_anchor || '💡 시각 앵커'}</span>
-      </div>
-      <div style="font-size: 20px; font-weight: 800; color: var(--text-primary); margin-bottom: 6px;">${item.word}</div>
-      <div style="font-size: 14px; color: var(--text-secondary); line-height: 1.4;">${item.definition || ''}</div>
-      ${item.importance_reason ? `<div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">📌 ${item.importance_reason}</div>` : ''}
-    `;
+    card.style.boxShadow = isRevealed ? 'var(--shadow-sm)' : '0 4px 14px rgba(99, 102, 241, 0.12)';
+    card.style.cursor = isRevealed ? 'default' : 'pointer';
+    card.style.transition = 'all 0.25s ease';
+
+    if (!isRevealed) {
+      // 🔒 가림막(블라인드) 상태: 클릭하면 열람 및 타이머 시작!
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <span style="background: rgba(99, 102, 241, 0.15); color: #6366f1; font-weight: 800; font-size: 12px; padding: 2px 8px; border-radius: 6px;">#0${idx + 1}</span>
+          <span style="font-size: 12px; font-weight: 800; color: #6366f1;">🔒 탭하여 잠금 해제</span>
+        </div>
+        <div style="font-size: 20px; font-weight: 800; color: #6366f1; margin-bottom: 6px; letter-spacing: 2px;">???</div>
+        <div style="font-size: 13px; color: var(--text-muted); line-height: 1.4;">👆 카드를 탭하면 단어가 공개되며 각인 타이머가 시작됩니다.</div>
+      `;
+      card.onclick = () => revealMcqWordsAndStartTimer();
+    } else {
+      // 👁️ 공개 상태: 단어, 앵커, 설명 완전 노출
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 800; font-size: 12px; padding: 2px 8px; border-radius: 6px;">#0${idx + 1}</span>
+          <span style="font-size: 13px; font-weight: 800; color: #f59e0b;">${item.visual_anchor || '💡 시각 앵커'}</span>
+        </div>
+        <div style="font-size: 21px; font-weight: 800; color: var(--text-primary); margin-bottom: 6px;">${item.word}</div>
+        <div style="font-size: 14px; color: var(--text-secondary); line-height: 1.4;">${item.definition || ''}</div>
+        ${item.importance_reason ? `<div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">📌 ${item.importance_reason}</div>` : ''}
+      `;
+    }
+
     container.appendChild(card);
   });
 }
