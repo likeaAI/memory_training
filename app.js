@@ -366,6 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupDrawer();
   setupTagInput();
   setupKeybindings();
+  setupMcqTopicSelector();
   checkAuthAndInit();
 });
 
@@ -1213,14 +1214,83 @@ document.getElementById('btnSubmitTest').addEventListener('click', async () => {
 let mcqPreviewTimerId = null;
 let mcqPreviewStartTime = 0;
 
+// 📚 객관식 퀴즈 화면 내 주제 선택기 및 동적 단어 생성 엔진
+function setupMcqTopicSelector() {
+  const inputTopic = document.getElementById('inputMcqTopic');
+  const btnGen = document.getElementById('btnGenerateMcqTopic');
+  const badge = document.getElementById('mcqCurrentTopicBadge');
+  const chips = document.querySelectorAll('.mcq-preset-chip');
+
+  if (btnGen && inputTopic) {
+    btnGen.onclick = async () => {
+      const topicVal = inputTopic.value.trim();
+      if (!topicVal) {
+        alert('주제를 입력해주세요.');
+        return;
+      }
+
+      toggleLoading(true, `'${topicVal}' 분야의 핵심 개념어 5개를 엄선하여 퀴즈를 설계하고 있습니다...`);
+      try {
+        const data = await generateWordsClient('topic', topicVal, 5);
+        toggleLoading(false);
+
+        if (data && data.quiz_data && data.quiz_data.length > 0) {
+          state.sessionData = {
+            quiz_data: data.quiz_data,
+            source_name: topicVal,
+            user_story: '',
+            history: []
+          };
+          if (badge) badge.innerText = `현재 주제: ${topicVal}`;
+          renderMcqWordPreview();
+
+          // 각인 타이머 리셋
+          clearInterval(mcqPreviewTimerId);
+          mcqPreviewStartTime = Date.now();
+        } else {
+          alert('단어 생성에 실패했습니다. 다시 시도해주세요.');
+        }
+      } catch (err) {
+        toggleLoading(false);
+        console.error('MCQ 단어 생성 오류:', err);
+      }
+    };
+  }
+
+  // 프리셋 칩 클릭 시 즉시 입력 및 생성
+  chips.forEach(chip => {
+    chip.onclick = () => {
+      const topic = chip.getAttribute('data-topic');
+      if (inputTopic && topic) {
+        inputTopic.value = topic;
+        if (btnGen) btnGen.click();
+      }
+    };
+  });
+}
+
 function startMcqQuiz() {
+  // 만약 단어가 아직 없으면 입력된 주제로 자동 생성 시도
+  const inputTopic = document.getElementById('inputMcqTopic');
+  const currentTopic = (state.sessionData && state.sessionData.source_name) || (inputTopic ? inputTopic.value.trim() : '전기기사 전자기학');
+
   if (!state.sessionData || !state.sessionData.quiz_data || state.sessionData.quiz_data.length === 0) {
-    alert('훈련할 단어 세트가 없습니다. 먼저 단어를 생성하거나 단어장을 선택해주세요.');
-    return;
+    const defaultList = OFFLINE_BUILTIN_SETS[currentTopic] || OFFLINE_BUILTIN_SETS["기억술"] || [];
+    state.sessionData = {
+      quiz_data: defaultList,
+      source_name: currentTopic,
+      user_story: '',
+      history: []
+    };
   }
 
   // 화면 전환
   switchView('viewQuizMCQ');
+
+  // 주제 뱃지 및 인풋창 동기화
+  const badge = document.getElementById('mcqCurrentTopicBadge');
+  if (badge) badge.innerText = `현재 주제: ${state.sessionData.source_name || currentTopic}`;
+  if (inputTopic && state.sessionData.source_name) inputTopic.value = state.sessionData.source_name;
 
   // 1단계: 단어 각인 프리뷰 영역 표시
   const previewStep = document.getElementById('mcqPreviewStep');

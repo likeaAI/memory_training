@@ -541,6 +541,37 @@
             </div>
           </div>
 
+          <!-- 📚 [핵심] 퀴즈 학습 주제 선택 & 즉시 단어 생성기 -->
+          <div class="mcq-topic-selector-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px 22px; margin-bottom: 20px; box-shadow: var(--shadow-sm);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+              <label style="font-size: 15px; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                <span>📚 퀴즈 학습 주제 선택</span>
+                <span style="font-size: 12px; color: var(--text-muted); font-weight: 500;">(원하는 주제로 언제든 단어를 바꿔 퀴즈를 풀 수 있습니다)</span>
+              </label>
+              <span id="mcqCurrentTopicBadge" style="font-size: 12px; font-weight: 800; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 3px 12px; border-radius: 12px;">
+                현재 주제: 기억술 핵심 개념
+              </span>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+              <input type="text" id="inputMcqTopic" placeholder="공부하고 싶은 주제를 입력하세요 (예: 전기기사, 민법, 경제학, 뇌과학)" value="전기기사 전자기학" style="flex: 1; padding: 12px 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 15px; font-weight: 600;">
+              <button id="btnGenerateMcqTopic" class="btn-primary" style="background: linear-gradient(135deg, #10b981, #059669); white-space: nowrap; padding: 12px 22px; font-weight: 800; font-size: 14px;">
+                ⚡ 이 주제로 새 단어 생성
+              </button>
+            </div>
+
+            <!-- 추천 주제 원클릭 프리셋 칩 -->
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-muted);">⚡ 빠른 주제 추천:</span>
+              <button type="button" class="mcq-preset-chip" data-topic="전기기사 전자기학" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); padding: 5px 12px; border-radius: 14px; font-size: 12px; font-weight: 700; cursor: pointer;">🔬 전자기학</button>
+              <button type="button" class="mcq-preset-chip" data-topic="거시경제학 원론" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); padding: 5px 12px; border-radius: 14px; font-size: 12px; font-weight: 700; cursor: pointer;">💼 거시경제학</button>
+              <button type="button" class="mcq-preset-chip" data-topic="인지심리학 및 뇌과학" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); padding: 5px 12px; border-radius: 14px; font-size: 12px; font-weight: 700; cursor: pointer;">🧠 뇌과학·심리</button>
+              <button type="button" class="mcq-preset-chip" data-topic="민법총칙 핵심개념" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); padding: 5px 12px; border-radius: 14px; font-size: 12px; font-weight: 700; cursor: pointer;">⚖️ 민법총칙</button>
+              <button type="button" class="mcq-preset-chip" data-topic="컴퓨터 네트워크" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); padding: 5px 12px; border-radius: 14px; font-size: 12px; font-weight: 700; cursor: pointer;">💻 네트워크</button>
+              <button type="button" class="mcq-preset-chip" data-topic="기억술 및 메타인지" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); padding: 5px 12px; border-radius: 14px; font-size: 12px; font-weight: 700; cursor: pointer;">🏛️ 기억술</button>
+            </div>
+          </div>
+
           <!-- 단어 카드 프리뷰 그리드 -->
           <div class="mcq-preview-grid" id="mcqPreviewGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin: 20px 0;">
             <!-- 자바스크립트로 5개 단어 카드가 렌더링됨 -->
