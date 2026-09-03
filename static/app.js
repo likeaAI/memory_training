@@ -416,6 +416,21 @@ function setupModeSwitcher() {
     });
   }
 
+  const launchMcq = document.getElementById('launchMcqCard');
+  if (launchMcq) {
+    launchMcq.addEventListener('click', () => {
+      if (!state.sessionData || !state.sessionData.quiz_data || state.sessionData.quiz_data.length === 0) {
+        const defaultList = OFFLINE_BUILTIN_SETS["기억술"] || [];
+        state.sessionData = {
+          quiz_data: defaultList,
+          source_name: "기억술 핵심 개념",
+          user_story: ""
+        };
+      }
+      startMcqQuiz();
+    });
+  }
+
   if (launchSpatial) {
     launchSpatial.addEventListener('click', () => {
       switchView('viewSpatial');
