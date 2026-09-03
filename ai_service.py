@@ -82,9 +82,9 @@ import time
 # =================================================================
 WORD_POOL_CACHE = {}
 
-def get_or_create_word_pool(mode: str, user_input: str) -> list:
+def get_or_create_word_pool(mode: str, user_input: str, difficulty: str = "normal") -> list:
     """주제에 대한 25~30개의 방대한 단어 풀을 생성하거나 캐시에서 반환"""
-    cache_key = f"{mode}:{user_input.strip()}"
+    cache_key = f"{mode}:{difficulty}:{user_input.strip()}"
     
     # 캐시에 10개 이상 남아있으면 그대로 사용
     if cache_key in WORD_POOL_CACHE and len(WORD_POOL_CACHE[cache_key]) >= 10:
@@ -94,11 +94,20 @@ def get_or_create_word_pool(mode: str, user_input: str) -> list:
     random_seed = random.randint(10000, 99999)
     current_time_entropy = int(time.time() * 1000) % 10000
 
+    diff_instruction = ""
+    if difficulty == "hard":
+        diff_instruction = "\n[난이도 지침: 🔥 어려움 / 고난도 정밀 모드]\n- 기사 2차 실기, 전문직 및 대학원 수준의 변별력 높은 심화 학술 용어와 고난도 메커니즘 위주로 엄선하세요.\n- 누구나 아는 단순 기초 상식 단어는 철저히 배제하세요."
+    elif difficulty == "easy":
+        diff_instruction = "\n[난이도 지침: 🌱 쉬움 / 입문 웜업 모드]\n- 해당 분야의 가장 직관적이고 친숙한 대표 기초 용어 위주로 구성하세요.\n- 시각 앵커는 일상에서 바로 떠올릴 수 있는 친근한 사물로 연결하세요."
+    else:
+        diff_instruction = "\n[난이도 지침: ⚡ 보통 / 표준 훈련 모드]\n- 시험 및 실무에서 가장 빈출되는 표준 핵심 전문 용어로 균형 있게 엄선하세요."
+
     if mode == "multi":
         target_desc = f"""
 [역할]: 다학제 융합 지식 엄선관
 [주제 목록]: "{user_input}"
 [랜덤 시드: {random_seed}-{current_time_entropy}]
+{diff_instruction}
 위 주제들에서 가장 대표적인 핵심 전문 용어 총 25개를 기초/중급/심화 스펙트럼에서 골고루 다채롭게 엄선하세요.
 절대로 뻔하거나 상위 5개에 국한되지 말고, 서로 다른 세부 영역에서 다채롭게 추출하세요.
 """
@@ -106,6 +115,7 @@ def get_or_create_word_pool(mode: str, user_input: str) -> list:
         target_desc = f"""
 [역할]: '{user_input}' 분야 전공 교수
 [랜덤 시드: {random_seed}-{current_time_entropy}]
+{diff_instruction}
 주제 '{user_input}'에 관련된 핵심 전문 용어 총 25개를 다양하게 엄선하세요.
 ⚠️ [다양성 필수 지침]:
 - 매번 뻔한 1~2개 대표 단어만 뽑지 말고,
@@ -155,10 +165,10 @@ def get_or_create_word_pool(mode: str, user_input: str) -> list:
     WORD_POOL_CACHE[cache_key] = pool
     return pool
 
-def generate_words(mode: str, user_input: str, word_count: int = 5, exclude_words: list = None) -> dict:
-    """단어 풀에서 무작위 셔플링(Random Sampling)하여 신선한 단어 조합 반환"""
-    cache_key = f"{mode}:{user_input.strip()}"
-    pool = get_or_create_word_pool(mode, user_input)
+def generate_words(mode: str, user_input: str, word_count: int = 5, exclude_words: list = None, difficulty: str = "normal") -> dict:
+    """단어 풀에서 무작위 셔플링(Random Sampling)하여 신선한 단어 조합 반환 (난이도/정밀도 적용)"""
+    cache_key = f"{mode}:{difficulty}:{user_input.strip()}"
+    pool = get_or_create_word_pool(mode, user_input, difficulty=difficulty)
     exclude_set = set(exclude_words or [])
 
     # 1. 이미 학습한 단어 제외
@@ -167,7 +177,7 @@ def generate_words(mode: str, user_input: str, word_count: int = 5, exclude_word
     # 만약 남은 단어가 부족하면 캐시를 비우고 완전히 새로운 단어 풀을 생성
     if len(available_candidates) < word_count:
         WORD_POOL_CACHE.pop(cache_key, None)
-        pool = get_or_create_word_pool(mode, user_input)
+        pool = get_or_create_word_pool(mode, user_input, difficulty=difficulty)
         available_candidates = [item for item in pool if item.get("word") not in exclude_set]
 
     # 2. 🎲 무작위 셔플링 후 추출
@@ -230,11 +240,20 @@ def generate_words_from_pdf(extracted_text: str, pdf_name: str, word_count: int 
     return result
 
 def verify_answers(quiz_words: list, user_inputs: list, difficulty: str = "normal") -> dict:
-    """인출 답안 자비로운 채점"""
+    """인출 답안 채점 (난이도별 정밀도 반영)"""
+    if difficulty == "hard":
+        grading_instruction = """당신은 단 1글자의 오타나 오류도 허용하지 않는 엄격한 정밀 시험 채점관입니다.
+정답 단어와 100% 완벽히 일치해야만 is_correct: true로 판정하며, 사소한 오타, 철자 탈락, 유사어도 절대 인정하지 말고 is_correct: false 처리하세요."""
+    elif difficulty == "easy":
+        grading_instruction = """당신은 매우 유연하고 자비로운 시험 채점관입니다.
+사소한 오타나 자모 분리, 띄어쓰기 차이, 음절 누락은 적극적으로 정답(is_correct: true)으로 관대하게 인정하세요."""
+    else:
+        grading_instruction = """당신은 표준 시험 채점관입니다.
+핵심 단어가 통하면 가벼운 띄어쓰기나 단순 오타는 유연하게 정답으로 인정하되, 다른 단어로 오인될 수 있는 오타는 오답 처리하세요."""
+
     prompt = f"""
-당신은 유연하고 자비로운 시험 채점관입니다.
-기억력 훈련자가 쉼표로 나열한 답안 목록과 정답 단어 목록을 대조하여 채점하세요.
-오타나 자모 분리, 사소한 띄어쓰기 차이는 정답(is_correct: true)으로 인정합니다.
+{grading_instruction}
+기억력 훈련자가 나열한 답안 목록과 정답 단어 목록을 대조하여 채점하세요.
 
 - 정답 단어 목록: {quiz_words}
 - 사용자 입력 목록: {user_inputs}

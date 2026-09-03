@@ -192,9 +192,25 @@ async function generateWordsClient(mode, userInput, count = 5, excludeWords = []
   // 2. 캐시가 부족하면 Gemini API 호출 시도
   if (!pool || pool.length < count) {
     try {
+      const diff = state.difficulty || 'normal';
+      let diffInstruction = '';
+      if (diff === 'hard') {
+        diffInstruction = `[난이도 지침: 🔥 어려움 / 고난도 정밀 모드]
+- 기사 시험 2차, 전공 심화, 고시 수준의 변별력 높은 전문 학술 용어와 복합 개념 위주로 정밀하게 엄선하세요.
+- 누구나 아는 단순 기초 상식 단어는 철저히 배제하고 깊이 있는 전공어로 구성하세요.`;
+      } else if (diff === 'easy') {
+        diffInstruction = `[난이도 지침: 🌱 쉬움 / 입문 웜업 모드]
+- 해당 분야의 가장 직관적이고 친숙한 대표 입문 용어로 구성하세요.
+- 시각 앵커는 일상에서 바로 연상되는 친근한 사물로 연결하세요.`;
+      } else {
+        diffInstruction = `[난이도 지침: ⚡ 보통 / 표준 훈련 모드]
+- 시험 및 실무에서 가장 빈출되는 표준 핵심 전문 용어로 균형 있게 엄선하세요.`;
+      }
+
       const prompt = `
 [역할]: '${cleanInput}' 분야 전공 교수
-주제 '${cleanInput}'에 관련된 핵심 전문 용어 총 25개를 기초부터 심화까지 아주 다양하게 엄선하세요.
+${diffInstruction}
+주제 '${cleanInput}'에 관련된 핵심 전문 용어 총 25개를 엄선하세요.
 [필수 JSON 포맷]:
 {
   "quiz_data": [
@@ -208,6 +224,7 @@ async function generateWordsClient(mode, userInput, count = 5, excludeWords = []
 }
 - 25개 단어, 한국어로 작성.
 `;
+      console.log(`[AI 프롬프트 생성] 난이도: ${diff} 적용 완료`);
       const res = await callGeminiClient(prompt, 0.95);
       pool = (res.quiz_data || []).map(item => ({
         ...item,
@@ -250,11 +267,25 @@ async function generateWordsClient(mode, userInput, count = 5, excludeWords = []
 
 // 클라이언트 채점
 async function verifyAnswersClient(quizWords, userInputs) {
+  const diff = state.difficulty || 'normal';
+  let gradingRule = '';
+  if (diff === 'hard') {
+    gradingRule = `[채점 기준: 🔥 엄격한 정밀 채점 모드]
+- 단 한 글자의 오타, 자모 탈락, 띄어쓰기 오류도 절대 허용하지 않는 엄격한 정밀 채점관입니다.
+- 글자가 100% 완벽히 일치해야만 is_correct: true로 판정하고, 조금이라도 틀리면 즉시 is_correct: false로 채점하세요.`;
+  } else if (diff === 'easy') {
+    gradingRule = `[채점 기준: 🌱 자비로운 채점 모드]
+- 사소한 오타, 자모 분리, 띄어쓰기 차이, 음절 누락은 적극적으로 정답(is_correct: true)으로 관대하게 인정하세요.`;
+  } else {
+    gradingRule = `[채점 기준: ⚡ 표준 채점 모드]
+- 핵심 단어가 통하면 가벼운 오타나 띄어쓰기는 정답으로 인정하되, 다른 단어로 왜곡된 것은 오답(is_correct: false) 처리하세요.`;
+  }
+
   const prompt = `
-당신은 자비로운 시험 채점관입니다.
+${gradingRule}
 정답 단어 목록: ${JSON.stringify(quizWords)}
 사용자 입력 목록: ${JSON.stringify(userInputs)}
-오타나 자모 분리, 띄어쓰기 차이는 정답(is_correct: true)으로 처리하세요.
+
 반드시 아래 JSON 형식으로 응답:
 {
   "results": [
@@ -804,9 +835,10 @@ document.getElementById('btnStartGenerate').addEventListener('click', async () =
       pdf_name: state.selectedPdfName,
       start_page: parseInt(document.getElementById('inputStartPage').value) || 1,
       end_page: parseInt(document.getElementById('inputEndPage').value) || 0,
-      count: state.wordCount
+      count: state.wordCount,
+      difficulty: state.difficulty
     };
-    toggleLoading(true, 'PDF 교재 텍스트를 추출하고 핵심 전공 용어를 분류 중입니다...');
+    toggleLoading(true, `PDF 교재에서 [${state.difficulty.toUpperCase()}] 수준 핵심 전공 용어를 분류 중입니다...`);
   } else {
     let inputVal = '';
     if (state.activeTab === 'topic') {
@@ -825,9 +857,10 @@ document.getElementById('btnStartGenerate').addEventListener('click', async () =
     payload = {
       mode: state.activeTab,
       input: inputVal,
-      count: state.wordCount
+      count: state.wordCount,
+      difficulty: state.difficulty
     };
-    toggleLoading(true, 'AI가 각 분야 핵심 전문 용어와 시각 앵커를 설계하고 있습니다...');
+    toggleLoading(true, `AI가 [${state.difficulty.toUpperCase()}] 난이도에 맞춰 핵심 전공 용어와 시각 앵커를 설계하고 있습니다...`);
   }
 
   try {
