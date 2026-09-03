@@ -11,6 +11,13 @@ function doGet(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const action = (e && e.parameter && e.parameter.action) ? e.parameter.action : 'get_all';
 
+  if (action === 'ping') {
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'success',
+      message: 'Google Sheets DB 웹훅이 정상적으로 응답하고 있습니다!'
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+
   if (action === 'get_all') {
     const trainingsRaw = getSheetData(ss, '단어장_보관함');
     const conceptLogs = getSheetData(ss, '개념훈련_로그');

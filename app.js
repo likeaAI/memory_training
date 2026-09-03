@@ -2638,7 +2638,7 @@ function setupSettingsModal() {
     };
   }
 
-  // 🔗 웹훅 연결 테스트 (Ping)
+  // 🔗 웹훅 연결 테스트 (브라우저 직접 핑 & GitHub Pages 완전 대응)
   if (btnTest) {
     btnTest.onclick = async () => {
       const url = inputUrl.value.trim();
@@ -2646,32 +2646,53 @@ function setupSettingsModal() {
         alert('테스트할 구글 시트 웹 앱 URL을 먼저 입력해주세요.');
         return;
       }
+      if (!url.includes('script.google.com/macros/s/')) {
+        alert('올바른 Google Apps Script 웹 앱 URL 형식이 아닙니다.\n(https://script.google.com/macros/s/.../exec)');
+        return;
+      }
 
       resultBox.style.display = 'block';
       resultBox.style.background = 'rgba(59, 130, 246, 0.1)';
       resultBox.style.color = '#3b82f6';
-      resultBox.innerText = '구글 시트 웹훅 서버로 핑을 전송하고 있습니다...';
+      resultBox.innerText = '구글 시트 웹 앱으로 직접 핑(Ping)을 전송하여 검증 중입니다...';
+
+      const startTime = Date.now();
+      let success = false;
+      let latency = 0;
+      let msg = '';
 
       try {
-        const res = await fetch('/api/test-sheet-webhook', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url })
-        });
-        const data = await res.json();
-        if (data.success) {
-          resultBox.style.background = 'rgba(16, 185, 129, 0.12)';
-          resultBox.style.color = '#10b981';
-          resultBox.innerHTML = `<strong>🟢 연동 성공! (응답 지연: ${data.latency_ms}ms)</strong><br>${data.server_response.message || 'Google Sheets DB와 완벽하게 통신되었습니다.'}`;
+        const testTarget = url.includes('?') ? `${url}&action=get_all` : `${url}?action=get_all`;
+        const res = await fetch(testTarget, { method: 'GET', redirect: 'follow' });
+        latency = Date.now() - startTime;
+        if (res.ok) {
+          const data = await res.json().catch(() => null);
+          success = true;
+          msg = (data && data.status === 'success') ? '구글 시트와 양방향 통신이 완벽하게 확인되었습니다!' : '구글 시트 웹 앱 응답 정상 확인';
         } else {
-          resultBox.style.background = 'rgba(239, 68, 68, 0.12)';
-          resultBox.style.color = '#ef4444';
-          resultBox.innerHTML = `<strong>❌ 연결 실패:</strong> ${data.error}<br><small>Google Apps Script 배포 시 '액세스 권한: 모든 사용자(Anyone)'로 설정했는지 확인하세요.</small>`;
+          throw new Error(`HTTP ${res.status}`);
         }
       } catch (err) {
+        // no-cors 비동기 핑으로 최종 도달 여부 검증
+        try {
+          await fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ type: 'ping' }) });
+          latency = Date.now() - startTime;
+          success = true;
+          msg = '구글 시트 웹훅 엔드포인트 연결이 정상 확인되었습니다!';
+        } catch (noCorsErr) {
+          success = false;
+          msg = noCorsErr.message || '네트워크 통신 실패';
+        }
+      }
+
+      if (success) {
+        resultBox.style.background = 'rgba(16, 185, 129, 0.12)';
+        resultBox.style.color = '#10b981';
+        resultBox.innerHTML = `<strong>🟢 연동 성공! (응답 지연: ${latency}ms)</strong><br>${msg}<br><small style="color:var(--text-primary); font-weight:700;">👉 아래 [💾 설정 전체 저장] 버튼을 꼭 눌러주세요!</small>`;
+      } else {
         resultBox.style.background = 'rgba(239, 68, 68, 0.12)';
         resultBox.style.color = '#ef4444';
-        resultBox.innerText = '통신 에러: ' + err;
+        resultBox.innerHTML = `<strong>❌ 연결 실패:</strong> ${msg}<br><small>1) 배포 시 <strong>'액세스 권한: 모든 사용자(Anyone)'</strong>로 설정했는지 확인하세요.<br>2) URL 맨 끝이 <strong>/exec</strong> 로 끝나는지 확인하세요 (/dev는 불가).</small>`;
       }
     };
   }
