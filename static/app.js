@@ -35,7 +35,15 @@ const state = {
 
   // [신규] 누적 마스터 단어 및 오답 관리
   learnedWordsList: [],
-  lastWrongQuizData: []
+  lastWrongQuizData: [],
+
+  // [신규] 4지선다 객관식 퀴즈 상태
+  mcqIndex: 0,
+  mcqScore: 0,
+  mcqStartTime: 0,
+  mcqDuration: 0,
+  mcqTimerId: null,
+  mcqResults: []
 };
 
 // =================================================================
@@ -902,7 +910,18 @@ document.getElementById('btnGoToMemorize').addEventListener('click', () => {
   startMemorizeMode();
 });
 
-// [신규] STEP 1 -> STEP 3 (1-Card 건너뛰고 연상법 완료 즉시 바로 시험보기)
+// [신규] STEP 1 -> 🎯 4지선다 객관식 퀴즈 시작
+const btnStartMcq = document.getElementById('btnStartMcqQuiz');
+if (btnStartMcq) {
+  btnStartMcq.addEventListener('click', () => {
+    state.sessionData.user_story = document.getElementById('inputUserStory').value.trim();
+    clearInterval(state.memorizeTimerId);
+    state.memorizeDuration = ((Date.now() - state.memorizeStartTime) / 1000).toFixed(1);
+    startMcqQuiz();
+  });
+}
+
+// [신규] STEP 1 -> STEP 3 (1-Card 건너뛰고 연상법 완료 즉시 바로 주관식 시험보기)
 document.getElementById('btnDirectToTest').addEventListener('click', () => {
   state.sessionData.user_story = document.getElementById('inputUserStory').value.trim();
   clearInterval(state.memorizeTimerId);
@@ -1159,6 +1178,174 @@ document.getElementById('btnSubmitTest').addEventListener('click', async () => {
     alert('채점 중 오류가 발생했습니다: ' + err);
   }
 });
+
+// =================================================================
+// 🎯 4지선다 객관식 퀴즈 (MCQ) 전용 엔진
+// =================================================================
+function startMcqQuiz() {
+  if (!state.sessionData || !state.sessionData.quiz_data || state.sessionData.quiz_data.length === 0) {
+    alert('훈련할 단어 세트가 없습니다. 먼저 단어를 생성하거나 단어장을 선택해주세요.');
+    return;
+  }
+
+  // 암기 타이머 종료 및 시간 기록
+  if (state.prepareTimerId) {
+    clearInterval(state.prepareTimerId);
+    state.memorizeDuration = ((Date.now() - state.prepareStartTime) / 1000).toFixed(1);
+  }
+
+  state.mcqIndex = 0;
+  state.mcqScore = 0;
+  state.mcqResults = [];
+  state.mcqStartTime = Date.now();
+
+  switchView('viewQuizMCQ');
+  startMcqTimer();
+  renderMcqQuestion();
+}
+
+function startMcqTimer() {
+  clearInterval(state.mcqTimerId);
+  const timerElem = document.getElementById('mcqTimer');
+  state.mcqTimerId = setInterval(() => {
+    const elapsed = ((Date.now() - state.mcqStartTime) / 1000).toFixed(1);
+    if (timerElem) timerElem.innerText = `${elapsed}s`;
+  }, 100);
+}
+
+function renderMcqQuestion() {
+  const quizData = state.sessionData.quiz_data;
+  const current = quizData[state.mcqIndex];
+  const total = quizData.length;
+
+  // 헤더 진행도
+  const currentNumElem = document.getElementById('mcqCurrentNum');
+  const totalNumElem = document.getElementById('mcqTotalNum');
+  if (currentNumElem) currentNumElem.innerText = state.mcqIndex + 1;
+  if (totalNumElem) totalNumElem.innerText = total;
+
+  const progressPct = Math.round(((state.mcqIndex + 1) / total) * 100);
+  const bar = document.getElementById('mcqProgressBar');
+  if (bar) bar.style.width = `${progressPct}%`;
+
+  // 문제 카드 (설명 및 시각 앵커 제시)
+  const anchorElem = document.getElementById('mcqQuestionAnchor');
+  const defElem = document.getElementById('mcqQuestionDef');
+  const reasonElem = document.getElementById('mcqQuestionReason');
+
+  if (anchorElem) anchorElem.innerText = current.visual_anchor || '💡 시각 앵커';
+  if (defElem) defElem.innerText = current.definition || '다음 설명에 해당하는 개념 단어는?';
+  if (reasonElem) reasonElem.innerText = current.importance_reason ? `📌 포인트: ${current.importance_reason}` : '';
+
+  // 피드백 바 숨기기
+  const feedbackBar = document.getElementById('mcqFeedbackBar');
+  if (feedbackBar) {
+    feedbackBar.style.display = 'none';
+    feedbackBar.innerText = '';
+  }
+
+  // 4지선다 보기 생성
+  const correctWord = current.word;
+  let distractors = quizData
+    .filter((_, idx) => idx !== state.mcqIndex)
+    .map(item => item.word);
+
+  // 단어가 4개 미만일 때 오프라인 단어장에서 보충
+  if (distractors.length < 3) {
+    const fallbackWords = ["기억의궁전", "시각앵커", "페그시스템", "작업기억", "뇌가소성", "장기기억", "인출단서", "분산학습"];
+    fallbackWords.forEach(w => {
+      if (w !== correctWord && !distractors.includes(w)) {
+        distractors.push(w);
+      }
+    });
+  }
+
+  // 오답 셔플 후 3개 선택
+  distractors.sort(() => Math.random() - 0.5);
+  const chosenDistractors = distractors.slice(0, 3);
+
+  // 4개 선택지 조합 및 최종 셔플
+  const options = [correctWord, ...chosenDistractors];
+  options.sort(() => Math.random() - 0.5);
+
+  // 선택지 렌더링
+  const grid = document.getElementById('mcqOptionsGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  const letters = ['A', 'B', 'C', 'D'];
+
+  options.forEach((opt, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'mcq-option-btn';
+    btn.innerHTML = `
+      <span class="mcq-option-letter">${letters[idx]}</span>
+      <span class="mcq-option-text">${opt}</span>
+    `;
+    btn.onclick = () => selectMcqOption(opt, correctWord, current, btn, grid);
+    grid.appendChild(btn);
+  });
+}
+
+function selectMcqOption(selectedWord, correctWord, currentItem, clickedBtn, grid) {
+  // 모든 보기 버튼 비활성화 (중복 터치 방지)
+  const buttons = grid.querySelectorAll('.mcq-option-btn');
+  buttons.forEach(b => b.disabled = true);
+
+  const isCorrect = (selectedWord === correctWord);
+  const feedbackBar = document.getElementById('mcqFeedbackBar');
+
+  if (isCorrect) {
+    state.mcqScore++;
+    clickedBtn.classList.add('correct');
+    if (feedbackBar) {
+      feedbackBar.style.display = 'block';
+      feedbackBar.style.background = 'rgba(16, 185, 129, 0.15)';
+      feedbackBar.style.color = '#10b981';
+      feedbackBar.innerText = '🎯 정답입니다! 두뇌에 완벽하게 각인되었습니다.';
+    }
+  } else {
+    clickedBtn.classList.add('wrong');
+    // 정답 버튼을 초록색으로 밝혀서 학습 지원
+    buttons.forEach(b => {
+      const textElem = b.querySelector('.mcq-option-text');
+      if (textElem && textElem.innerText === correctWord) {
+        b.classList.add('correct');
+      }
+    });
+    if (feedbackBar) {
+      feedbackBar.style.display = 'block';
+      feedbackBar.style.background = 'rgba(239, 68, 68, 0.15)';
+      feedbackBar.style.color = '#ef4444';
+      feedbackBar.innerText = `❌ 아쉽습니다! 정답은 [${correctWord}] 입니다.`;
+    }
+  }
+
+  // 결과 수집 (renderResultView 형식과 100% 호환)
+  state.mcqResults.push({
+    original: correctWord,
+    matched_input: selectedWord,
+    is_correct: isCorrect,
+    feedback: isCorrect ? '정답 (객관식 퀴즈 마스터)' : `오답 (선택: ${selectedWord} ➔ 정답: ${correctWord})`
+  });
+
+  // 0.8초 후 다음 문제 또는 시험 종료
+  setTimeout(() => {
+    state.mcqIndex++;
+    if (state.mcqIndex < state.sessionData.quiz_data.length) {
+      renderMcqQuestion();
+    } else {
+      finishMcqQuiz();
+    }
+  }, 800);
+}
+
+function finishMcqQuiz() {
+  clearInterval(state.mcqTimerId);
+  state.testDuration = ((Date.now() - state.mcqStartTime) / 1000).toFixed(1);
+
+  renderResultView(state.mcqResults);
+  switchView('viewResult');
+}
 
 function renderResultView(results) {
   let correctCount = 0;

@@ -2550,3 +2550,146 @@ textarea:focus {
   background: var(--error);
   color: white;
 }
+
+/* =================================================================
+   15. 🎯 4지선다 객관식 퀴즈 (MCQ) 스타일
+   ================================================================= */
+.mcq-arena-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: 28px;
+  box-shadow: var(--shadow-md);
+  margin-bottom: 24px;
+}
+
+.mcq-question-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  text-align: center;
+  margin: 20px 0 24px;
+}
+
+.mcq-anchor-badge {
+  display: inline-block;
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 4px 14px;
+  border-radius: 20px;
+  margin-bottom: 12px;
+}
+
+.mcq-question-def {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.mcq-question-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.mcq-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.mcq-option-btn {
+  background: var(--bg-surface);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 18px 16px;
+  text-align: left;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.18s ease;
+  touch-action: manipulation;
+}
+
+.mcq-option-btn:hover:not(:disabled) {
+  border-color: var(--accent-primary);
+  background: rgba(99, 102, 241, 0.08);
+  transform: translateY(-2px);
+}
+
+.mcq-option-letter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-secondary);
+}
+
+.mcq-option-btn.correct {
+  border-color: #10b981 !important;
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #10b981 !important;
+  transform: scale(1.02);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.3);
+}
+
+.mcq-option-btn.correct .mcq-option-letter {
+  background: #10b981;
+  color: white;
+  border-color: #10b981;
+}
+
+.mcq-option-btn.wrong {
+  border-color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #ef4444 !important;
+  animation: shake 0.3s ease;
+}
+
+.mcq-option-btn.wrong .mcq-option-letter {
+  background: #ef4444;
+  color: white;
+  border-color: #ef4444;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+.mcq-feedback-bar {
+  text-align: center;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  margin-top: 10px;
+}
+
+@media (max-width: 768px) {
+  .mcq-options-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .mcq-option-btn {
+    padding: 16px;
+    font-size: 15px;
+  }
+}
