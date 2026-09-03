@@ -53,9 +53,8 @@ const SERVERLESS_CONFIG = {
   getModel: () => localStorage.getItem('brainlock_ai_model') || 'gemini-2.5-flash',
   getGeminiKey: () => localStorage.getItem('brainlock_gemini_key') || '',
   getSheetUrl: () => localStorage.getItem('brainlock_sheet_url') || '',
-  // 🌐 GitHub Pages(github.io) 접속일 때만 정적 서버리스로 동작!
-  // Render(onrender.com)나 localhost는 파이썬 백엔드 서버가 모든 것을 자동 처리하므로 키/URL을 묻지 않음!
-  isStandalone: () => window.location.origin.includes('github.io')
+  // 🌐 로컬 파일(file:) 또는 GitHub Pages(github.io) 접속 시 100% 서버리스 경량 모드로 동작!
+  isStandalone: () => window.location.protocol === 'file:' || window.location.origin.includes('github.io')
 };
 
 // 한글 초성 분리 유틸
@@ -1653,13 +1652,19 @@ async function loadSavedList() {
     let sessions = [];
     let trainings = {};
 
-    try {
-      const userId = state.currentUser ? state.currentUser.user_id : 1;
-      const res = await fetch(`/api/dashboard?user_id=${userId}`);
-      const dbData = await res.json();
-      sessions = dbData.sessions || [];
-      trainings = dbData.trainings || {};
-    } catch (serverErr) {
+    if (!SERVERLESS_CONFIG.isStandalone()) {
+      try {
+        const userId = state.currentUser ? state.currentUser.user_id : 1;
+        const res = await fetch(`/api/dashboard?user_id=${userId}`);
+        if (res.ok) {
+          const dbData = await res.json();
+          sessions = dbData.sessions || [];
+          trainings = dbData.trainings || {};
+        }
+      } catch (serverErr) {}
+    }
+
+    if (!sessions || sessions.length === 0) {
       // 🌐 로컬스토리지에서 복원
       const localDb = JSON.parse(localStorage.getItem('brainlock_local_db') || '{"trainings":{},"concept":[],"spatial":[],"sudoku":[]}');
       trainings = localDb.trainings || {};
@@ -2143,14 +2148,18 @@ async function loadMainDashboard() {
     let spatialRes = { history: [], max_span: 0, avg_rt: 0, total_wins: 0, total_plays: 0 };
     let sudokuRes = { history: [], best_time: 0, avg_time: 0, total_clears: 0 };
 
-    try {
-      [conceptRes, spatialRes, sudokuRes] = await Promise.all([
-        fetch(`/api/dashboard?user_id=${userId}`).then(r => r.json()),
-        fetch(`/api/spatial-dashboard?user_id=${userId}`).then(r => r.json()),
-        fetch(`/api/sudoku-dashboard?user_id=${userId}`).then(r => r.json())
-      ]);
-    } catch (serverErr) {
-      // 🌐 서버 없는 GitHub Pages 환경 -> localStorage 및 Google Sheets 로드!
+    if (!SERVERLESS_CONFIG.isStandalone()) {
+      try {
+        [conceptRes, spatialRes, sudokuRes] = await Promise.all([
+          fetch(`/api/dashboard?user_id=${userId}`).then(r => r.json()),
+          fetch(`/api/spatial-dashboard?user_id=${userId}`).then(r => r.json()),
+          fetch(`/api/sudoku-dashboard?user_id=${userId}`).then(r => r.json())
+        ]);
+      } catch (serverErr) {}
+    }
+
+    if (!conceptRes.sessions || conceptRes.sessions.length === 0) {
+      // 🌐 서버 없는 GitHub Pages / 로컬 환경 -> localStorage 로드!
       const localDb = JSON.parse(localStorage.getItem('brainlock_local_db') || '{"trainings":{},"concept":[],"spatial":[],"sudoku":[]}');
       conceptRes = { sessions: localDb.concept || [], trainings: localDb.trainings || {} };
       const spList = localDb.spatial || [];
