@@ -1,6 +1,6 @@
 // 상태 관리 객체
 const state = {
-  currentView: 'viewAuth',
+  currentView: 'viewDashboard',
   difficulty: 'easy',       // easy, normal, hard
   activeTab: 'topic',       // topic, text
   wordCount: 5,
@@ -457,35 +457,31 @@ function setupModeSwitcher() {
   });
 }
 
-// 로그인 상태 확인 후 화면 라우팅 (메인 대시보드로 기본 진입)
+// 로그인 장벽 없이 메인 대시보드로 100% 즉시 직행!
 function checkAuthAndInit() {
   const mainLayout = document.getElementById('mainAppLayout');
   const viewAuth = document.getElementById('viewAuth');
 
-  if (state.currentUser && state.currentUser.user_id) {
-    // 로그인된 상태 -> 마스터 메인 종합 대시보드로 직행
-    if (viewAuth) {
-      viewAuth.style.display = 'none';
-      viewAuth.classList.remove('active');
-    }
-    if (mainLayout) {
-      mainLayout.style.display = 'grid';
-    }
-    updateUserUI();
-    switchView('viewDashboard');
-    loadMainDashboard();
-    loadSavedList();
-  } else {
-    // 비로그인 상태 -> 마스터 게이트웨이 로그인 창만 확실하게 노출
-    if (mainLayout) {
-      mainLayout.style.display = 'none';
-    }
-    if (viewAuth) {
-      viewAuth.style.display = 'block';
-      viewAuth.classList.add('active');
-    }
-    updateUserUI();
+  // 로그인 모달/화면 완전 숨김
+  if (viewAuth) {
+    viewAuth.style.display = 'none';
+    viewAuth.classList.remove('active');
   }
+
+  // 메인 훈련 레이아웃 즉시 노출
+  if (mainLayout) {
+    mainLayout.style.display = 'grid';
+  }
+
+  // 기본 마스터 프로필 자동 활성화
+  if (!state.currentUser) {
+    state.currentUser = { user_id: 1, username: 'master', display_name: '마스터' };
+  }
+
+  updateUserUI();
+  switchView('viewDashboard');
+  loadMainDashboard();
+  loadSavedList();
 }
 
 // =================================================================
