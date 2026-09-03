@@ -397,14 +397,17 @@
               <span>연상/암기 시간: <strong id="prepareTimerText">00.0s</strong></span>
             </div>
             <div class="prepare-action-buttons">
-              <button id="btnStartMcqQuiz" class="btn-primary" style="background: linear-gradient(135deg, #10b981, #059669);" title="부담 없이 4지선다형으로 빠른 재인 훈련을 진행합니다">
-                🎯 4지선다 객관식 퀴즈 ➔
+              <button id="btnStartMcqQuiz" class="btn-primary" style="background: linear-gradient(135deg, #10b981, #059669);" title="방금 외운 단어들로 4지선다 객관식 퀴즈를 바로 시작합니다">
+                🎯 4지선다 퀴즈 ➔
+              </button>
+              <button id="btnExpandAndMcqQuiz" class="btn-primary" style="background: linear-gradient(135deg, #059669, #047857); font-weight: 800;" title="퀴즈 효과를 극대화하기 위해 동일 주제 단어 5개를 즉시 추가 보강하여 10문제로 도전합니다">
+                ⚡ +5단어 추가하여 10문제 퀴즈 ➔
               </button>
               <button id="btnDirectToTest" class="btn-primary" title="직접 타이핑하며 깊은 인출 훈련을 진행합니다">
                 ✍️ 주관식 백지 인출 ➔
               </button>
               <button id="btnGoToMemorize" class="btn-secondary" title="한 장씩 집중해서 카드를 넘기며 외웁니다">
-                📇 1-Card 카드 암기 ➔
+                📇 1-Card 암기 ➔
               </button>
             </div>
           </div>
@@ -602,6 +605,12 @@
             </button>
           </div>
 
+          <div style="display: flex; justify-content: flex-end; margin-bottom: 8px;">
+            <button type="button" id="btnMcqToConceptDirect" class="btn-secondary" style="font-size: 13px; font-weight: 700; color: #6366f1; border-color: rgba(99, 102, 241, 0.4); background: rgba(99, 102, 241, 0.08); padding: 6px 14px; border-radius: 12px; cursor: pointer;" title="현재 단어들을 가지고 AI 개념 연상술 화면으로 이동합니다">
+              🧠 이 단어들로 AI 개념 연상술(스토리) 훈련하기 ➔
+            </button>
+          </div>
+
           <!-- 단어 카드 프리뷰 그리드 -->
           <div class="mcq-preview-grid" id="mcqPreviewGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin: 20px 0;">
             <!-- 자바스크립트로 단어 카드가 렌더링됨 -->
@@ -726,6 +735,9 @@
 
         <!-- 하단 액션 버튼들 -->
         <div class="result-actions">
+          <button id="btnTransferToConcept" class="btn-primary" style="background: linear-gradient(135deg, #6366f1, #4f46e5); font-weight: 800;" title="방금 푼 단어들로 AI 연상 스토리텔링 및 심화 기억술 훈련으로 직행합니다">
+            🧠 이 단어들로 AI 개념 연상술(스토리) 심화 훈련 ➔
+          </button>
           <button id="btnNextSetExclude" class="btn-primary" title="동일한 주제로 생성하되 이미 맞힌 단어는 제외하고 새로운 핵심 단어를 가져옵니다">
             ⚡ 맞힌 단어 제외하고 다음 단어 도전 ➔
           </button>

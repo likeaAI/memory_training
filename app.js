@@ -967,7 +967,7 @@ document.getElementById('btnGoToMemorize').addEventListener('click', () => {
   startMemorizeMode();
 });
 
-// [신규] STEP 1 -> 🎯 4지선다 객관식 퀴즈 시작
+// [신규] STEP 1 -> 🎯 4지선다 객관식 퀴즈 시작 (기존 단어로 바로 풀기)
 const btnStartMcq = document.getElementById('btnStartMcqQuiz');
 if (btnStartMcq) {
   btnStartMcq.addEventListener('click', () => {
@@ -976,6 +976,79 @@ if (btnStartMcq) {
     state.memorizeDuration = ((Date.now() - state.memorizeStartTime) / 1000).toFixed(1);
     startMcqQuiz();
   });
+}
+
+// 🎯 [양방향 1] 개념 연상술 -> 퀴즈로 전환 시 "+5단어 추가하여 10문제 퀴즈 도전"
+const btnExpandAndMcq = document.getElementById('btnExpandAndMcqQuiz');
+if (btnExpandAndMcq) {
+  btnExpandAndMcq.addEventListener('click', async () => {
+    if (!state.sessionData || !state.sessionData.quiz_data || state.sessionData.quiz_data.length === 0) {
+      alert('단어 데이터가 없습니다.');
+      return;
+    }
+
+    const currentTopic = state.sessionData.source_name || '전기기사 전자기학';
+    const existingWords = state.sessionData.quiz_data.map(d => d.word);
+
+    toggleLoading(true, `'${currentTopic}' 주제로 퀴즈를 위해 새로운 단어 5개를 추가 보강하고 있습니다...`);
+    try {
+      const extraData = await generateWordsClient('topic', currentTopic, 5, existingWords);
+      toggleLoading(false);
+
+      if (extraData && extraData.quiz_data && extraData.quiz_data.length > 0) {
+        // 기존 단어 + 새 단어 융합
+        state.sessionData.quiz_data = [...state.sessionData.quiz_data, ...extraData.quiz_data];
+        state.mcqWordCount = state.sessionData.quiz_data.length;
+      }
+    } catch (e) {
+      toggleLoading(false);
+      console.warn('추가 단어 생성 실패, 기존 단어로 진행:', e);
+    }
+
+    clearInterval(state.memorizeTimerId);
+    state.memorizeDuration = ((Date.now() - state.memorizeStartTime) / 1000).toFixed(1);
+    startMcqQuiz();
+  });
+}
+
+// 🧠 [양방향 2] 객관식 퀴즈 프리뷰 -> AI 개념 연상술(스토리) 직행
+const btnMcqToConcept = document.getElementById('btnMcqToConceptDirect');
+if (btnMcqToConcept) {
+  btnMcqToConcept.addEventListener('click', () => {
+    transferMcqToConceptTraining();
+  });
+}
+
+// 🧠 [양방향 3] 퀴즈 채점 결과 화면 -> AI 개념 연상술(스토리) 심화 훈련 직행
+const btnTransferConcept = document.getElementById('btnTransferToConcept');
+if (btnTransferConcept) {
+  btnTransferConcept.addEventListener('click', () => {
+    transferMcqToConceptTraining();
+  });
+}
+
+// 🔄 퀴즈 단어들을 들고 AI 개념 연상술(스토리텔링) 화면으로 전환하는 공통 함수
+function transferMcqToConceptTraining() {
+  if (!state.sessionData || !state.sessionData.quiz_data || state.sessionData.quiz_data.length === 0) {
+    alert('전환할 퀴즈 단어가 없습니다.');
+    return;
+  }
+
+  // 개념 연상술에는 5~7개 단위가 가장 효과적이므로, 10개 이상이면 상위 5개 또는 오답 위주로 세팅
+  let targetWords = state.sessionData.quiz_data;
+  if (state.lastWrongQuizData && state.lastWrongQuizData.length > 0) {
+    const wrongWords = state.lastWrongQuizData;
+    const others = targetWords.filter(t => !wrongWords.some(w => w.word === t.word));
+    targetWords = [...wrongWords, ...others].slice(0, 5);
+  } else if (targetWords.length > 5) {
+    targetWords = targetWords.slice(0, 5);
+  }
+
+  state.sessionData.quiz_data = targetWords;
+  renderPrepareView();
+  switchView('viewPrepare');
+
+  alert(`💡 퀴즈 단어 중 핵심 5개가 'AI 개념 연상술' 화면에 연동되었습니다!\n시각 앵커를 활용해 나만의 스토리를 메모하고 깊이 있게 각인해보세요.`);
 }
 
 // [신규] STEP 1 -> STEP 3 (1-Card 건너뛰고 연상법 완료 즉시 바로 주관식 시험보기)
