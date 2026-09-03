@@ -335,14 +335,16 @@ function switchView(viewName) {
 
   // 상단 네비게이션 액티브 상태 동기화
   const btnDash = document.getElementById('btnModeDashboard');
+  const btnQuiz = document.getElementById('btnModeQuiz');
   const btnConcept = document.getElementById('btnModeConcept');
   const btnSpatial = document.getElementById('btnModeSpatial');
   const btnSudoku = document.getElementById('btnModeSudoku');
   
-  const navBtns = [btnDash, btnConcept, btnSpatial, btnSudoku].filter(Boolean);
+  const navBtns = [btnDash, btnQuiz, btnConcept, btnSpatial, btnSudoku].filter(Boolean);
   navBtns.forEach(b => b.classList.remove('active'));
 
   if (viewName === 'viewDashboard' && btnDash) btnDash.classList.add('active');
+  else if (viewName === 'viewQuizMCQ' && btnQuiz) btnQuiz.classList.add('active');
   else if (['viewSetup', 'viewPrepare', 'viewMemorize', 'viewTest', 'viewResult'].includes(viewName) && btnConcept) btnConcept.classList.add('active');
   else if (viewName === 'viewSpatial' && btnSpatial) btnSpatial.classList.add('active');
   else if (viewName === 'viewSudoku' && btnSudoku) btnSudoku.classList.add('active');
@@ -371,6 +373,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // 상단 모드 전환기 & 퀵 런처 & 복귀 버튼
 function setupModeSwitcher() {
   const btnDash = document.getElementById('btnModeDashboard');
+  const btnQuiz = document.getElementById('btnModeQuiz');
   const btnConcept = document.getElementById('btnModeConcept');
   const btnSpatial = document.getElementById('btnModeSpatial');
   const btnSudoku = document.getElementById('btnModeSudoku');
@@ -379,6 +382,21 @@ function setupModeSwitcher() {
     btnDash.addEventListener('click', () => {
       switchView('viewDashboard');
       loadMainDashboard();
+    });
+  }
+
+  // [신규] 상단 🎯 4지선다 객관식 퀴즈 탭 클릭 시 즉시 퀴즈 시작!
+  if (btnQuiz) {
+    btnQuiz.addEventListener('click', () => {
+      if (!state.sessionData || !state.sessionData.quiz_data || state.sessionData.quiz_data.length === 0) {
+        const defaultList = OFFLINE_BUILTIN_SETS["기억술"] || [];
+        state.sessionData = {
+          quiz_data: defaultList,
+          source_name: "기억술 핵심 개념",
+          user_story: ""
+        };
+      }
+      startMcqQuiz();
     });
   }
 
