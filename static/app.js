@@ -40,6 +40,7 @@ const state = {
   // [신규] 4지선다 객관식 퀴즈 상태
   mcqIndex: 0,
   mcqScore: 0,
+  mcqWordCount: 10, // 퀴즈 최소 10개 단위 시작
   mcqStartTime: 0,
   mcqDuration: 0,
   mcqTimerId: null,
@@ -131,21 +132,48 @@ const OFFLINE_BUILTIN_SETS = {
     { word: "시각앵커", definition: "추상적 개념을 구체적 사물로 고정하는 연결고리", importance_reason: "망각을 방지하는 강력한 트리거", visual_anchor: "⚓ 거대한 황금 닻" },
     { word: "정교화부호화", definition: "새 정보를 기존 기억과 연결하여 심층 저장하는 기법", importance_reason: "장기기억 전환율을 극대화함", visual_anchor: "🔗 얽혀있는 황금 사슬" },
     { word: "초두효과", definition: "목록의 맨 앞 정보를 가장 쉽게 기억하는 심리", importance_reason: "암기 순서 배치의 핵심 원리", visual_anchor: "🥇 1등 금메달" },
-    { word: "작업기억", definition: "의식적 사고와 정보 처리를 담당하는 단기 두뇌 용량", importance_reason: "전두엽 집중력의 척도", visual_anchor: "💻 번쩍이는 두뇌 RAM" }
+    { word: "작업기억", definition: "의식적 사고와 정보 처리를 담당하는 단기 두뇌 용량", importance_reason: "전두엽 집중력의 척도", visual_anchor: "💻 번쩍이는 두뇌 RAM" },
+    { word: "망각곡선", definition: "시간 경과에 따라 기억이 급격히 소실되는 자연 법칙", importance_reason: "복습 주기를 설계하는 과학적 근거", visual_anchor: "📉 가파른 낭떠러지" },
+    { word: "페그시스템", definition: "숫자나 순서에 고정된 말뚝 이미지를 거는 기억법", importance_reason: "순서 기억에 탁월한 효과", visual_anchor: "📌 벽에 박힌 황금 못" },
+    { word: "인출단서", definition: "잠들어 있는 기억을 깨워 의식으로 끌어올리는 신호", importance_reason: "시험 볼 때 기억을 끄집어내는 열쇠", visual_anchor: "🗝️ 황금 마스터 키" },
+    { word: "메타인지", definition: "자신이 아는 것과 모르는 것을 객관적으로 자각하는 능력", importance_reason: "공부 효율을 3배 높이는 최상위 감각", visual_anchor: "🪞 머릿속을 비추는 거울" },
+    { word: "분산학습", definition: "벼락치기 대신 시간을 두고 여러 번 나누어 공부하는 방법", importance_reason: "신경망을 단단하게 굳히는 비결", visual_anchor: "🌱 주기적으로 물을 주는 화분" }
   ],
   "뇌과학": [
     { word: "해마", definition: "새로운 기억의 형성 및 장기 기억 전환을 총괄하는 기관", importance_reason: "학습과 기억 형성의 관문", visual_anchor: "🌊 푸른 바다의 해마" },
     { word: "시냅스가소성", definition: "학습에 따라 뉴런 간 연결 강도가 변하는 특성", importance_reason: "두뇌 훈련을 통한 뇌 회로 재구성", visual_anchor: "⚡ 번쩍이는 신경 스파크" },
     { word: "전전두엽", definition: "의사결정, 충동 조절, 고차원 계획을 담당하는 뇌 영역", importance_reason: "집중력과 실행기능의 총사령관", visual_anchor: "👑 이마 위의 황금 왕관" },
     { word: "도파민", definition: "성취감과 보상 회로를 자극하는 신경전달물질", importance_reason: "학습 동기부여와 몰입 유지", visual_anchor: "🎯 타오르는 과녁 불꽃" },
-    { word: "편도체", definition: "공포, 분노 등 감정적 반응을 처리하는 뇌 중심부", importance_reason: "기억에 감정적 낙인을 찍음", visual_anchor: "🔥 붉게 달아오른 아몬드" }
+    { word: "편도체", definition: "공포, 분노 등 감정적 반응을 처리하는 뇌 중심부", importance_reason: "기억에 감정적 낙인을 찍음", visual_anchor: "🔥 붉게 달아오른 아몬드" },
+    { word: "미엘린", definition: "신경 섬유를 감싸 신호 전달 속도를 100배 높이는 절연 물질", importance_reason: "반복 연습을 통해 숙달되는 메커니즘", visual_anchor: "🧈 전선을 감싼 두꺼운 버터" },
+    { word: "신경발생", definition: "성인이 된 후에도 해마에서 새로운 뇌세포가 생성되는 현상", importance_reason: "평생 두뇌 발달의 과학적 증거", visual_anchor: "🌿 뇌 속에서 자라나는 새싹" },
+    { word: "아세틸콜린", definition: "주의 집중과 각성을 높여 학습을 촉진하는 신경물질", importance_reason: "공부 집중력의 핵심 촉매", visual_anchor: "💡 환하게 켜지는 집중 전구" },
+    { word: "디폴트모드", definition: "멍때리거나 쉴 때 활성화되어 정보를 정리하는 뇌 네트워크", importance_reason: "휴식 중 창의적 영감의 원천", visual_anchor: "☁️ 뭉게구름 속 안식처" },
+    { word: "코르티솔", definition: "만성 스트레스 시 분비되어 해마를 위축시키는 호르몬", importance_reason: "학습 효율을 떨어뜨리는 주범", visual_anchor: "🧪 부식성 산성 용액" }
   ],
   "인공지능": [
     { word: "트랜스포머", definition: "어텐션 메커니즘을 기반으로 한 현대 딥러닝 핵심 아키텍처", importance_reason: "LLM 및 생성형 AI의 근간", visual_anchor: "🤖 변신하는 거대 로봇" },
     { word: "어텐션", definition: "입력 데이터 중 중요한 부분에 동적으로 가중치를 두는 기법", importance_reason: "문맥 파악 및 번역 혁신", visual_anchor: "🔍 환하게 비추는 스포트라이트" },
     { word: "역전파", definition: "출력 오차를 역방향으로 전달하여 가중치를 학습시키는 알고리즘", importance_reason: "인공신경망 훈련의 기본 엔진", visual_anchor: "↩️ 되감기는 나선형 태엽" },
     { word: "과적합", definition: "훈련 데이터에만 지나치게 맞춰져 실전 성능이 떨어지는 현상", importance_reason: "AI 모델 일반화의 최대 적", visual_anchor: "👔 몸에 꽉 끼는 작은 정장" },
-    { word: "잠재공간", definition: "데이터의 본질적 특성이 압축된 고차원 벡터 공간", importance_reason: "생성 모델의 데이터 생성 원천", visual_anchor: "🌌 은하수가 펼쳐진 우주" }
+    { word: "잠재공간", definition: "데이터의 본질적 특성이 압축된 고차원 벡터 공간", importance_reason: "생성 모델의 데이터 생성 원천", visual_anchor: "🌌 은하수가 펼쳐진 우주" },
+    { word: "경사하강법", definition: "손실 함수의 기울기를 따라 최적점을 찾아가는 최적화 방법", importance_reason: "AI 파라미터 튜닝의 나침반", visual_anchor: "⛷️ 안개를 뚫고 활강하는 스키" },
+    { word: "손실함수", definition: "인공지능의 예측값과 실제 정답 사이의 오차를 수치화한 척도", importance_reason: "모델의 목표이자 채점 기준", visual_anchor: "🎯 과녁에서 빗나간 거리" },
+    { word: "토큰화", definition: "문장을 인공지능이 이해할 수 있는 작은 의미 단위로 쪼개는 과정", importance_reason: "자연어 처리의 첫 번째 관문", visual_anchor: "🧩 쪼개지는 레고 블록" },
+    { word: "할루시네이션", definition: "AI가 사실이 아닌 그럴듯한 거짓말을 생성해내는 현상", importance_reason: "생성형 AI 신뢰성의 핵심 과제", visual_anchor: "👻 사막의 신기루 유령" },
+    { word: "미세조정", definition: "사전 학습된 거대 모델을 특정 도메인에 맞게 추가 학습시키는 기법", importance_reason: "실무 맞춤형 AI 구축 필수 과정", visual_anchor: "🎻 현악기를 조율하는 튜너" }
+  ],
+  "전자기학": [
+    { word: "전계", definition: "전하가 놓였을 때 전기력이 작용하는 공간", importance_reason: "쿨롱의 법칙과 전위 계산의 기초", visual_anchor: "⚡ 뿜어져 나오는 번개 그물" },
+    { word: "자계", definition: "자석이나 전류 주변에 자기력이 작용하는 공간", importance_reason: "전자석과 모터의 구동 원리", visual_anchor: "🧲 나침반을 돌리는 거대 자석" },
+    { word: "맥스웰방정식", definition: "전기장과 자기장의 상호작용을 통합한 4대 전자기학 방정식", importance_reason: "빛과 전파의 본질을 설명함", visual_anchor: "📜 전자기의 4대 천왕 비급" },
+    { word: "유전율", definition: "물질이 전하를 유도하여 전기장을 축적하는 정도", importance_reason: "커패시터 용량 결정 핵심 계수", visual_anchor: "🧽 전기를 머금는 스펀지" },
+    { word: "투자율", definition: "물질이 자기력선을 얼마나 잘 통과시키는지를 나타내는 척도", importance_reason: "변압기 철심 설계의 핵심", visual_anchor: "🚪 자석 통로를 여는 황금문" },
+    { word: "패러데이법칙", definition: "자기장의 시간적 변화가 전압을 유도한다는 전자기 유도 법칙", importance_reason: "발전기와 변압기의 기본 원리", visual_anchor: "🌀 코일 안을 통과하는 자석" },
+    { word: "렌츠의법칙", definition: "유도 기전력은 자기 선속의 변화를 방해하는 방향으로 발생한다는 법칙", importance_reason: "에너지 보존과 방향 결정", visual_anchor: "🛡️ 밀어내는 반발 방패" },
+    { word: "쿨롱의법칙", definition: "두 전하 사이에 작용하는 정전기적 인력과 척도를 나타낸 법칙", importance_reason: "정전기학의 가장 기본이 되는 식", visual_anchor: "⚖️ 전하를 저울질하는 천칭" },
+    { word: "가우스법칙", definition: "폐곡면을 통과하는 총 전속은 내부 전하량과 같다는 법칙", importance_reason: "대칭적인 전계 계산의 지름길", visual_anchor: "🔮 전하를 가둔 수정구슬" },
+    { word: "포인팅벡터", definition: "전자기파가 단위 시간당 전달하는 에너지 흐름의 방향과 크기", importance_reason: "무선 통신 에너지 전송의 척도", visual_anchor: "➡️ 에너지를 실어나르는 화살" }
   ]
 };
 
@@ -1221,6 +1249,46 @@ function setupMcqTopicSelector() {
   const badge = document.getElementById('mcqCurrentTopicBadge');
   const chips = document.querySelectorAll('.mcq-preset-chip');
 
+  // 🎯 [신규] 퀴즈 단어 개수 컨트롤러 (최소 10개 시작!)
+  const btnMinus = document.getElementById('btnMcqCountMinus');
+  const btnPlus = document.getElementById('btnMcqCountPlus');
+  const countDisplay = document.getElementById('mcqCountDisplay');
+  const countChips = document.querySelectorAll('.mcq-count-chip');
+
+  function updateMcqCountUI(val) {
+    state.mcqWordCount = Math.max(10, Math.min(30, val)); // 최소 10개 강제 보장
+    if (countDisplay) countDisplay.innerText = `${state.mcqWordCount}개`;
+    countChips.forEach(c => {
+      const cVal = parseInt(c.getAttribute('data-count'), 10);
+      if (cVal === state.mcqWordCount) {
+        c.style.borderColor = '#10b981';
+        c.style.background = 'rgba(16, 185, 129, 0.15)';
+        c.style.color = '#10b981';
+        c.style.fontWeight = '800';
+      } else {
+        c.style.borderColor = 'var(--border-color)';
+        c.style.background = 'var(--bg-card)';
+        c.style.color = 'var(--text-secondary)';
+        c.style.fontWeight = '600';
+      }
+    });
+  }
+
+  if (btnMinus) {
+    btnMinus.onclick = () => updateMcqCountUI(state.mcqWordCount - 5);
+  }
+
+  if (btnPlus) {
+    btnPlus.onclick = () => updateMcqCountUI(state.mcqWordCount + 5);
+  }
+
+  countChips.forEach(c => {
+    c.onclick = () => {
+      const val = parseInt(c.getAttribute('data-count'), 10);
+      updateMcqCountUI(val);
+    };
+  });
+
   if (btnGen && inputTopic) {
     btnGen.onclick = async () => {
       const topicVal = inputTopic.value.trim();
@@ -1229,9 +1297,10 @@ function setupMcqTopicSelector() {
         return;
       }
 
-      toggleLoading(true, `'${topicVal}' 분야의 핵심 개념어 5개를 엄선하여 퀴즈를 설계하고 있습니다...`);
+      const targetCount = state.mcqWordCount || 10;
+      toggleLoading(true, `'${topicVal}' 분야의 핵심 개념어 ${targetCount}개를 엄선하여 퀴즈를 설계하고 있습니다...`);
       try {
-        const data = await generateWordsClient('topic', topicVal, 5);
+        const data = await generateWordsClient('topic', topicVal, targetCount);
         toggleLoading(false);
 
         if (data && data.quiz_data && data.quiz_data.length > 0) {
@@ -1241,7 +1310,7 @@ function setupMcqTopicSelector() {
             user_story: '',
             history: []
           };
-          if (badge) badge.innerText = `현재 주제: ${topicVal}`;
+          if (badge) badge.innerText = `현재 주제: ${topicVal} (${data.quiz_data.length}문제)`;
           renderMcqWordPreview();
 
           // 각인 타이머 리셋
@@ -1275,7 +1344,7 @@ function startMcqQuiz() {
   const currentTopic = (state.sessionData && state.sessionData.source_name) || (inputTopic ? inputTopic.value.trim() : '전기기사 전자기학');
 
   if (!state.sessionData || !state.sessionData.quiz_data || state.sessionData.quiz_data.length === 0) {
-    const defaultList = OFFLINE_BUILTIN_SETS[currentTopic] || OFFLINE_BUILTIN_SETS["기억술"] || [];
+    const defaultList = (OFFLINE_BUILTIN_SETS[currentTopic] || OFFLINE_BUILTIN_SETS["기억술"] || []).slice(0, state.mcqWordCount || 10);
     state.sessionData = {
       quiz_data: defaultList,
       source_name: currentTopic,
@@ -1288,8 +1357,9 @@ function startMcqQuiz() {
   switchView('viewQuizMCQ');
 
   // 주제 뱃지 및 인풋창 동기화
+  const qCount = state.sessionData.quiz_data ? state.sessionData.quiz_data.length : (state.mcqWordCount || 10);
   const badge = document.getElementById('mcqCurrentTopicBadge');
-  if (badge) badge.innerText = `현재 주제: ${state.sessionData.source_name || currentTopic}`;
+  if (badge) badge.innerText = `현재 주제: ${state.sessionData.source_name || currentTopic} (${qCount}문제)`;
   if (inputTopic && state.sessionData.source_name) inputTopic.value = state.sessionData.source_name;
 
   // 1단계: 단어 각인 프리뷰 영역 표시

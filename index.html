@@ -570,6 +570,27 @@
               <button type="button" class="mcq-preset-chip" data-topic="컴퓨터 네트워크" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); padding: 5px 12px; border-radius: 14px; font-size: 12px; font-weight: 700; cursor: pointer;">💻 네트워크</button>
               <button type="button" class="mcq-preset-chip" data-topic="기억술 및 메타인지" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); padding: 5px 12px; border-radius: 14px; font-size: 12px; font-weight: 700; cursor: pointer;">🏛️ 기억술</button>
             </div>
+
+            <!-- 🎯 [신규] 퀴즈 단어 개수 조정 (최소 10개 단위 시작) -->
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border-color); flex-wrap: wrap; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 13px; font-weight: 800; color: var(--text-primary);">🎯 퀴즈 문제 수:</span>
+                <div style="display: inline-flex; align-items: center; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow: hidden;">
+                  <button type="button" id="btnMcqCountMinus" style="padding: 6px 14px; border: none; background: transparent; color: var(--text-primary); font-size: 16px; font-weight: 800; cursor: pointer;" title="5개 감소 (최소 10개)">-</button>
+                  <span id="mcqCountDisplay" style="padding: 6px 14px; font-weight: 800; color: #10b981; font-size: 14px; min-width: 55px; text-align: center;">10개</span>
+                  <button type="button" id="btnMcqCountPlus" style="padding: 6px 14px; border: none; background: transparent; color: var(--text-primary); font-size: 16px; font-weight: 800; cursor: pointer;" title="5개 증가">+</button>
+                </div>
+                <small style="color: var(--text-muted); font-size: 11px;">(퀴즈 효과를 위해 10개부터 시작)</small>
+              </div>
+
+              <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                <span style="font-size: 12px; color: var(--text-muted); font-weight: 700;">빠른 설정:</span>
+                <button type="button" class="mcq-count-chip active" data-count="10" style="padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 800; cursor: pointer; border: 1px solid #10b981; background: rgba(16, 185, 129, 0.15); color: #10b981;">10개 (기본)</button>
+                <button type="button" class="mcq-count-chip" data-count="15" style="padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-secondary);">15개</button>
+                <button type="button" class="mcq-count-chip" data-count="20" style="padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-secondary);">20개</button>
+                <button type="button" class="mcq-count-chip" data-count="25" style="padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-secondary);">25개 (마스터)</button>
+              </div>
+            </div>
           </div>
 
           <!-- 단어 카드 프리뷰 그리드 -->
