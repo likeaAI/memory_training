@@ -1429,39 +1429,35 @@ async function loadSavedList() {
 
     // 좌측 사이드바 갱신
     renderSidebarHistory(sessions, trainings);
-  } catch (err) {
-    console.error('loadSavedList error:', err);
-  }
-}
 
     // 드로어 단어장 세트 목록
+    const container = document.getElementById('savedListContainer');
     const trainingKeys = Object.keys(trainings);
-    if (trainingKeys.length === 0) {
-      if (container) container.innerHTML = '<p class="empty-msg">저장된 단어장 세트가 없습니다.</p>';
-      return;
-    }
-
     if (container) {
-      container.innerHTML = '';
-      trainingKeys.forEach(title => {
-        const item = trainings[title];
-        const div = document.createElement('div');
-        div.className = 'saved-item';
-        div.innerHTML = `
-          <div class="saved-item-title">${title} (${item.word_count}단어)</div>
-          <div class="saved-item-date">생성일: ${item.created_at || '알 수 없음'}</div>
-        `;
-        div.onclick = () => {
-          state.sessionData = item;
-          document.getElementById('savedDrawer').classList.remove('open');
-          renderPrepareView();
-          switchView('viewPrepare');
-        };
-        container.appendChild(div);
-      });
+      if (trainingKeys.length === 0) {
+        container.innerHTML = '<p class="empty-msg">저장된 단어장 세트가 없습니다.</p>';
+      } else {
+        container.innerHTML = '';
+        trainingKeys.forEach(title => {
+          const item = trainings[title];
+          const div = document.createElement('div');
+          div.className = 'saved-item';
+          div.innerHTML = `
+            <div class="saved-item-title">${title} (${item.word_count}단어)</div>
+            <div class="saved-item-date">생성일: ${item.created_at || '알 수 없음'}</div>
+          `;
+          div.onclick = () => {
+            state.sessionData = item;
+            document.getElementById('savedDrawer').classList.remove('open');
+            renderPrepareView();
+            switchView('viewPrepare');
+          };
+          container.appendChild(div);
+        });
+      }
     }
   } catch (err) {
-    if (container) container.innerHTML = '<p class="empty-msg">목록을 불러올 수 없습니다.</p>';
+    console.error('loadSavedList error:', err);
   }
 }
 
@@ -2566,6 +2562,14 @@ function createPuzzleFromSolution(solutionBoard, blanksCount) {
     const j = Math.floor(Math.random() * (i + 1));
     [positions[i], positions[j]] = [positions[j], positions[i]];
   }
+
+  for (let i = 0; i < blanksCount && i < positions.length; i++) {
+    const { r, c } = positions[i];
+    puzzle[r][c] = 0;
+  }
+
+  return puzzle;
+}
 
 // =================================================================
 // 🗑️ 단어장 삭제 유틸리티 (SQLite + Google Sheets 양방향 삭제)
