@@ -18,7 +18,7 @@ import pdf_service as pdf_svc
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 os.chdir(BASE_DIR) # IDE에서 Run 버튼 클릭 시 작업 디렉토리 강제 고정
 STATIC_DIR = os.path.join(BASE_DIR, "static")
-PORT = int(os.environ.get("PORT", 8000))
+PORT = int(os.environ.get("PORT", 10000))
 
 # =================================================================
 # 🌐 초경량 멀티스레드 HTTP 핸들러 및 라우터
@@ -268,7 +268,7 @@ class MemoryAppHandler(SimpleHTTPRequestHandler):
 # 🚀 멀티스레드 서버 실행
 # =================================================================
 def run_server():
-    server_address = ('', PORT)
+    server_address = ('0.0.0.0', PORT)
     httpd = ThreadingHTTPServer(server_address, MemoryAppHandler)
     url = f"http://localhost:{PORT}"
     print("=" * 60)
