@@ -27,6 +27,7 @@
       <!-- [개편] 훈련 대분류 & 대시보드 모드 전환 네비게이션 -->
       <div class="nav-mode-switcher">
         <button id="btnModeDashboard" class="mode-nav-btn active">🏠 종합 대시보드</button>
+        <button id="btnModeFast" class="mode-nav-btn btn-mode-fast" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(239, 68, 68, 0.2)); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.6); font-weight: 900; box-shadow: 0 0 12px rgba(245, 158, 11, 0.2);">⚡ FAST 집중 훈련</button>
         <button id="btnModeQuiz" class="mode-nav-btn" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 800;">🎯 4지선다 객관식 퀴즈</button>
         <button id="btnModeConcept" class="mode-nav-btn">🧠 AI 개념 연상술</button>
         <button id="btnModeSpatial" class="mode-nav-btn">⚡ 공간 순간 기억력</button>
@@ -159,8 +160,25 @@
             </div>
           </div>
 
-          <!-- 3대 훈련 퀵 런처 카드 -->
+          <!-- 훈련 퀵 런처 그리드 -->
           <div class="quick-launcher-grid">
+            <!-- [신규 VIP 런처] ⚡ FAST 올인원 집중 훈련 (랜덤 주제 + 연상법/퀴즈 융합) -->
+            <div class="launcher-card launcher-fast-hero" id="launchFastCard" style="grid-column: 1 / -1; background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(239, 68, 68, 0.08)); border: 2px solid rgba(245, 158, 11, 0.6); box-shadow: 0 4px 20px rgba(245, 158, 11, 0.15);">
+              <div class="launcher-header">
+                <span class="launcher-badge" style="background: linear-gradient(135deg, #f59e0b, #ef4444); color: white; font-weight: 900; border: none;">⚡ ZERO-SETUP 몰입 모드</span>
+                <span class="launcher-icon">🔥</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+                <div style="flex: 1; min-width: 280px;">
+                  <h3 style="font-size: 20px; font-weight: 800; color: #f59e0b; margin-bottom: 6px;">⚡ FAST 올인원 집중 훈련 (연상+퀴즈 무한 루프)</h3>
+                  <p style="margin: 0; color: var(--text-secondary); font-size: 14px; line-height: 1.5;">주제 고민/설정 제로! 30+개 분야 랜덤 선정 ➔ <strong>AI 연상 사슬 초고속 각인</strong> ➔ <strong>즉시 4지선다 스피드 퀴즈</strong>로 순수 기억력 훈련에만 100% 몰입하세요.</p>
+                </div>
+                <button class="btn-primary btn-launcher" id="btnLaunchFast" style="background: linear-gradient(135deg, #f59e0b, #ef4444); font-size: 16px; font-weight: 800; padding: 14px 28px; white-space: nowrap; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);">
+                  ⚡ 1초 만에 바로 시작 (Zero-Setup) ➔
+                </button>
+              </div>
+            </div>
+
             <div class="launcher-card" id="launchConceptCard">
               <div class="launcher-header">
                 <span class="launcher-badge">기억술 훈련</span>
@@ -666,6 +684,115 @@
           </div>
         </div>
 
+      </section>
+
+      <!-- [뷰 4-3] ⚡ FAST 집중 훈련 뷰 (연상+퀴즈 융합 / 랜덤 주제 / 제로 세팅) -->
+      <section id="viewFastMode" class="view">
+        <div class="fast-header-bar">
+          <div class="fast-header-left">
+            <span class="fast-mode-pill">⚡ FAST FOCUS</span>
+            <span class="fast-topic-pill" id="fastTopicBadge">🎲 랜덤 주제: 로딩 중...</span>
+            <span class="fast-streak-pill" id="fastStreakBadge">🔥 0 STREAK</span>
+          </div>
+          <div class="fast-header-right">
+            <div class="fast-timer-pill">
+              <span class="fast-timer-icon">⏱️</span>
+              <span id="fastTimerDisplay">00.0s</span>
+            </div>
+            <button id="btnExitFastMode" class="btn-fast-exit" title="대시보드로 나가기">✕ 대시보드</button>
+          </div>
+        </div>
+
+        <!-- [페이즈 1] ⚡ FAST 연상 각인 (Association Flash) -->
+        <div id="fastPhasePreview" class="fast-phase-container">
+          <div class="fast-title-card">
+            <h2>⚡ 초고속 연상 각인 (Association Flash)</h2>
+            <p>시각 앵커와 <strong>[AI 원클릭 연상 사슬]</strong>을 눈으로 훑고 뇌에 각인하세요! 준비되면 즉시 퀴즈로 돌입합니다.</p>
+          </div>
+
+          <!-- 🔗 AI 원클릭 연상 사슬 카드 (연상법 결합 핵심!) -->
+          <div class="fast-story-chain-card" id="fastStoryChainCard">
+            <div class="chain-header">
+              <span class="chain-icon">🔗</span>
+              <strong>AI 원클릭 연상 사슬 (핵심 시각 스토리 결합)</strong>
+            </div>
+            <p class="chain-story-text" id="fastStoryChainText">
+              단어들을 불러오는 중입니다...
+            </p>
+          </div>
+
+          <!-- 단어 카드 그리드 (5개) -->
+          <div class="fast-words-grid" id="fastWordsGrid">
+            <!-- 5개 단어 카드 동적 생성 -->
+          </div>
+
+          <!-- 바로 퀴즈 시작 액션 버튼 -->
+          <div class="fast-action-center">
+            <button id="btnFastStartQuiz" class="btn-fast-cta">
+              🎯 4지선다 스피드 퀴즈 시작 (Space/Enter) ➔
+            </button>
+            <span class="fast-key-hint">💡 키보드 [스페이스바] 또는 [엔터]를 누르면 즉시 퀴즈로 전환됩니다</span>
+          </div>
+        </div>
+
+        <!-- [페이즈 2] 🎯 FAST 4지선다 스피드 퀴즈 (Speed MCQ) -->
+        <div id="fastPhaseQuiz" class="fast-phase-container" style="display:none;">
+          <div class="fast-quiz-progress-bar-wrap">
+            <div class="fast-quiz-progress-bar" id="fastQuizProgressBar" style="width: 20%;"></div>
+          </div>
+          <div class="fast-quiz-meta">
+            <span class="fast-quiz-qnum"><strong id="fastQuizCurrentNum">1</strong> / <span id="fastQuizTotalNum">5</span>문제</span>
+            <span class="fast-quiz-combo" id="fastQuizComboText">🔥 연속 정답 도전 중!</span>
+          </div>
+
+          <!-- 문제 카드 -->
+          <div class="fast-question-card">
+            <div class="fast-question-anchor" id="fastQuizAnchor">💡 연상 힌트</div>
+            <h3 class="fast-question-def" id="fastQuizDef">문제 정의</h3>
+            <div class="fast-question-reason" id="fastQuizReason"></div>
+          </div>
+
+          <!-- 4개 선택지 (단축키 1,2,3,4 지원) -->
+          <div class="fast-options-grid" id="fastQuizOptionsGrid">
+            <!-- 동적 버튼 4개 -->
+          </div>
+
+          <div class="fast-feedback-bar" id="fastQuizFeedbackBar" style="display:none;"></div>
+        </div>
+
+        <!-- [페이즈 3] 🏆 FAST 3초 퀵 리포트 & 즉시 다음 라운드 무한 루프 -->
+        <div id="fastPhaseSummary" class="fast-phase-container" style="display:none;">
+          <div class="fast-summary-card">
+            <div class="fast-summary-badge" id="fastSummaryBadge">🎉 PERFECT CLEAR!</div>
+            <h2 id="fastSummaryTitle">놀라운 집중력입니다! 뇌 회로가 활성화되었습니다 🔥</h2>
+            
+            <div class="fast-summary-stats">
+              <div class="fast-stat-box">
+                <span class="stat-label">정답률</span>
+                <strong class="stat-val text-emerald" id="fastSummaryScore">100%</strong>
+              </div>
+              <div class="fast-stat-box">
+                <span class="stat-label">총 소요시간</span>
+                <strong class="stat-val text-blue" id="fastSummaryTime">14.8초</strong>
+              </div>
+              <div class="fast-stat-box">
+                <span class="stat-label">연속 달성 스트릭</span>
+                <strong class="stat-val text-amber" id="fastSummaryStreak">🔥 1 STREAK</strong>
+              </div>
+            </div>
+
+            <!-- 틀린 단어 한 줄 복습 (틀렸을 때만) -->
+            <div class="fast-wrong-recap" id="fastWrongRecap" style="display:none;"></div>
+
+            <div class="fast-next-action-wrap">
+              <button id="btnFastNextRound" class="btn-fast-next">
+                ⚡ 다음 랜덤 라운드 바로 시작 (Space/Enter) ➔
+              </button>
+              <p class="fast-auto-countdown" id="fastAutoCountdown">⏱️ <strong>5초</strong> 후 다음 랜덤 주제 라운드가 자동 시작됩니다...</p>
+              <button id="btnFastPause" class="btn-fast-pause">⏸️ 자동 진행 일시정지</button>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- [뷰 5] 채점 리포트 & 피드백 뷰 -->

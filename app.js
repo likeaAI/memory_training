@@ -393,15 +393,17 @@ function switchView(viewName) {
 
   // 상단 네비게이션 액티브 상태 동기화
   const btnDash = document.getElementById('btnModeDashboard');
+  const btnFast = document.getElementById('btnModeFast');
   const btnQuiz = document.getElementById('btnModeQuiz');
   const btnConcept = document.getElementById('btnModeConcept');
   const btnSpatial = document.getElementById('btnModeSpatial');
   const btnSudoku = document.getElementById('btnModeSudoku');
   
-  const navBtns = [btnDash, btnQuiz, btnConcept, btnSpatial, btnSudoku].filter(Boolean);
+  const navBtns = [btnDash, btnFast, btnQuiz, btnConcept, btnSpatial, btnSudoku].filter(Boolean);
   navBtns.forEach(b => b.classList.remove('active'));
 
   if (viewName === 'viewDashboard' && btnDash) btnDash.classList.add('active');
+  else if (viewName === 'viewFastMode' && btnFast) btnFast.classList.add('active');
   else if (viewName === 'viewQuizMCQ' && btnQuiz) btnQuiz.classList.add('active');
   else if (['viewSetup', 'viewPrepare', 'viewMemorize', 'viewTest', 'viewResult'].includes(viewName) && btnConcept) btnConcept.classList.add('active');
   else if (viewName === 'viewSpatial' && btnSpatial) btnSpatial.classList.add('active');
@@ -426,12 +428,14 @@ document.addEventListener('DOMContentLoaded', () => {
   setupTagInput();
   setupKeybindings();
   setupMcqTopicSelector();
+  setupFastModeEvents();
   checkAuthAndInit();
 });
 
 // 상단 모드 전환기 & 퀵 런처 & 복귀 버튼
 function setupModeSwitcher() {
   const btnDash = document.getElementById('btnModeDashboard');
+  const btnFast = document.getElementById('btnModeFast');
   const btnQuiz = document.getElementById('btnModeQuiz');
   const btnConcept = document.getElementById('btnModeConcept');
   const btnSpatial = document.getElementById('btnModeSpatial');
@@ -441,6 +445,28 @@ function setupModeSwitcher() {
     btnDash.addEventListener('click', () => {
       switchView('viewDashboard');
       loadMainDashboard();
+    });
+  }
+
+  // [신규] ⚡ FAST 집중 훈련 모드 진입
+  if (btnFast) {
+    btnFast.addEventListener('click', () => {
+      startFastMode();
+    });
+  }
+
+  const launchFast = document.getElementById('launchFastCard');
+  if (launchFast) {
+    launchFast.addEventListener('click', () => {
+      startFastMode();
+    });
+  }
+
+  const btnLaunchFast = document.getElementById('btnLaunchFast');
+  if (btnLaunchFast) {
+    btnLaunchFast.addEventListener('click', (e) => {
+      e.stopPropagation();
+      startFastMode();
     });
   }
 
@@ -801,7 +827,33 @@ function setupDrawer() {
 // 키보드 단축키
 function setupKeybindings() {
   window.addEventListener('keydown', (e) => {
-    if (state.currentView === 'viewMemorize') {
+    if (state.currentView === 'viewFastMode') {
+      if (fastModeState.currentPhase === 'preview') {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          startFastQuiz();
+        }
+      } else if (fastModeState.currentPhase === 'quiz') {
+        if (e.key === '1' || e.code === 'Numpad1') {
+          e.preventDefault();
+          handleFastOptionKey(0);
+        } else if (e.key === '2' || e.code === 'Numpad2') {
+          e.preventDefault();
+          handleFastOptionKey(1);
+        } else if (e.key === '3' || e.code === 'Numpad3') {
+          e.preventDefault();
+          handleFastOptionKey(2);
+        } else if (e.key === '4' || e.code === 'Numpad4') {
+          e.preventDefault();
+          handleFastOptionKey(3);
+        }
+      } else if (fastModeState.currentPhase === 'summary') {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          nextFastRound();
+        }
+      }
+    } else if (state.currentView === 'viewMemorize') {
       if (e.key === 'ArrowLeft') showPrevCard();
       if (e.key === 'ArrowRight') showNextCard();
       if (e.key === ' ' || e.key === 'Enter') {
@@ -3377,6 +3429,502 @@ function setupSettingsModal() {
         }
       }
     };
+  }
+}
+
+// =================================================================
+// ⚡ FAST 올인원 집중 훈련 모드 (연상법 + 객관식 퀴즈 융합 / 제로 세팅)
+// =================================================================
+
+const FAST_TOPIC_BANK = [
+  {
+    topic: "전자기학",
+    fusionStory: "⚡ 번개가 치자 🧲 자석이 ⚖️ 저울 위로 날아가 📜 마법두루마리를 펴고 🥊 글러브로 로렌츠힘을 쳤다!",
+    words: [
+      { word: "전계", anchor: "⚡ 번개", def: "전하가 전기력을 미치는 공간 영역", reason: "전위차 및 전기력선의 기본" },
+      { word: "자계", anchor: "🧲 자석", def: "자극이나 전류에 의해 자기력이 작용하는 공간", reason: "전자기 유도와 모터 구동의 핵심" },
+      { word: "쿨롱의법칙", anchor: "⚖️ 저울", def: "두 전하 사이 작용하는 정전기력의 크기 공식", reason: "전기장 세기 계산 필수 공식" },
+      { word: "맥스웰방정식", anchor: "📜 마법두루마리", def: "전기장과 자기장의 상호작용을 통합한 4대 방정식", reason: "전자기파 존재의 이론적 증명" },
+      { word: "로렌츠힘", anchor: "🥊 글러브", def: "자기장 속을 운동하는 하전입자가 받는 힘", reason: "플레밍의 왼손법칙과 입자 가속 원리" }
+    ]
+  },
+  {
+    topic: "거시경제학",
+    fusionStory: "거대하게 부푼 🎈 풍선이 🏦 은행탑에 부딪히자 📈 황금계단이 무너지고 🎢 롤러코스터 위에서 💸 돈비가 쏟아졌다!",
+    words: [
+      { word: "인플레이션", anchor: "🎈 풍선", def: "물가가 지속적으로 상승하여 화폐가치가 하락하는 현상", reason: "중앙은행 통화정책의 핵심 지표" },
+      { word: "기준금리", anchor: "🏦 은행탑", def: "중앙은행이 다른 금융기관과 거래할 때 기준이 되는 금리", reason: "시중 유동성 및 경기 조절 도구" },
+      { word: "GDP", anchor: "📈 황금계단", def: "일정 기간 동안 한 나라 안에서 생산된 최종 생산물의 시장가치", reason: "국가 경제 규모와 성장률 측정" },
+      { word: "필립스곡선", anchor: "🎢 롤러코스터", def: "실업률과 인플레이션율 간의 역(음)의 상관관계", reason: "경기 과열과 침체 정책 딜레마" },
+      { word: "양적완화", anchor: "💸 돈비", def: "중앙은행이 국채 등을 매입해 시장에 직접 유동성을 공급하는 정책", reason: "제로금리 한계 극복 비전통 정책" }
+    ]
+  },
+  {
+    topic: "인지심리학",
+    fusionStory: "🧠 칠판에 적힌 기억을 🔑 황금열쇠로 잠그고 🏷️ 라벨기를 붙였더니 📻 잡음라디오를 뚫고 🥇 금메달이 튀어나왔다!",
+    words: [
+      { word: "작업기억", anchor: "🧠 칠판", def: "정보를 일시적으로 유지하며 조작하는 뇌의 실행 기능", reason: "문제해결과 주의집중의 중추" },
+      { word: "인출단서", anchor: "🔑 황금열쇠", def: "장기기억 속에 저장된 정보를 떠올리게 돕는 자극", reason: "망각 극복 및 회상 확률 증대" },
+      { word: "부호화특수성", anchor: "🏷️ 라벨기", def: "기억을 입력할 당시의 맥락이 회상 시 맥락과 일치할 때 인출이 촉진되는 원리", reason: "시험 환경 유사도 훈련의 근거" },
+      { word: "간섭이론", anchor: "📻 잡음라디오", def: "이전이나 이후에 학습한 다른 정보로 인해 기억 회상이 방해받는 현상", reason: "정보 중복 방지와 휴식의 중요성" },
+      { word: "초두효과", anchor: "🥇 금메달", def: "학습 목록에서 가장 처음 제시된 항목을 더 잘 기억하는 현상", reason: "장기기억 전이 우선순위 효과" }
+    ]
+  },
+  {
+    topic: "뇌신경과학",
+    fusionStory: "🌉 흔들다리 위에서 🎁 깜짝상자가 터지자 🐎 바다말이 튀어나와 💡 반딧불이 숲을 지나 👑 왕관조종실에 도달했다!",
+    words: [
+      { word: "시냅스", anchor: "🌉 흔들다리", def: "두 신경세포 사이에서 신호가 전달되는 연결 접점", reason: "학습과 기억에 따른 가소성 발생" },
+      { word: "도파민", anchor: "🎁 깜짝상자", def: "동기부여, 보상 예측, 쾌감을 조절하는 신경전달물질", reason: "반복 행동과 중독 및 몰입의 핵심" },
+      { word: "해마", anchor: "🐎 바다말", def: "새로운 기억을 형성하고 시공간 정보를 처리하는 뇌 부위", reason: "단기기억의 장기기억 전환 중추" },
+      { word: "뉴런", anchor: "💡 반딧불이", def: "전기적·화학적 신호를 통해 정보를 처리하는 신경세포", reason: "신경계의 구조적·기능적 기본 단위" },
+      { word: "전두엽", anchor: "👑 왕관조종실", def: "의사결정, 기획, 충동억제 등 고차원 인지기능을 총괄하는 전두부", reason: "작업기억 및 메타인지의 사령탑" }
+    ]
+  },
+  {
+    topic: "민법총칙",
+    fusionStory: "📜 도장계약서에 ⏳ 모래시계가 멈추자 🛡️ 방패가 깨지며 ↩️ 되돌리기버튼을 눌렀으나 💨 연기구름으로 무효가 되었다!",
+    words: [
+      { word: "법률행위", anchor: "📜 도장계약서", def: "의사표시를 요소로 하여 법률효과를 발생시키는 행위", reason: "사적자치의 원칙을 실현하는 핵심 수단" },
+      { word: "소멸시효", anchor: "⏳ 모래시계", def: "권리자가 권리를 행사할 수 있음에도 행사하지 않아 권리가 소멸하는 제도", reason: "법적 안정성과 거래 보호" },
+      { word: "권리능력", anchor: "🛡️ 방패", def: "권리의 주체가 되어 권리를 누리고 의무를 질 수 있는 자격", reason: "자연인과 법인의 법적 지위 기본" },
+      { word: "취소권", anchor: "↩️ 되돌리기버튼", def: "일단 유효하게 성립한 법률행위의 효력을 소급하여 무효로 만드는 권리", reason: "사기, 강박, 착오 시 권리구제" },
+      { word: "무효", anchor: "💨 연기구름", def: "법률행위가 성립 당초부터 당연히 효력이 없는 상태", reason: "강행규정 위반 및 반사회질서 보호" }
+    ]
+  },
+  {
+    topic: "컴퓨터네트워크",
+    fusionStory: "🤝 악수를 나눈 뒤 📦 택배상자를 싣고 🚦 신호등교차로를 지나 📖 전화번호부로 찾아가 🧱 불벽을 무사히 통과했다!",
+    words: [
+      { word: "TCP핸드셰이크", anchor: "🤝 악수", def: "연결형 통신을 수립하기 위해 3단계로 패킷을 주고받는 절차", reason: "신뢰성 있는 데이터 전송의 전제조건" },
+      { word: "패킷", anchor: "📦 택배상자", def: "네트워크를 통해 전송되는 데이터의 표준 분할 단위", reason: "회선 효율 극대화와 오류 검출" },
+      { word: "라우터", anchor: "🚦 신호등교차로", def: "서로 다른 네트워크를 연결하고 최적의 경로를 배정하는 중계 장비", reason: "인터넷 트래픽 최적화 필수 장비" },
+      { word: "DNS", anchor: "📖 전화번호부", def: "도메인 이름을 컴퓨터가 이해하는 IP 주소로 변환해주는 시스템", reason: "웹 브라우징 및 서비스 연결의 관문" },
+      { word: "방화벽", anchor: "🧱 불벽", def: "외부 침입으로부터 내부 네트워크를 보호하는 보안 시스템", reason: "비인가 패킷 차단 및 네트워크 보안" }
+    ]
+  },
+  {
+    topic: "인공지능딥러닝",
+    fusionStory: "🔄 거꾸로태엽을 돌려 ⚡ 스위치를 켜자 🧥 꽉끼는정장을 입은 🤖 변신로봇이 🔍 돋보기로 모든 단어를 비췄다!",
+    words: [
+      { word: "역전파", anchor: "🔄 거꾸로태엽", def: "출력층의 오차를 역방향으로 전달하며 가중치를 업데이트하는 학습 알고리즘", reason: "심층 신경망 학습의 핵심 기둥" },
+      { word: "활성화함수", anchor: "⚡ 스위치", def: "입력 신호의 총합을 출력 신호로 변환하는 비선형 수학 함수", reason: "신경망에 비선형 표현력 부여" },
+      { word: "과적합", anchor: "🧥 꽉끼는정장", def: "모델이 훈련 데이터에만 지나치게 맞춰져 새로운 데이터 예측력이 떨어지는 현상", reason: "드롭아웃, 정규화 등 성능 개선의 이유" },
+      { word: "트랜스포머", anchor: "🤖 변신로봇", def: "어텐션 메커니즘을 기반으로 순차적 처리 없이 문맥을 파악하는 모델 구조", reason: "현대 LLM(GPT, Gemini)의 근간 아키텍처" },
+      { word: "어텐션", anchor: "🔍 돋보기", def: "입력 시퀀스 중 출력과 가장 밀접한 연관이 있는 부분에 가중치를 집중하는 기법", reason: "장거리 문맥 의존성 해결" }
+    ]
+  },
+  {
+    topic: "우주천문학",
+    fusionStory: "🕳️ 블랙홀소용돌이 주변에 🕸️ 거미줄이 쳐지고 🎆 대폭발폭죽이 터지자 🚗 빨간후미등이 🌌 무지개구름요람 속으로 빨려들어갔다!",
+    words: [
+      { word: "사건의지평선", anchor: "🕳️ 블랙홀소용돌이", def: "빛조차 탈출할 수 없는 블랙홀의 경계면", reason: "일반상대성이론의 극단적 경계" },
+      { word: "암흑물질", anchor: "🕸️ 거미줄", def: "빛을 내지 않으나 중력을 통해 은하를 묶어두는 미지의 물질", reason: "우주 질량의 85%를 차지하는 수수께끼" },
+      { word: "초신성", anchor: "🎆 대폭발폭죽", def: "진화의 마지막 단계에 이른 무거운 별이 거대하게 폭발하는 현상", reason: "우주에 중원소를 공급하는 원천" },
+      { word: "적색편이", anchor: "🚗 빨간후미등", def: "멀어지는 천체에서 오는 빛의 파장이 길어져 붉게 보이는 현상", reason: "우주 팽창을 증명한 허블의 법칙" },
+      { word: "성운", anchor: "🌌 무지개구름요람", def: "우주 공간에 희박하게 퍼져 있는 성간 가스와 먼지의 구름", reason: "새로운 별과 행성계가 탄생하는 요람" }
+    ]
+  },
+  {
+    topic: "행동경제학",
+    fusionStory: "바다에 ⚓ 거대한닻을 내리자 짝꿍이 👉 팔꿈치슬쩍 찔러 😱 빼앗긴지갑을 🖼️ 액자틀에 끼운 채 🕳️ 돈빠진구덩이에서 건져냈다!",
+    words: [
+      { word: "닻내림효과", anchor: "⚓ 거대한닻", def: "초기에 제시된 정보에 얽매여 이후 판단과 협상이 왜곡되는 현상", reason: "가격 책정 및 마케팅 전략의 기초" },
+      { word: "넛지", anchor: "👉 팔꿈치슬쩍", def: "강제하지 않고 부드러운 개입을 통해 더 나은 선택을 유도하는 방식", reason: "공공정책 및 행동 유도 설계의 핵심" },
+      { word: "손실회피", anchor: "😱 빼앗긴지갑", def: "동일한 금액의 이익보다 손실에 대해 2배 이상 더 큰 고통을 느끼는 심리", reason: "전망이론과 위험 회피의 근본 원인" },
+      { word: "프레이밍", anchor: "🖼️ 액자틀", def: "동일한 사실이라도 어떤 틀(액자)로 전달하느냐에 따라 판단이 달라지는 현상", reason: "메시지 설득력과 결정 구조 조작" },
+      { word: "매몰비용", anchor: "🕳️ 돈빠진구덩이", def: "이미 지출하여 회수할 수 없음에도 미련 때문에 비합리적 투자를 지속하는 오류", reason: "합리적 의사결정의 최대 장애물" }
+    ]
+  },
+  {
+    topic: "기억술과메타인지",
+    fusionStory: "🏛️ 기억의궁전 벽면 🪝 옷걸이못에 🍅 빨간토마토를 걸고 🧱 레고블록묶음을 맞춰 📅 달력도장을 찍었다!",
+    words: [
+      { word: "장소법", anchor: "🏛️ 기억의궁전", def: "친숙한 장소의 동선에 암기할 항목의 시각 이미지를 배치하는 고대 기억술", reason: "인간의 진화된 공간기억을 극대화 활용" },
+      { word: "페그시스템", anchor: "🪝 옷걸이못", def: "미리 정해둔 고정된 번호별 이미지(못)에 새 단어를 걸어 외우는 기법", reason: "숫자와 순서를 완벽히 보존하는 기억술" },
+      { word: "뽀모도로", anchor: "🍅 빨간토마토", def: "25분 고도의 집중 후 5분 휴식을 반복하는 시간 관리 기술", reason: "작업기억 피로 회복과 도파민 유지" },
+      { word: "청킹", anchor: "🧱 레고블록묶음", def: "개별 정보 조각들을 의미 있는 더 큰 덩어리로 묶어 처리하는 기술", reason: "작업기억 7±2 한계 용량 돌파" },
+      { word: "간격반복", anchor: "📅 달력도장", def: "망각 주기에 맞춰 시간 간격을 점차 늘려가며 복습하는 학습법", reason: "에빙하우스 망각곡선을 이기는 장기기억화" }
+    ]
+  },
+  {
+    topic: "양자역학",
+    fusionStory: "🌊 무지개파도 위에서 🎭 두얼굴의가면을 쓴 쌍둥이가 🧶 붉은실타래를 잡고 🌫️ 짙은안개 속 🚪 벽을뚫는문으로 순간이동했다!",
+    words: [
+      { word: "파동함수", anchor: "🌊 무지개파도", def: "양자역학에서 입자의 상태와 확률 진폭을 수학적으로 나타내는 함수", reason: "슈뢰딩거 방정식의 해법이자 기초" },
+      { word: "중첩", anchor: "🎭 두얼굴의가면", def: "입자가 관측되기 전까지 여러 가능한 상태가 동시에 공존하는 현상", reason: "양자컴퓨터의 큐비트 병렬 연산 근간" },
+      { word: "양자얽힘", anchor: "🧶 붉은실타래", def: "두 입자가 아무리 멀리 떨어져 있어도 한쪽 상태가 다른 쪽에 즉각 결정되는 연결", reason: "아인슈타인의 유령 같은 원격작용" },
+      { word: "불확정성원리", anchor: "🌫️ 짙은안개", def: "입자의 위치와 운동량을 동시에 정확하게 측정할 수 없다는 한계 법칙", reason: "하이젠베르크의 고전역학 결정론 타파" },
+      { word: "터널링", anchor: "🚪 벽을뚫는문", def: "에너지 장벽이 높아 통과할 수 없는 벽을 입자가 파동성으로 뚫고 나가는 현상", reason: "플래시 메모리 및 핵융합의 기본 원리" }
+    ]
+  },
+  {
+    topic: "정보보안",
+    fusionStory: "🔐 한쌍의열쇠로 금고를 잠그자 💣 시한폭탄이 울리고 🎣 낚싯바늘에 🧂 소금통이 걸려 🕵️ 검은모자도청자의 얼굴에 쏟아졌다!",
+    words: [
+      { word: "공개키암호", anchor: "🔐 한쌍의열쇠", def: "암호화에는 공개키, 복호화에는 개인키를 사용하는 비대칭 암호 방식", reason: "현대 전자서명과 HTTPS(SSL)의 기둥" },
+      { word: "제로데이", anchor: "💣 시한폭탄", def: "보안 취약점이 발견된 후 패치가 나오기 전에 감행되는 기습 해킹 공격", reason: "방어자가 대응할 시간이 없는 최고 위험 위협" },
+      { word: "피싱", anchor: "🎣 낚싯바늘", def: "신뢰할 수 있는 기관을 사칭하여 개인정보와 금융정보를 탈취하는 사회공학 공격", reason: "인간의 심리적 취약점을 노리는 보안 위협" },
+      { word: "솔트", anchor: "🧂 소금통", def: "비밀번호 해시를 생성할 때 레인보우 테이블 공격을 막기 위해 덧붙이는 무작위 데이터", reason: "단방향 암호화 보안 강화 필수 기법" },
+      { word: "중간자공격", anchor: "🕵️ 검은모자도청자", def: "통신하는 두 당사자 사이에 몰래 끼어들어 패킷을 도청하거나 위변조하는 기법", reason: "종단간 암호화(E2EE) 도입의 핵심 계기" }
+    ]
+  }
+];
+
+const fastModeState = {
+  streak: 0,
+  currentTopic: '',
+  words: [],
+  fusionStory: '',
+  currentPhase: 'preview', // 'preview' | 'quiz' | 'summary'
+  quizIndex: 0,
+  quizScore: 0,
+  currentOptions: [],
+  answeredCurrent: false,
+  startTime: 0,
+  timerInterval: null,
+  autoNextTimer: null,
+  autoNextCountdown: 5,
+  wrongWords: []
+};
+
+// ⚡ FAST 모드 초기 진입 및 시작
+function startFastMode() {
+  clearInterval(fastModeState.timerInterval);
+  clearInterval(fastModeState.autoNextTimer);
+
+  // 1. 랜덤 주제 및 세트 선택 (직전 주제와 중복 방지)
+  const availableTopics = FAST_TOPIC_BANK.filter(t => t.topic !== fastModeState.currentTopic);
+  const selectedBank = availableTopics[Math.floor(Math.random() * availableTopics.length)] || FAST_TOPIC_BANK[0];
+
+  fastModeState.currentTopic = selectedBank.topic;
+  fastModeState.fusionStory = selectedBank.fusionStory;
+  fastModeState.words = [...selectedBank.words];
+  fastModeState.quizScore = 0;
+  fastModeState.wrongWords = [];
+  fastModeState.currentPhase = 'preview';
+  fastModeState.startTime = Date.now();
+
+  // 2. UI 렌더링
+  const badgeTopic = document.getElementById('fastTopicBadge');
+  const badgeStreak = document.getElementById('fastStreakBadge');
+  const chainText = document.getElementById('fastStoryChainText');
+  const wordsGrid = document.getElementById('fastWordsGrid');
+
+  if (badgeTopic) badgeTopic.textContent = `🎲 주제: ${fastModeState.currentTopic}`;
+  if (badgeStreak) badgeStreak.textContent = `🔥 ${fastModeState.streak} STREAK`;
+  if (chainText) chainText.innerHTML = highlightStoryAnchors(fastModeState.fusionStory, fastModeState.words);
+
+  if (wordsGrid) {
+    wordsGrid.innerHTML = fastModeState.words.map((item, idx) => `
+      <div class="fast-word-card">
+        <div class="fast-word-top">
+          <span class="fast-word-idx">#0${idx + 1}</span>
+          <span class="fast-word-anchor">${item.anchor}</span>
+        </div>
+        <div class="fast-word-title">${item.word}</div>
+        <div class="fast-word-def">${item.def}</div>
+      </div>
+    `).join('');
+  }
+
+  // 3. 페이즈 전환 (페이즈 1 활성화)
+  document.getElementById('fastPhasePreview').style.display = 'block';
+  document.getElementById('fastPhaseQuiz').style.display = 'none';
+  document.getElementById('fastPhaseSummary').style.display = 'none';
+
+  switchView('viewFastMode');
+
+  // 4. 타이머 시작
+  startFastTimer();
+}
+
+// 스토리 텍스트 안의 앵커 및 단어 강조 헬퍼
+function highlightStoryAnchors(story, words) {
+  let res = story;
+  words.forEach(w => {
+    if (w.word && res.includes(w.word)) {
+      res = res.replaceAll(w.word, `<span style="color: #6366f1; font-weight: 800; text-decoration: underline;">${w.word}</span>`);
+    }
+  });
+  return res;
+}
+
+// FAST 타이머 작동
+function startFastTimer() {
+  clearInterval(fastModeState.timerInterval);
+  const timerDisplay = document.getElementById('fastTimerDisplay');
+  fastModeState.timerInterval = setInterval(() => {
+    const elapsedSec = ((Date.now() - fastModeState.startTime) / 1000).toFixed(1);
+    if (timerDisplay) timerDisplay.textContent = `${elapsedSec}s`;
+  }, 100);
+}
+
+// 🎯 페이즈 2: 4지선다 스피드 퀴즈 시작
+function startFastQuiz() {
+  fastModeState.currentPhase = 'quiz';
+  fastModeState.quizIndex = 0;
+  fastModeState.quizScore = 0;
+  fastModeState.wrongWords = [];
+
+  document.getElementById('fastPhasePreview').style.display = 'none';
+  document.getElementById('fastPhaseQuiz').style.display = 'block';
+  document.getElementById('fastPhaseSummary').style.display = 'none';
+
+  renderFastQuizQuestion();
+}
+
+// 퀴즈 문제 1문항 렌더링
+function renderFastQuizQuestion() {
+  const qIndex = fastModeState.quizIndex;
+  const total = fastModeState.words.length;
+
+  if (qIndex >= total) {
+    showFastSummary();
+    return;
+  }
+
+  fastModeState.answeredCurrent = false;
+  const currentItem = fastModeState.words[qIndex];
+
+  // 메타 정보
+  document.getElementById('fastQuizCurrentNum').textContent = qIndex + 1;
+  document.getElementById('fastQuizTotalNum').textContent = total;
+  document.getElementById('fastQuizProgressBar').style.width = `${((qIndex + 1) / total) * 100}%`;
+
+  const comboText = document.getElementById('fastQuizComboText');
+  if (comboText) {
+    comboText.textContent = fastModeState.quizScore > 0 ? `🔥 ${fastModeState.quizScore}연속 정답!` : `🎯 순수 인출 집중`;
+  }
+
+  // 문제 카드
+  document.getElementById('fastQuizAnchor').textContent = currentItem.anchor || '💡 연상 힌트';
+  document.getElementById('fastQuizDef').textContent = currentItem.def;
+  document.getElementById('fastQuizReason').textContent = currentItem.reason ? `출제 포인트: ${currentItem.reason}` : '';
+
+  // 4개 선택지 구성 (정답 1개 + 오답 3개)
+  const otherWords = fastModeState.words.filter(w => w.word !== currentItem.word).map(w => w.word);
+  
+  // 만약 다른 단어가 부족하면 전체 단어 은행에서 무작위 보충
+  let distractorPool = [...otherWords];
+  if (distractorPool.length < 3) {
+    FAST_TOPIC_BANK.forEach(b => {
+      b.words.forEach(w => {
+        if (w.word !== currentItem.word && !distractorPool.includes(w.word)) {
+          distractorPool.push(w.word);
+        }
+      });
+    });
+  }
+
+  distractorPool.sort(() => Math.random() - 0.5);
+  const distractors = distractorPool.slice(0, 3);
+  const options = [currentItem.word, ...distractors].sort(() => Math.random() - 0.5);
+  fastModeState.currentOptions = options;
+
+  // 피드백 바 숨김
+  const feedbackBar = document.getElementById('fastQuizFeedbackBar');
+  if (feedbackBar) feedbackBar.style.display = 'none';
+
+  // 버튼 렌더링
+  const optionsGrid = document.getElementById('fastQuizOptionsGrid');
+  optionsGrid.innerHTML = options.map((opt, i) => `
+    <button class="fast-option-btn" data-index="${i}" data-word="${opt}">
+      <span class="fast-key-badge">${i + 1}</span>
+      <span class="fast-option-text">${opt}</span>
+    </button>
+  `).join('');
+
+  // 클릭 이벤트 바인딩
+  optionsGrid.querySelectorAll('.fast-option-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.getAttribute('data-index'));
+      handleFastOptionSelect(idx);
+    });
+  });
+}
+
+// 키보드 단축키 (1, 2, 3, 4)로 보기 선택
+function handleFastOptionKey(idx) {
+  if (fastModeState.currentPhase !== 'quiz') return;
+  if (idx >= 0 && idx < fastModeState.currentOptions.length) {
+    handleFastOptionSelect(idx);
+  }
+}
+
+// 선택지 채점 처리
+function handleFastOptionSelect(selectedIdx) {
+  if (fastModeState.answeredCurrent) return;
+  fastModeState.answeredCurrent = true;
+
+  const currentItem = fastModeState.words[fastModeState.quizIndex];
+  const selectedWord = fastModeState.currentOptions[selectedIdx];
+  const isCorrect = (selectedWord === currentItem.word);
+
+  const btns = document.querySelectorAll('.fast-option-btn');
+  const selectedBtn = btns[selectedIdx];
+
+  const feedbackBar = document.getElementById('fastQuizFeedbackBar');
+
+  if (isCorrect) {
+    fastModeState.quizScore++;
+    if (selectedBtn) selectedBtn.classList.add('correct');
+    if (feedbackBar) {
+      feedbackBar.textContent = '🎯 정답입니다! 완벽한 기억 인출입니다.';
+      feedbackBar.style.display = 'block';
+      feedbackBar.style.background = 'rgba(16, 185, 129, 0.15)';
+      feedbackBar.style.color = '#10b981';
+      feedbackBar.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+    }
+  } else {
+    if (selectedBtn) selectedBtn.classList.add('wrong');
+    // 정답 버튼 표시
+    btns.forEach(b => {
+      if (b.getAttribute('data-word') === currentItem.word) {
+        b.classList.add('correct');
+      }
+    });
+    fastModeState.wrongWords.push(currentItem);
+    if (feedbackBar) {
+      feedbackBar.textContent = `⚠️ 아쉽습니다! 정답: [${currentItem.word}]`;
+      feedbackBar.style.display = 'block';
+      feedbackBar.style.background = 'rgba(239, 68, 68, 0.15)';
+      feedbackBar.style.color = '#ef4444';
+      feedbackBar.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+    }
+  }
+
+  // 480ms 후 스피디하게 다음 문항으로 전환
+  setTimeout(() => {
+    fastModeState.quizIndex++;
+    renderFastQuizQuestion();
+  }, 480);
+}
+
+// 🏆 페이즈 3: FAST 결과 요약 및 무한 루프
+function showFastSummary() {
+  clearInterval(fastModeState.timerInterval);
+  fastModeState.currentPhase = 'summary';
+
+  document.getElementById('fastPhasePreview').style.display = 'none';
+  document.getElementById('fastPhaseQuiz').style.display = 'none';
+  document.getElementById('fastPhaseSummary').style.display = 'block';
+
+  const totalTime = ((Date.now() - fastModeState.startTime) / 1000).toFixed(1);
+  const totalCount = fastModeState.words.length;
+  const accuracy = Math.round((fastModeState.quizScore / totalCount) * 100);
+
+  const isSuccess = accuracy >= 80;
+  if (isSuccess) {
+    fastModeState.streak++;
+  } else {
+    fastModeState.streak = 0;
+  }
+
+  // UI 바인딩
+  const badgeEl = document.getElementById('fastSummaryBadge');
+  const titleEl = document.getElementById('fastSummaryTitle');
+  const scoreEl = document.getElementById('fastSummaryScore');
+  const timeEl = document.getElementById('fastSummaryTime');
+  const streakEl = document.getElementById('fastSummaryStreak');
+  const wrongEl = document.getElementById('fastWrongRecap');
+
+  if (badgeEl) {
+    badgeEl.textContent = isSuccess ? '🎉 ROUND CLEAR! (+1 STREAK)' : '⚠️ FOCUS RECHARGE';
+    badgeEl.style.background = isSuccess ? 'linear-gradient(135deg, #10b981, #059669)' : 'linear-gradient(135deg, #ef4444, #b91c1c)';
+  }
+
+  if (titleEl) {
+    titleEl.textContent = isSuccess 
+      ? '대단한 몰입력입니다! 연상 앵커와 퀴즈 인출이 완벽히 결합되었습니다 🔥'
+      : '아쉽게 놓친 단어가 있습니다. 다음 라운드에서 뇌를 다시 깨워보세요!';
+  }
+
+  if (scoreEl) scoreEl.textContent = `${accuracy}% (${fastModeState.quizScore}/${totalCount})`;
+  if (timeEl) timeEl.textContent = `${totalTime}초`;
+  if (streakEl) streakEl.textContent = `🔥 ${fastModeState.streak} STREAK`;
+
+  // 오답 복습 표시
+  if (wrongEl) {
+    if (fastModeState.wrongWords.length > 0) {
+      wrongEl.style.display = 'block';
+      wrongEl.innerHTML = `<strong>⚠️ 방금 놓친 단어 복습:</strong><br>` + 
+        fastModeState.wrongWords.map(w => `• <strong>${w.word}</strong> (${w.anchor}): ${w.def}`).join('<br>');
+    } else {
+      wrongEl.style.display = 'none';
+    }
+  }
+
+  // 세션 자동 저장
+  saveHybrid('log_concept', {
+    source_name: `[FAST] ${fastModeState.currentTopic}`,
+    total_words: totalCount,
+    correct_count: fastModeState.quizScore,
+    accuracy: accuracy,
+    memorize_sec: parseFloat(totalTime),
+    test_sec: 0,
+    difficulty: 'fast'
+  });
+
+  // 5초 자동 다음 라운드 카운트다운
+  startFastAutoNextCountdown();
+}
+
+// 5초 자동 다음 라운드 카운트다운
+function startFastAutoNextCountdown() {
+  clearInterval(fastModeState.autoNextTimer);
+  fastModeState.autoNextCountdown = 5;
+
+  const cdText = document.getElementById('fastAutoCountdown');
+  if (cdText) cdText.innerHTML = `⏱️ <strong>${fastModeState.autoNextCountdown}초</strong> 후 다음 랜덤 라운드가 자동 시작됩니다...`;
+
+  fastModeState.autoNextTimer = setInterval(() => {
+    fastModeState.autoNextCountdown--;
+    if (fastModeState.autoNextCountdown <= 0) {
+      clearInterval(fastModeState.autoNextTimer);
+      nextFastRound();
+    } else {
+      if (cdText) cdText.innerHTML = `⏱️ <strong>${fastModeState.autoNextCountdown}초</strong> 후 다음 랜덤 라운드가 자동 시작됩니다...`;
+    }
+  }, 1000);
+}
+
+// 다음 라운드 즉시 시작
+function nextFastRound() {
+  clearInterval(fastModeState.autoNextTimer);
+  startFastMode();
+}
+
+// FAST 모드 이벤트 바인딩 등록
+function setupFastModeEvents() {
+  const btnStartQuiz = document.getElementById('btnFastStartQuiz');
+  const btnNext = document.getElementById('btnFastNextRound');
+  const btnPause = document.getElementById('btnFastPause');
+  const btnExit = document.getElementById('btnExitFastMode');
+
+  if (btnStartQuiz) {
+    btnStartQuiz.addEventListener('click', () => startFastQuiz());
+  }
+
+  if (btnNext) {
+    btnNext.addEventListener('click', () => nextFastRound());
+  }
+
+  if (btnPause) {
+    btnPause.addEventListener('click', () => {
+      clearInterval(fastModeState.autoNextTimer);
+      const cdText = document.getElementById('fastAutoCountdown');
+      if (cdText) cdText.textContent = '⏸️ 자동 진행이 일시정지되었습니다. 준비되면 위 버튼을 눌러주세요.';
+    });
+  }
+
+  if (btnExit) {
+    btnExit.addEventListener('click', () => {
+      clearInterval(fastModeState.timerInterval);
+      clearInterval(fastModeState.autoNextTimer);
+      switchView('viewDashboard');
+      loadMainDashboard();
+    });
   }
 }
 
