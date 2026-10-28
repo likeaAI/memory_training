@@ -3112,3 +3112,100 @@ textarea:focus {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
+
+
+/* =================================================================
+   🏆 상용 유료 프로덕트급 비주얼 & 애니메이션 & 사운드 UI 스타일
+   ================================================================= */
+.mcq-custom-chip {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(16, 185, 129, 0.15)) !important;
+  color: #6366f1 !important;
+  border-color: rgba(99, 102, 241, 0.4) !important;
+  font-weight: 800 !important;
+}
+.mcq-custom-chip:hover {
+  background: rgba(99, 102, 241, 0.25) !important;
+  border-color: #6366f1 !important;
+}
+
+/* 콤보 스트릭 배지 */
+.mcq-combo-pill {
+  font-size: 12px;
+  font-weight: 900;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+  animation: popCombo 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes popCombo {
+  0% { transform: scale(0.7); }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+/* 4지선다 버튼 키 힌트 및 상용 피드백 애니메이션 */
+.mcq-option-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.mcq-option-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: #10b981;
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.18);
+}
+.mcq-option-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.mcq-option-btn.correct {
+  background: rgba(16, 185, 129, 0.2) !important;
+  border-color: #10b981 !important;
+  color: #10b981 !important;
+  box-shadow: 0 0 18px rgba(16, 185, 129, 0.4) !important;
+  animation: correctBounce 0.3s ease;
+}
+.mcq-option-btn.wrong {
+  background: rgba(239, 68, 68, 0.2) !important;
+  border-color: #ef4444 !important;
+  color: #ef4444 !important;
+  animation: wrongShake 0.35s ease;
+}
+@keyframes correctBounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+@keyframes wrongShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+/* 등급 배지 스타일 */
+.grade-pill {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 4px 10px;
+  border-radius: 12px;
+  margin-top: 6px;
+  letter-spacing: 0.5px;
+}
+.grade-s { background: linear-gradient(135deg, #f59e0b, #e11d48); color: #fff; box-shadow: 0 0 12px rgba(245,158,11,0.5); }
+.grade-a { background: linear-gradient(135deg, #10b981, #059669); color: #fff; }
+.grade-b { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; }
+.grade-c { background: rgba(107, 114, 128, 0.2); color: var(--text-muted); }
+
+/* 오답 버튼 강조 */
+.btn-highlight-wrong {
+  background: rgba(239, 68, 68, 0.1) !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+  color: #ef4444 !important;
+  font-weight: 800 !important;
+}
+.btn-highlight-wrong:hover {
+  background: rgba(239, 68, 68, 0.2) !important;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.3) !important;
+}

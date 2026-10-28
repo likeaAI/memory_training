@@ -1,3 +1,128 @@
+// =================================================================
+// 🎵 [상용 유료급] 무지연 Web Audio API 효과음 엔진 (Zero Dependency)
+// =================================================================
+const SoundEngine = {
+  ctx: null,
+  enabled: localStorage.getItem('brainlock_sound_enabled') !== 'false',
+
+  init() {
+    if (!this.ctx && (window.AudioContext || window.webkitAudioContext)) {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+  },
+
+  playTone(freq, type = 'sine', duration = 0.15, gainVal = 0.15) {
+    if (!this.enabled) return;
+    try {
+      this.init();
+      if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+      gain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + duration);
+    } catch (e) {}
+  },
+
+  playCorrect() {
+    if (!this.enabled) return;
+    this.playTone(659.25, 'sine', 0.12, 0.18); // E5
+    setTimeout(() => this.playTone(880.00, 'sine', 0.22, 0.22), 80); // A5
+  },
+
+  playWrong() {
+    if (!this.enabled) return;
+    this.playTone(220, 'triangle', 0.15, 0.18);
+    setTimeout(() => this.playTone(180, 'triangle', 0.20, 0.16), 90);
+  },
+
+  playCombo() {
+    if (!this.enabled) return;
+    [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+      setTimeout(() => this.playTone(freq, 'sine', 0.15, 0.16), idx * 60);
+    });
+  },
+
+  playClick() {
+    if (!this.enabled) return;
+    this.playTone(800, 'triangle', 0.04, 0.06);
+  },
+
+  playFanfare() {
+    if (!this.enabled) return;
+    [523.25, 523.25, 523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+      setTimeout(() => this.playTone(freq, 'triangle', idx === 5 ? 0.5 : 0.12, 0.2), idx * 80);
+    });
+  },
+
+  toggle() {
+    this.enabled = !this.enabled;
+    localStorage.setItem('brainlock_sound_enabled', this.enabled);
+    return this.enabled;
+  }
+};
+
+// 🎊 [상용급] 가벼운 순수 캔버스 축하 콘페티 파티클
+function launchCelebrationConfetti() {
+  if (document.getElementById('confettiCanvas')) return;
+  const canvas = document.createElement('canvas');
+  canvas.id = 'confettiCanvas';
+  canvas.style.position = 'fixed';
+  canvas.style.top = '0';
+  canvas.style.left = '0';
+  canvas.style.width = '100vw';
+  canvas.style.height = '100vh';
+  canvas.style.pointerEvents = 'none';
+  canvas.style.zIndex = '99999';
+  document.body.appendChild(canvas);
+
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const colors = ['#10b981', '#6366f1', '#f59e0b', '#ef4444', '#ec4899', '#3b82f6'];
+  const particles = Array.from({ length: 60 }, () => ({
+    x: canvas.width / 2,
+    y: canvas.height * 0.4,
+    vx: (Math.random() - 0.5) * 14,
+    vy: (Math.random() - 0.7) * 16,
+    size: Math.random() * 8 + 4,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    rot: Math.random() * 360,
+    rotSpeed: (Math.random() - 0.5) * 10
+  }));
+
+  let frame = 0;
+  function animate() {
+    frame++;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.4; // 중력
+      p.rot += p.rotSpeed;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate((p.rot * Math.PI) / 180);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+      ctx.restore();
+    });
+
+    if (frame < 80) {
+      requestAnimationFrame(animate);
+    } else {
+      canvas.remove();
+    }
+  }
+  requestAnimationFrame(animate);
+}
+
 // 상태 관리 객체
 const state = {
   currentView: 'viewDashboard',
@@ -586,6 +711,8 @@ function switchView(viewName) {
 // =================================================================
 document.addEventListener('DOMContentLoaded', () => {
   setupThemeToggle();
+  setupSoundToggle();
+  setupCustomWordModal();
   setupAuth();
   setupSettingsModal();
   setupModeSwitcher();
@@ -1904,10 +2031,31 @@ function selectMcqOption(selectedWord, correctWord, currentItem, clickedBtn, gri
 
   const isCorrect = (selectedWord === correctWord);
   const feedbackBar = document.getElementById('mcqFeedbackBar');
+  const comboElem = document.getElementById('mcqComboBadge');
+
+  if (!state.currentCombo) state.currentCombo = 0;
 
   if (isCorrect) {
     state.mcqScore++;
+    state.currentCombo++;
     clickedBtn.classList.add('correct');
+
+    // 상용 오디오 피드백
+    if (state.currentCombo >= 3) {
+      SoundEngine.playCombo();
+    } else {
+      SoundEngine.playCorrect();
+    }
+
+    // 콤보 배지 업데이트
+    if (comboElem) {
+      if (state.currentCombo >= 2) {
+        comboElem.style.display = 'inline-block';
+        comboElem.innerText = `🔥 ${state.currentCombo} COMBO!`;
+      } else {
+        comboElem.style.display = 'none';
+      }
+    }
     if (feedbackBar) {
       feedbackBar.style.display = 'block';
       feedbackBar.style.background = 'rgba(16, 185, 129, 0.15)';
@@ -1915,6 +2063,9 @@ function selectMcqOption(selectedWord, correctWord, currentItem, clickedBtn, gri
       feedbackBar.innerText = '🎯 정답입니다! 두뇌에 완벽하게 각인되었습니다.';
     }
   } else {
+    state.currentCombo = 0;
+    if (comboElem) comboElem.style.display = 'none';
+    SoundEngine.playWrong();
     clickedBtn.classList.add('wrong');
     // 정답 버튼을 초록색으로 밝혀서 학습 지원
     buttons.forEach(b => {
@@ -1999,6 +2150,35 @@ function renderResultView(results) {
   const accuracy = Math.round((correctCount / total) * 100);
 
   document.getElementById('resultScore').innerText = `${accuracy}%`;
+
+  // 🏆 상용 등급 배지 & 축하 팡파레 & 콘페티
+  const gradeBadge = document.getElementById('resultGradeBadge');
+  if (gradeBadge) {
+    if (accuracy === 100) {
+      gradeBadge.className = 'grade-pill grade-s';
+      gradeBadge.innerText = '🏆 S등급 (마스터)';
+      SoundEngine.playFanfare();
+      launchCelebrationConfetti();
+    } else if (accuracy >= 80) {
+      gradeBadge.className = 'grade-pill grade-a';
+      gradeBadge.innerText = '🥇 A등급 (우수)';
+      SoundEngine.playFanfare();
+      launchCelebrationConfetti();
+    } else if (accuracy >= 60) {
+      gradeBadge.className = 'grade-pill grade-b';
+      gradeBadge.innerText = '🥈 B등급 (양호)';
+      SoundEngine.playCorrect();
+    } else {
+      gradeBadge.className = 'grade-pill grade-c';
+      gradeBadge.innerText = '🥉 C등급 (복습 권장)';
+    }
+  }
+
+  // 오답 개수 배지 동기화
+  const wrongBadge = document.getElementById('wrongCountBadge');
+  if (wrongBadge) {
+    wrongBadge.innerText = `${state.lastWrongQuizData.length}개`;
+  }
   document.getElementById('statMemTime').innerText = `${state.memorizeDuration || 0}초`;
   document.getElementById('statTestTime').innerText = `${state.testDuration || 0}초`;
   document.getElementById('statCorrect').innerText = `${correctCount} / ${total}개`;
@@ -3587,3 +3767,129 @@ function setupFastModeEvents() {
 }
 
 
+
+
+function setupSoundToggle() {
+  const btn = document.getElementById('btnToggleSound');
+  if (!btn) return;
+  btn.innerText = SoundEngine.enabled ? '🔊' : '🔇';
+  btn.onclick = () => {
+    const isEnabled = SoundEngine.toggle();
+    btn.innerText = isEnabled ? '🔊' : '🔇';
+    if (isEnabled) SoundEngine.playCorrect();
+  };
+}
+
+
+function setupCustomWordModal() {
+  const modal = document.getElementById('customWordModal');
+  const btnOpen = document.getElementById('btnOpenCustomWordModal');
+  const btnClose = document.getElementById('btnCloseCustomWordModal');
+  const btnApply = document.getElementById('btnApplyCustomWords');
+  const inputName = document.getElementById('inputCustomSetName');
+  const inputText = document.getElementById('inputCustomWordsText');
+
+  if (btnOpen && modal) {
+    btnOpen.onclick = () => {
+      SoundEngine.playClick();
+      modal.style.display = 'flex';
+      if (inputName) inputName.focus();
+    };
+  }
+
+  if (btnClose && modal) {
+    btnClose.onclick = () => {
+      SoundEngine.playClick();
+      modal.style.display = 'none';
+    };
+  }
+
+  if (btnApply && modal) {
+    btnApply.onclick = () => {
+      const rawText = inputText.value.trim();
+      if (!rawText) {
+        alert('단어와 설명을 최소 2줄 이상 입력해주세요.');
+        return;
+      }
+
+      const lines = rawText.split('\n').filter(l => l.trim().length > 0);
+      const parsed = [];
+      const defaultAnchors = ['💡', '⚡', '🎯', '🏛️', '📜', '💎', '🔑', '🚀', '🔥', '🛡️', '📦', '🌟'];
+
+      lines.forEach((line, idx) => {
+        let delimiter = ':';
+        if (line.includes(':')) delimiter = ':';
+        else if (line.includes('-')) delimiter = '-';
+        else if (line.includes('=')) delimiter = '=';
+        else if (line.includes('\t')) delimiter = '\t';
+
+        const parts = line.split(delimiter);
+        const word = (parts[0] || '').trim();
+        const def = (parts.slice(1).join(delimiter) || '').trim() || '사용자 등록 맞춤 개념';
+
+        if (word) {
+          parsed.push({
+            word: word,
+            definition: def,
+            importance_reason: '사용자 등록 맞춤 암기 키워드',
+            visual_anchor: defaultAnchors[idx % defaultAnchors.length] + ' ' + word,
+            chosung: extractChosung(word)
+          });
+        }
+      });
+
+      if (parsed.length < 2) {
+        alert('최소 2개 이상의 단어가 정상적으로 인식되어야 합니다.');
+        return;
+      }
+
+      const setName = (inputName.value.trim()) || '나만의 맞춤 단어장';
+      state.sessionData = {
+        quiz_data: parsed,
+        source_name: setName,
+        user_story: '',
+        history: []
+      };
+      state.mcqWordCount = parsed.length;
+
+      modal.style.display = 'none';
+      SoundEngine.playCombo();
+      startMcqQuiz();
+    };
+  }
+}
+
+
+// 📥 [상용 기능] 단어장 CSV 다운로드 유틸리티
+const btnExportCsv = document.getElementById('btnExportResultCsv');
+if (btnExportCsv) {
+  btnExportCsv.onclick = () => {
+    SoundEngine.playClick();
+    const quizList = (state.sessionData && Array.isArray(state.sessionData.quiz_data)) ? state.sessionData.quiz_data : [];
+    if (quizList.length === 0) {
+      alert('내보낼 단어 데이터가 없습니다.');
+      return;
+    }
+
+    const title = (state.sessionData && state.sessionData.source_name) || 'BrainLock_단어장';
+    let csvContent = "\uFEFF순번,단어,정의,출제포인트,시각앵커\n";
+
+    quizList.forEach((item, idx) => {
+      const cleanWord = (item.word || '').replace(/"/g, '""');
+      const cleanDef = (item.definition || '').replace(/"/g, '""');
+      const cleanReason = (item.importance_reason || '').replace(/"/g, '""');
+      const cleanAnchor = (item.visual_anchor || '').replace(/"/g, '""');
+      csvContent += `${idx + 1},"${cleanWord}","${cleanDef}","${cleanReason}","${cleanAnchor}"\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title}_${new Date().toISOString().substring(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+}

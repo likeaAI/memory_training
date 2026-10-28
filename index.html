@@ -43,6 +43,7 @@
           </div>
         </div>
         <button id="btnOpenSettings" class="btn-icon" title="구글 시트 DB 웹훅 설정">⚙️</button>
+        <button id="btnToggleSound" class="btn-icon" title="효과음 켜기/끄기 (Web Audio)">🔊</button>
         <button id="btnToggleTheme" class="btn-icon" title="다크/라이트 테마 변경">🌓</button>
       </div>
     </header>
@@ -559,6 +560,7 @@
                 <button type="button" class="mcq-preset-chip" data-topic="인공지능 핵심개념">🤖 인공지능</button>
                 <button type="button" class="mcq-preset-chip" data-topic="기억술 및 메타인지">🏛️ 기억술</button>
                 <button type="button" class="mcq-preset-chip" data-topic="한국사 핵심인물·사건">📜 한국사</button>
+                <button type="button" id="btnOpenCustomWordModal" class="mcq-preset-chip mcq-custom-chip">✏️ 내 단어 직접 등록</button>
               </div>
 
               <div class="mcq-count-wrap">
@@ -619,6 +621,7 @@
               <div class="progress-info">
                 <span class="progress-label">🎯 퀴즈 진행도</span>
                 <span class="progress-count"><strong id="mcqCurrentNum">1</strong> / <span id="mcqTotalNum">5</span>문제</span>
+                <span id="mcqComboBadge" class="mcq-combo-pill" style="display:none;">🔥 0 COMBO</span>
               </div>
               <div class="input-progress-bar-wrap">
                 <div class="input-progress-bar" id="mcqProgressBar" style="width: 20%; background: linear-gradient(90deg, #10b981, #059669);"></div>
@@ -759,6 +762,7 @@
           <div class="result-score-circle">
             <span class="score-number" id="resultScore">80%</span>
             <span class="score-label">정답률</span>
+            <span id="resultGradeBadge" class="grade-pill grade-s">🏆 S등급</span>
           </div>
           <div class="result-stats">
             <h2 id="resultTitle">멋집니다! 성공적인 인출 훈련이었습니다 🎉</h2>
@@ -826,8 +830,11 @@
           <button id="btnNextSetExclude" class="btn-primary" title="동일한 주제로 생성하되 이미 맞힌 단어는 제외하고 새로운 핵심 단어를 가져옵니다">
             ⚡ 맞힌 단어 제외하고 다음 단어 도전 ➔
           </button>
-          <button id="btnRetryWrong" class="btn-secondary" title="방금 틀렸던 단어들만 모아서 집중 재도전합니다">
-            ⚠️ 틀린 단어만 집중 복습
+          <button id="btnRetryWrong" class="btn-secondary btn-highlight-wrong" title="방금 틀렸던 단어들만 모아서 집중 재도전합니다">
+            ⚠️ 오답 단어만 집중 재도전 (<span id="wrongCountBadge">0</span>)
+          </button>
+          <button id="btnExportResultCsv" class="btn-secondary" title="현재 세트의 단어와 설명을 CSV 파일로 내보냅니다">
+            📥 단어장 CSV 내보내기
           </button>
           <button id="btnRetrySame" class="btn-secondary">🔁 전체 단어 재도전</button>
           <button id="btnSaveSet" class="btn-secondary">💾 이 세트 영구 저장</button>
@@ -937,6 +944,30 @@
       </section>
 
       
+
+      
+    <!-- ✏️ [상용 기능] 나만의 맞춤 단어장 직접 등록 모달 -->
+    <div id="customWordModal" class="modal-overlay" style="display:none;">
+      <div class="modal-card" style="max-width: 580px;">
+        <div class="modal-header">
+          <h3>✏️ 나만의 맞춤 단어장 등록</h3>
+          <button id="btnCloseCustomWordModal" class="btn-icon">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5;">
+            직접 외우고 싶은 단어와 설명을 자유롭게 입력하거나 붙여넣으세요.<br>
+            <span style="color: #10b981; font-weight: 700;">형식 예시:</span> <code>단어: 설명</code> 또는 <code>단어 - 설명</code> (줄바꿈 구분)
+          </p>
+          <input type="text" id="inputCustomSetName" placeholder="단어장 제목 (예: 전기기사 실기 핵심용어)" style="width: 100%; padding: 11px 14px; margin-bottom: 10px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 14px; font-weight: 700;">
+          <textarea id="inputCustomWordsText" rows="9" placeholder="전계: 전하가 전기력을 미치는 공간 영역&#10;자계: 자극이나 전류에 의해 자기력이 작용하는 공간&#10;쿨롱의법칙: 두 전하 사이 작용하는 정전기력 크기 공식&#10;맥스웰방정식: 전기장과 자기장의 상호작용을 통합한 4대 방정식&#10;로렌츠힘: 자기장 속 하전입자가 받는 힘" style="width: 100%; padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 13px; font-family: inherit; resize: vertical; line-height: 1.5;"></textarea>
+          <div style="display: flex; gap: 10px; margin-top: 14px;">
+            <button id="btnApplyCustomWords" class="btn-primary" style="flex: 1; padding: 13px; font-weight: 800; font-size: 14px; background: linear-gradient(135deg, #10b981, #059669); border-radius: var(--radius-md); cursor: pointer;">
+              🚀 이 단어들로 즉시 4지선다 퀴즈 시작 ➔
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
       </main>
     </div> <!-- .app-layout -->
