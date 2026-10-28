@@ -31,7 +31,6 @@
         <button id="btnModeQuiz" class="mode-nav-btn" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 800;">🎯 4지선다 객관식 퀴즈</button>
         <button id="btnModeConcept" class="mode-nav-btn">🧠 AI 개념 연상술</button>
         <button id="btnModeSpatial" class="mode-nav-btn">⚡ 공간 순간 기억력</button>
-        <button id="btnModeSudoku" class="mode-nav-btn">🔢 두뇌 활성 스도쿠</button>
       </div>
 
       <!-- [우측 상단] 마스터 로그인 정보 & 글로벌 도구 -->
@@ -214,20 +213,7 @@
               <button class="btn-primary btn-launcher btn-launcher-amber">
                 ⚡ 순간 기억 훈련 시작 ➔
               </button>
-            </div>
-
-            <div class="launcher-card launcher-sudoku" id="launchSudokuCard">
-              <div class="launcher-header">
-                <span class="launcher-badge badge-emerald">논리 & 집중력</span>
-                <span class="launcher-icon">🔢</span>
-              </div>
-              <h3>두뇌 활성 9x9 스도쿠</h3>
-              <p>4단계 맞춤형 난이도(쉬움~전문가)로 전두엽 논리 추론과 집중력/작업기억 활성화</p>
-              <button class="btn-primary btn-launcher btn-launcher-emerald">
-                🔢 스도쿠 훈련 시작 ➔
-              </button>
-            </div>
-          </div>
+            </div></div>
 
           <!-- DB 데이터 종합 관리: 저장된 단어장 & 훈련 로그 분리 테이블 -->
           <div class="db-visual-card">
@@ -548,96 +534,68 @@
       <!-- [뷰 4-2] 🎯 4지선다 객관식 퀴즈 뷰 (신규!) -->
       <section id="viewQuizMCQ" class="view">
         
-        <!-- [1단계] 📇 퀴즈 대비 단어 각인/암기 프리뷰 영역 -->
+                <!-- [1단계] 📇 퀴즈 대비 단어 각인/암기 프리뷰 영역 -->
         <div id="mcqPreviewStep">
 
-          <!-- 📚 [1. 최상단 배치] 퀴즈 학습 주제 선택 & 단어 생성 & 문제 수 조절 -->
-          <div class="mcq-topic-selector-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px 22px; margin-bottom: 20px; box-shadow: var(--shadow-sm);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-              <label style="font-size: 15px; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
-                <span>📚 1. 퀴즈 주제 선택 & 단어 생성</span>
-                <span style="font-size: 12px; color: var(--text-muted); font-weight: 500;">(원하는 주제와 문제 수를 선택하고 생성하세요)</span>
-              </label>
-              <span id="mcqCurrentTopicBadge" style="font-size: 12px; font-weight: 800; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 3px 12px; border-radius: 12px;">
-                현재 주제: 전기기사 전자기학 (10문제)
-              </span>
-            </div>
-
-            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-              <input type="text" id="inputMcqTopic" placeholder="공부하고 싶은 주제를 입력하세요 (예: 전기기사, 민법, 경제학, 뇌과학)" value="전기기사 전자기학" style="flex: 1; padding: 12px 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 15px; font-weight: 600;">
-              <button id="btnGenerateMcqTopic" class="btn-primary" style="background: linear-gradient(135deg, #10b981, #059669); white-space: nowrap; padding: 12px 22px; font-weight: 800; font-size: 14px;">
+          <!-- ⚡ 콤팩트 퀴즈 주제 & 단어 수 빠른 설정 바 -->
+          <div class="mcq-topic-selector-card">
+            <div class="mcq-topic-input-row">
+              <span class="mcq-label">🎯 퀴즈 주제:</span>
+              <input type="text" id="inputMcqTopic" placeholder="공부할 주제 입력 (예: 전자기학, 거시경제학, 민법, 네트워크, AI)" value="전기기사 전자기학">
+              <button id="btnGenerateMcqTopic" class="btn-primary btn-generate-mcq">
                 ⚡ 새 단어 생성
               </button>
             </div>
 
-            <!-- 추천 주제 원클릭 프리셋 칩 -->
-            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-              <span style="font-size: 12px; font-weight: 700; color: var(--text-muted);">⚡ 빠른 주제:</span>
-              <button type="button" class="mcq-preset-chip" data-topic="전기기사 전자기학" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); padding: 5px 12px; border-radius: 14px; font-size: 12px; font-weight: 700; cursor: pointer;">🔬 전자기학</button>
-              <button type="button" class="mcq-preset-chip" data-topic="거시경제학 원론" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); padding: 5px 12px; border-radius: 14px; font-size: 12px; font-weight: 700; cursor: pointer;">💼 거시경제학</button>
-              <button type="button" class="mcq-preset-chip" data-topic="인지심리학 및 뇌과학" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); padding: 5px 12px; border-radius: 14px; font-size: 12px; font-weight: 700; cursor: pointer;">🧠 뇌과학·심리</button>
-              <button type="button" class="mcq-preset-chip" data-topic="민법총칙 핵심개념" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); padding: 5px 12px; border-radius: 14px; font-size: 12px; font-weight: 700; cursor: pointer;">⚖️ 민법총칙</button>
-              <button type="button" class="mcq-preset-chip" data-topic="컴퓨터 네트워크" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); padding: 5px 12px; border-radius: 14px; font-size: 12px; font-weight: 700; cursor: pointer;">💻 네트워크</button>
-              <button type="button" class="mcq-preset-chip" data-topic="기억술 및 메타인지" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); padding: 5px 12px; border-radius: 14px; font-size: 12px; font-weight: 700; cursor: pointer;">🏛️ 기억술</button>
-            </div>
-
-            <!-- 🎯 퀴즈 단어 개수 조정 (최소 10개 단위 시작) -->
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border-color); flex-wrap: wrap; gap: 10px;">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="font-size: 13px; font-weight: 800; color: var(--text-primary);">🎯 퀴즈 문제 수:</span>
-                <div style="display: inline-flex; align-items: center; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow: hidden;">
-                  <button type="button" id="btnMcqCountMinus" style="padding: 6px 14px; border: none; background: transparent; color: var(--text-primary); font-size: 16px; font-weight: 800; cursor: pointer;" title="5개 감소 (최소 10개)">-</button>
-                  <span id="mcqCountDisplay" style="padding: 6px 14px; font-weight: 800; color: #10b981; font-size: 14px; min-width: 55px; text-align: center;">10개</span>
-                  <button type="button" id="btnMcqCountPlus" style="padding: 6px 14px; border: none; background: transparent; color: var(--text-primary); font-size: 16px; font-weight: 800; cursor: pointer;" title="5개 증가">+</button>
-                </div>
-                <small style="color: var(--text-muted); font-size: 11px;">(최소 10개부터 시작)</small>
+            <!-- 빠른 주제 프리셋 칩 & 문제 수 선택 (한 줄 콤팩트 배치) -->
+            <div class="mcq-quick-options-row">
+              <div class="mcq-chips-wrap">
+                <span class="quick-chip-label">⚡ 빠른 주제:</span>
+                <button type="button" class="mcq-preset-chip" data-topic="전기기사 전자기학">🔬 전자기학</button>
+                <button type="button" class="mcq-preset-chip" data-topic="거시경제학 원론">💼 거시경제학</button>
+                <button type="button" class="mcq-preset-chip" data-topic="인지심리학 및 뇌과학">🧠 뇌과학·심리</button>
+                <button type="button" class="mcq-preset-chip" data-topic="민법총칙 핵심개념">⚖️ 민법총칙</button>
+                <button type="button" class="mcq-preset-chip" data-topic="컴퓨터 네트워크">💻 네트워크</button>
+                <button type="button" class="mcq-preset-chip" data-topic="인공지능 핵심개념">🤖 인공지능</button>
+                <button type="button" class="mcq-preset-chip" data-topic="기억술 및 메타인지">🏛️ 기억술</button>
+                <button type="button" class="mcq-preset-chip" data-topic="한국사 핵심인물·사건">📜 한국사</button>
               </div>
 
-              <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-                <span style="font-size: 12px; color: var(--text-muted); font-weight: 700;">빠른 설정:</span>
-                <button type="button" class="mcq-count-chip active" data-count="10" style="padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 800; cursor: pointer; border: 1px solid #10b981; background: rgba(16, 185, 129, 0.15); color: #10b981;">10개 (기본)</button>
-                <button type="button" class="mcq-count-chip" data-count="15" style="padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-secondary);">15개</button>
-                <button type="button" class="mcq-count-chip" data-count="20" style="padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-secondary);">20개</button>
-                <button type="button" class="mcq-count-chip" data-count="25" style="padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-secondary);">25개</button>
+              <div class="mcq-count-wrap">
+                <span class="quick-chip-label">문제 수:</span>
+                <button type="button" class="mcq-count-chip active" data-count="10">10개 (기본)</button>
+                <button type="button" class="mcq-count-chip" data-count="15">15개</button>
+                <button type="button" class="mcq-count-chip" data-count="20">20개</button>
               </div>
             </div>
           </div>
 
-          <!-- 2. 각인 상태 & 타이머 헤더 카드 -->
-          <div class="test-header-card">
-            <div class="test-title-wrap">
-              <span class="step-badge" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4);">STEP 1</span>
-              <h2 id="mcqPreviewHeading">단어를 확인하고 뇌에 각인하세요!</h2>
-              <p class="subtitle" id="mcqPreviewSub">아래 단어 카드를 클릭하면 단어가 공개되며 <strong>각인 타이머가 작동</strong>합니다.</p>
+          <!-- 🚀 [핵심] 상단 스티키 암기 액션 & 타이머 헤더 바 -->
+          <div class="mcq-action-sticky-bar">
+            <div class="sticky-left-info">
+              <span id="mcqCurrentTopicBadge" class="topic-pill-badge">
+                현재 주제: 전기기사 전자기학 (10문제)
+              </span>
+              <div class="test-timer-badge">
+                <span class="timer-icon">⏱️</span>
+                <span>각인 시간: <strong id="mcqPreviewTimer">00.0s</strong></span>
+              </div>
             </div>
-            <div class="test-timer-badge">
-              <span class="timer-icon">⏱️</span>
-              <span>각인 시간: <strong id="mcqPreviewTimer">00.0s</strong></span>
-            </div>
-          </div>
 
-          <!-- 단어 전체 열람 / 잠금해제 바 -->
-          <div id="mcqRevealActionWrap" style="text-align: center; margin: 16px 0;">
-            <button id="btnRevealAllWords" class="btn-primary" style="font-size: 16px; padding: 13px 28px; background: linear-gradient(135deg, #6366f1, #4f46e5); font-weight: 800; border-radius: var(--radius-md); box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);">
-              👁️ 단어 전체 열람 & 각인 시작 (타이머 START)
+            <button id="btnStartSolveMcqTop" class="btn-primary btn-instant-solve">
+              🚀 암기 완료! 바로 퀴즈 시작 (Space/Enter) ➔
             </button>
           </div>
 
-          <div style="display: flex; justify-content: flex-end; margin-bottom: 8px;">
-            <button type="button" id="btnMcqToConceptDirect" class="btn-secondary" style="font-size: 13px; font-weight: 700; color: #6366f1; border-color: rgba(99, 102, 241, 0.4); background: rgba(99, 102, 241, 0.08); padding: 6px 14px; border-radius: 12px; cursor: pointer;" title="현재 단어들을 가지고 AI 개념 연상술 화면으로 이동합니다">
-              🧠 이 단어들로 AI 개념 연상술(스토리) 훈련하기 ➔
-            </button>
+          <!-- 단어 카드 프리뷰 그리드 (단어 즉시 전체 노출!) -->
+          <div class="mcq-preview-grid" id="mcqPreviewGrid">
+            <!-- 자바스크립트로 단어 카드가 즉시 선명하게 렌더링됨 -->
           </div>
 
-          <!-- 단어 카드 프리뷰 그리드 -->
-          <div class="mcq-preview-grid" id="mcqPreviewGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin: 20px 0;">
-            <!-- 자바스크립트로 단어 카드가 렌더링됨 -->
-          </div>
-
-          <!-- 하단 액션 버튼 (처음엔 숨김 -> 단어 열람 시 표시) -->
-          <div id="mcqStartSolveWrap" style="text-align: center; margin-top: 24px; display: none;">
-            <button id="btnStartSolveMcq" class="btn-primary" style="font-size: 17px; padding: 16px 36px; background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 18px rgba(16, 185, 129, 0.35);">
-              🚀 다 외웠습니다! 4지선다 퀴즈 시작 ➔
+          <!-- 하단 액션 버튼 -->
+          <div id="mcqStartSolveWrap" class="mcq-bottom-solve-wrap">
+            <button id="btnStartSolveMcq" class="btn-primary btn-instant-solve">
+              🚀 암기 완료! 바로 퀴즈 시작 (Space/Enter) ➔
             </button>
           </div>
         </div>
@@ -978,97 +936,7 @@
         </div>
       </section>
 
-      <!-- ============================================================= -->
-      <!-- [뷰 6] 🔢 두뇌 활성 9x9 스도쿠 훈련 뷰 (논리 추론 & 작업기억) -->
-      <!-- ============================================================= -->
-      <section id="viewSudoku" class="view">
-        <div class="hero-text">
-          <h2>논리 추론 & 작업기억 <span class="highlight">두뇌 활성 9x9 스도쿠</span></h2>
-          <p class="subtitle">행, 열, 3x3 박스에 1~9 숫자를 중복 없이 채워 전두엽을 활성화하고 집중력을 극대화하세요</p>
-        </div>
-
-        <!-- 스도쿠 컨트롤 & 난이도 선택 패널 -->
-        <div class="sudoku-control-card">
-          <div class="sudoku-ctrl-top">
-            <div class="ctrl-group">
-              <label for="sudokuDiffSelect" class="input-label">🎯 훈련 난이도</label>
-              <select id="sudokuDiffSelect" class="custom-select">
-                <option value="easy">🌱 쉬움 (입문 / 30빈칸)</option>
-                <option value="normal" selected>⚡ 보통 (표준 / 42빈칸)</option>
-                <option value="hard">🔥 어려움 (심화 / 52빈칸)</option>
-                <option value="expert">👑 전문가 (마스터 / 58빈칸)</option>
-              </select>
-            </div>
-
-            <div class="sudoku-status-indicators">
-              <div class="status-pill timer-pill">
-                <span>⏱️ 시간:</span> <strong id="sudokuTimerDisplay">00:00</strong>
-              </div>
-              <div class="status-pill mistakes-pill">
-                <span>❌ 오류:</span> <strong id="sudokuMistakesDisplay">0 / 3</strong>
-              </div>
-            </div>
-          </div>
-
-          <div class="sudoku-action-row">
-            <button id="btnNewSudokuGame" class="btn-primary">
-              🚀 새 퍼즐 생성
-            </button>
-            <button id="btnSudokuHint" class="btn-secondary" title="현재 선택된 빈칸의 정답을 채워줍니다">
-              💡 힌트 (<span id="sudokuHintCount">3</span>회)
-            </button>
-            <button id="btnSudokuRestart" class="btn-secondary">
-              🔄 퍼즐 초기화
-            </button>
-            <button id="btnSudokuCheck" class="btn-secondary">
-              ✔️ 정답 검증
-            </button>
-          </div>
-        </div>
-
-        <!-- 스도쿠 보드 & 키패드 아레나 카드 -->
-        <div class="sudoku-arena-card">
-          <div class="sudoku-board-wrapper">
-            <div class="sudoku-board" id="sudokuBoard">
-              <!-- 9x9 = 81개 셀 JavaScript 동적 생성 -->
-            </div>
-          </div>
-
-          <!-- 온스크린 스마트 숫자 키패드 -->
-          <div class="sudoku-keypad">
-            <button class="btn-keypad-num" data-num="1">1</button>
-            <button class="btn-keypad-num" data-num="2">2</button>
-            <button class="btn-keypad-num" data-num="3">3</button>
-            <button class="btn-keypad-num" data-num="4">4</button>
-            <button class="btn-keypad-num" data-num="5">5</button>
-            <button class="btn-keypad-num" data-num="6">6</button>
-            <button class="btn-keypad-num" data-num="7">7</button>
-            <button class="btn-keypad-num" data-num="8">8</button>
-            <button class="btn-keypad-num" data-num="9">9</button>
-            <button class="btn-keypad-erase" id="btnKeypadErase" title="선택한 셀 지우기">⌫ 지우기</button>
-          </div>
-
-          <!-- 스도쿠 SQLite 영구 통계 바 -->
-          <div class="spatial-live-stats" style="margin-top: 15px;">
-            <div class="live-stat-pill">
-              <span>최단 클리어:</span> <strong id="statSudokuBestTime">-초</strong>
-            </div>
-            <div class="live-stat-pill">
-              <span>평균 시간:</span> <strong id="statSudokuAvgTime">-초</strong>
-            </div>
-            <div class="live-stat-pill">
-              <span>총 완주 성공:</span> <strong id="statSudokuTotalClears">0회</strong>
-            </div>
-          </div>
-        </div>
-
-        <!-- 카드 밖 하단 독립 메인 대시보드 복귀 영역 -->
-        <div class="return-home-row" style="margin-top: 24px;">
-          <button class="btn-return-dashboard btn-text-link">
-            🏠 메인 대시보드로 돌아가기
-          </button>
-        </div>
-      </section>
+      
 
       </main>
     </div> <!-- .app-layout -->

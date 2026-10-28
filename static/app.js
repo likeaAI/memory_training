@@ -127,17 +127,49 @@ async function callGeminiClient(prompt, temperature = 0.9) {
 // 📚 오프라인 내장 엄선 단어 라이브러리 (API 불가 / 오프라인 완전 대응)
 // =================================================================
 const OFFLINE_BUILTIN_SETS = {
-  "기억술": [
-    { word: "기억의궁전", definition: "친숙한 공간에 정보를 배치하는 고대 기억술", importance_reason: "공간기억과 시각화 결합의 정점", visual_anchor: "🏛️ 웅장한 대리석 궁전" },
-    { word: "시각앵커", definition: "추상적 개념을 구체적 사물로 고정하는 연결고리", importance_reason: "망각을 방지하는 강력한 트리거", visual_anchor: "⚓ 거대한 황금 닻" },
-    { word: "정교화부호화", definition: "새 정보를 기존 기억과 연결하여 심층 저장하는 기법", importance_reason: "장기기억 전환율을 극대화함", visual_anchor: "🔗 얽혀있는 황금 사슬" },
-    { word: "초두효과", definition: "목록의 맨 앞 정보를 가장 쉽게 기억하는 심리", importance_reason: "암기 순서 배치의 핵심 원리", visual_anchor: "🥇 1등 금메달" },
-    { word: "작업기억", definition: "의식적 사고와 정보 처리를 담당하는 단기 두뇌 용량", importance_reason: "전두엽 집중력의 척도", visual_anchor: "💻 번쩍이는 두뇌 RAM" },
-    { word: "망각곡선", definition: "시간 경과에 따라 기억이 급격히 소실되는 자연 법칙", importance_reason: "복습 주기를 설계하는 과학적 근거", visual_anchor: "📉 가파른 낭떠러지" },
-    { word: "페그시스템", definition: "숫자나 순서에 고정된 말뚝 이미지를 거는 기억법", importance_reason: "순서 기억에 탁월한 효과", visual_anchor: "📌 벽에 박힌 황금 못" },
-    { word: "인출단서", definition: "잠들어 있는 기억을 깨워 의식으로 끌어올리는 신호", importance_reason: "시험 볼 때 기억을 끄집어내는 열쇠", visual_anchor: "🗝️ 황금 마스터 키" },
-    { word: "메타인지", definition: "자신이 아는 것과 모르는 것을 객관적으로 자각하는 능력", importance_reason: "공부 효율을 3배 높이는 최상위 감각", visual_anchor: "🪞 머릿속을 비추는 거울" },
-    { word: "분산학습", definition: "벼락치기 대신 시간을 두고 여러 번 나누어 공부하는 방법", importance_reason: "신경망을 단단하게 굳히는 비결", visual_anchor: "🌱 주기적으로 물을 주는 화분" }
+  "전자기학": [
+    { word: "전계", definition: "전하가 놓였을 때 전기력이 작용하는 공간", importance_reason: "쿨롱의 법칙과 전위 계산의 기초", visual_anchor: "⚡ 뿜어져 나오는 번개 그물" },
+    { word: "자계", definition: "자석이나 전류 주변에 자기력이 작용하는 공간", importance_reason: "전자석과 모터의 구동 원리", visual_anchor: "🧲 나침반을 돌리는 거대 자석" },
+    { word: "맥스웰방정식", definition: "전기장과 자기장의 상호작용을 통합한 4대 방정식", importance_reason: "빛과 전파의 본질을 설명함", visual_anchor: "📜 전자기의 4대 천왕 비급" },
+    { word: "유전율", definition: "물질이 전하를 유도하여 전기장을 축적하는 정도", importance_reason: "커패시터 용량 결정 핵심 계수", visual_anchor: "🧽 전기를 머금는 스펀지" },
+    { word: "투자율", definition: "물질이 자기력선을 얼마나 잘 통과시키는지를 나타내는 척도", importance_reason: "변압기 철심 설계의 핵심", visual_anchor: "🚪 자석 통로를 여는 황금문" },
+    { word: "패러데이법칙", definition: "자기장의 시간적 변화가 전압을 유도한다는 전자기 유도 법칙", importance_reason: "발전기와 변압기의 기본 원리", visual_anchor: "🌀 코일 안을 통과하는 자석" },
+    { word: "렌츠의법칙", definition: "유도 기전력은 자기 선속의 변화를 방해하는 방향으로 발생한다는 법칙", importance_reason: "에너지 보존과 방향 결정", visual_anchor: "🛡️ 밀어내는 반발 방패" },
+    { word: "쿨롱의법칙", definition: "두 전하 사이에 작용하는 정전기적 인력과 척도를 나타낸 법칙", importance_reason: "정전기학의 가장 기본이 되는 식", visual_anchor: "⚖️ 전하를 저울질하는 천칭" },
+    { word: "가우스법칙", definition: "폐곡면을 통과하는 총 전속은 내부 전하량과 같다는 법칙", importance_reason: "대칭적인 전계 계산의 지름길", visual_anchor: "🔮 전하를 가둔 수정구슬" },
+    { word: "포인팅벡터", definition: "전자기파가 단위 시간당 전달하는 에너지 흐름의 방향과 크기", importance_reason: "무선 통신 에너지 전송의 척도", visual_anchor: "➡️ 에너지를 실어나르는 화살" },
+    { word: "로렌츠힘", definition: "자기장 속에서 운동하는 하전입자가 받는 전자기력", importance_reason: "모터와 입자 가속기의 기본 원리", visual_anchor: "🥊 궤적을 꺾는 복싱 글러브" },
+    { word: "비오사바르법칙", definition: "미소 전류 요소가 생성하는 자기장의 세기를 구하는 법칙", importance_reason: "임의 도선의 자계 계산", visual_anchor: "📏 전류선을 재는 황금 자" },
+    { word: "앙페르법칙", definition: "폐곡선을 따라 자기장을 선적분하면 내부 전류와 같다는 법칙", importance_reason: "원형 도선 및 솔레노이드 자계 계산", visual_anchor: "🔄 전선을 감싸는 나선 고리" },
+    { word: "인덕턴스", definition: "전류의 변화에 반발하여 유도 기전력을 생성하는 능력", importance_reason: "코일의 에너지 저장 지표", visual_anchor: "🌀 회전하며 버티는 용수철" },
+    { word: "커패시턴스", definition: "전압이 인가되었을 때 전하를 축적할 수 있는 능력", importance_reason: "콘덴서의 핵심 사양", visual_anchor: "🔋 전하를 채우는 황금 물탱크" },
+    { word: "변위전류", definition: "유전체나 진공에서 전속밀도의 시간적 변화로 흐르는 가상 전류", importance_reason: "맥스웰의 전자기파 예견 핵심", visual_anchor: "🌊 절연체를 뚫는 유령 전류" },
+    { word: "와전류", definition: "변화하는 자기장에 의해 도체 내부에 소용돌이 형태로 흐르는 유도전류", importance_reason: "철심 손실 및 인덕션 히팅의 원인", visual_anchor: "🌪️ 쇠판 위의 불꽃 소용돌이" },
+    { word: "표피효과", definition: "고주파 교류 전류가 도체의 바깥쪽 표면으로만 쏠려 흐르는 현상", importance_reason: "고주파 케이블 설계의 필수 고려", visual_anchor: "🧅 양파 껍질로 번지는 불꽃" },
+    { word: "자화율", definition: "외부 자기장에 의해 물질이 자성을 띠는 정도", importance_reason: "강자성체와 상자성체의 분류 기준", visual_anchor: "🧲 자성을 흡수하는 자석 젤리" },
+    { word: "정전용량", definition: "도체가 단위 전위당 보유할 수 있는 전하의 총량", importance_reason: "정전 결합 및 전위 장벽 분석", visual_anchor: "📦 전하를 담는 보관함" }
+  ],
+  "거시경제학": [
+    { word: "인플레이션", definition: "물가가 지속적으로 상승하여 화폐 가치가 하락하는 현상", importance_reason: "중앙은행 금리 정책의 1차 목표", visual_anchor: "🎈 하늘로 솟구치는 거대 풍선" },
+    { word: "기준금리", definition: "중앙은행이 시중은행과 거래할 때 기준이 되는 정책 금리", importance_reason: "국가 유동성 공급의 메인 수도꼭지", visual_anchor: "🏦 중앙은행의 거대 수도 밸브" },
+    { word: "GDP", definition: "일정 기간 동안 한 나라 안에서 생산된 최종 생산물의 시장가치", importance_reason: "국가 경제 규모와 성장률 측정 척도", visual_anchor: "📈 솟아오르는 황금 피라미드" },
+    { word: "필립스곡선", definition: "실업률과 인플레이션율 간의 단기 역(음)의 상관관계", importance_reason: "경기 부양과 물가 안정의 딜레마", visual_anchor: "🎢 급경사 롤러코스터" },
+    { word: "양적완화", definition: "중앙은행이 채권을 직접 매입하여 시장에 유동성을 공급하는 정책", importance_reason: "초저금리 한계 극복 비전통 통화정책", visual_anchor: "💸 하늘에서 쏟아지는 지폐비" },
+    { word: "스태그플레이션", definition: "경기 침체와 고물가가 동시에 발생하는 최악의 경제 국면", importance_reason: "전통적 통화정책의 딜레마 유발", visual_anchor: "🧊 뜨거운 불길 속의 얼음산" },
+    { word: "통화승수", definition: "본원통화 1단위가 공급되었을 때 창출되는 통화량의 배수", importance_reason: "은행 신용창조 능력 측정", visual_anchor: "🪄 돈을 복제하는 마법 지팡이" },
+    { word: "유동성함정", definition: "금리를 아무리 낮춰도 소비와 투자가 늘지 않는 경제 상태", importance_reason: "통화정책 무력화 국면", visual_anchor: "🕳️ 동전이 빨려 들어가는 블랙홀" },
+    { word: "IS-LM모형", definition: "재화 시장(IS)과 화폐 시장(LM)의 동시 균형을 분석하는 틀", importance_reason: "재정정책과 통화정책 효과 비교", visual_anchor: "⚖️ 교차하는 황금 저울대" },
+    { word: "테이퍼링", definition: "중앙은행이 양적완화 자산 매입 규모를 점진적으로 축소하는 것", importance_reason: "긴축 국면 전환의 사전 신호", visual_anchor: "📉 가늘어지는 기름 호스" },
+    { word: "총수요", definition: "한 경제 내의 모든 경제주체가 소비·투자하고자 하는 총 재화의 합", importance_reason: "단기 경기 변동의 핵심 동인", visual_anchor: "🛒 전 국민의 거대 장바구니" },
+    { word: "총공급", definition: "한 경제의 모든 생산자가 판매하고자 하는 재화와 용역의 총량", importance_reason: "잠재 GDP와 생산성 한계 결정", visual_anchor: "🏭 풀가동되는 거대 공장 굴뚝" },
+    { word: "기저효과", definition: "비교 기준 시점의 수치가 너무 낮거나 높아 착시를 일으키는 현상", importance_reason: "경제 지표 해석 오류 방지", visual_anchor: "🪜 발판이 꺼진 사다리" },
+    { word: "디플레이션", definition: "물가가 지속적으로 하락하여 경기 침체가 심화되는 현상", importance_reason: "소비 지연과 부채 부담 가중", visual_anchor: "📉 얼어붙어 굳어버린 물가계" },
+    { word: "환율", definition: "자국 화폐와 외국 화폐 간의 교환 비율", importance_reason: "수출입 경쟁력과 외환 건전성 결정", visual_anchor: "💱 달러와 원화가 춤추는 시소" },
+    { word: "경상수지", definition: "국가 간 상품과 서비스 등의 거래로 발생한 수입과 지출의 차액", importance_reason: "대외 건전성과 통화 가치 지탱", visual_anchor: "🚢 항구에 들어서는 황금 컨테이너" },
+    { word: "구매력평가", definition: "동일한 재화는 모든 국가에서 같은 가격이어야 한다는 이론", importance_reason: "빅맥 지수 등 적정 환율 산정", visual_anchor: "🍔 국가별 가격표가 붙은 빅맥" },
+    { word: "본원통화", definition: "중앙은행이 발행한 현금통화와 시중은행의 지급준비금의 합계", importance_reason: "시중 통화 공급의 원천", visual_anchor: "🏛️ 한국은행 금고의 황금 주화" },
+    { word: "구축효과", definition: "정부 지출 증가가 이자율을 상승시켜 민간 투자를 위축시키는 현상", importance_reason: "재정지출 효과 상쇄 요인", visual_anchor: "🐘 민간 의자를 밀어내는 코끼리" },
+    { word: "잠재GDP", definition: "물가 상승 압력 없이 모든 생산 요소를 완전 고용했을 때의 생산량", importance_reason: "경기 과열 및 침체(GDP 갭) 판단", visual_anchor: "🎯 최고 출력 한계선 계기판" }
   ],
   "뇌과학": [
     { word: "해마", definition: "새로운 기억의 형성 및 장기 기억 전환을 총괄하는 기관", importance_reason: "학습과 기억 형성의 관문", visual_anchor: "🌊 푸른 바다의 해마" },
@@ -149,7 +181,61 @@ const OFFLINE_BUILTIN_SETS = {
     { word: "신경발생", definition: "성인이 된 후에도 해마에서 새로운 뇌세포가 생성되는 현상", importance_reason: "평생 두뇌 발달의 과학적 증거", visual_anchor: "🌿 뇌 속에서 자라나는 새싹" },
     { word: "아세틸콜린", definition: "주의 집중과 각성을 높여 학습을 촉진하는 신경물질", importance_reason: "공부 집중력의 핵심 촉매", visual_anchor: "💡 환하게 켜지는 집중 전구" },
     { word: "디폴트모드", definition: "멍때리거나 쉴 때 활성화되어 정보를 정리하는 뇌 네트워크", importance_reason: "휴식 중 창의적 영감의 원천", visual_anchor: "☁️ 뭉게구름 속 안식처" },
-    { word: "코르티솔", definition: "만성 스트레스 시 분비되어 해마를 위축시키는 호르몬", importance_reason: "학습 효율을 떨어뜨리는 주범", visual_anchor: "🧪 부식성 산성 용액" }
+    { word: "코르티솔", definition: "만성 스트레스 시 분비되어 해마를 위축시키는 호르몬", importance_reason: "학습 효율을 떨어뜨리는 주범", visual_anchor: "🧪 부식성 산성 용액" },
+    { word: "뉴런", definition: "전기 및 화학 신호를 통해 정보를 전달하는 신경계 기본 단위", importance_reason: "모든 두뇌 사고 활동의 기초 세포", visual_anchor: "💡 반짝이는 은빛 세포 나무" },
+    { word: "축삭돌기", definition: "신경세포체에서 다른 뉴런으로 전기 신호를 내보내는 긴 섬유", importance_reason: "정보 고속 송출 전선", visual_anchor: "⚡ 뻗어나가는 고압 송전선" },
+    { word: "수상돌기", definition: "다른 뉴런으로부터 신호를 받아들이는 나뭇가지 모양의 돌기", importance_reason: "정보 수신 안테나 역할", visual_anchor: "📡 신호를 받는 나뭇가지 안테나" },
+    { word: "세로토닌", definition: "기분 안정, 수면, 행복감을 조절하는 대표 신경전달물질", importance_reason: "정서적 회복탄력성과 평온 유지", visual_anchor: "☀️ 따스하게 비추는 아침 햇살" },
+    { word: "글루타메이트", definition: "뇌에서 가장 강력하고 흔한 흥분성 신경전달물질", importance_reason: "장기 기억 강화(LTP)의 주역", visual_anchor: "🚀 엔진을 점화하는 로켓 연료" },
+    { word: "GABA", definition: "과도한 신경 흥분을 억제하여 뇌를 진정시키는 억제성 물질", importance_reason: "불안 완화와 뇌 과부하 차단", visual_anchor: "🛑 급제동을 거는 브레이크 패드" },
+    { word: "소뇌", definition: "정밀한 근육 운동, 균형감각, 절차 기억을 담당하는 후하부 뇌", importance_reason: "몸으로 익힌 자전거 타기 등 숙달 기억", visual_anchor: "🎪 외줄 타는 곡예사의 균형봉" },
+    { word: "시상", definition: "후각을 제외한 모든 감각 신호가 대뇌피질로 가기 전 거치는 중계소", importance_reason: "감각 정보의 종합 교통 관제탑", visual_anchor: "🚦 감각 신호를 분류하는 중앙역" },
+    { word: "뇌가소성", definition: "경험과 훈련에 반응하여 뇌 구조와 기능이 끊임없이 재구성되는 성질", importance_reason: "성인 이후에도 학습이 가능한 근거", visual_anchor: "🏺 원하는 대로 빚는 부드러운 점토" },
+    { word: "거울뉴런", definition: "타인의 행동을 보기만 해도 자신이 행동할 때처럼 반응하는 신경세포", importance_reason: "모방 학습과 공감 능력의 뿌리", visual_anchor: "🪞 상대방을 똑같이 비추는 거울" }
+  ],
+  "민법총칙": [
+    { word: "법률행위", definition: "의사표시를 요소로 하여 법률효과를 발생시키는 행위", importance_reason: "사적자치의 원칙을 실현하는 핵심 수단", visual_anchor: "📜 도장이 찍힌 정식 계약서" },
+    { word: "소멸시효", definition: "권리자가 권리를 행사할 수 있음에도 방치하여 권리가 소멸하는 제도", importance_reason: "법적 안정성과 거래 질서 보호", visual_anchor: "⏳ 모래가 다 떨어진 모래시계" },
+    { word: "권리능력", definition: "권리의 주체가 되어 권리를 누리고 의무를 질 수 있는 법적 자격", importance_reason: "자연인과 법인의 법적 지위 기본", visual_anchor: "🛡️ 전신을 감싸는 황금 방패" },
+    { word: "의사표시", definition: "일정한 법률효과 발생을 의욕하고 이를 외부에 나타내는 행위", importance_reason: "계약 성립의 핵심 구성요소", visual_anchor: "🗣️ 입에서 나오는 황금 문서" },
+    { word: "대리", definition: "타인이 본인의 이름으로 법률행위를 하여 본인에게 효과를 귀속시키는 제도", importance_reason: "사적자치의 확장 및 보충", visual_anchor: "🤝 본인의 위임장을 든 대리인" },
+    { word: "무효", definition: "법률행위가 성립 당시부터 당연히 법률상 아무런 효력이 없는 상태", importance_reason: "강행규정 위반 및 반사회질서 행위 차단", visual_anchor: "💨 연기처럼 사라지는 계약서" },
+    { word: "취소", definition: "일단 유효하게 성립한 법률행위의 효력을 소급하여 무효로 만드는 것", importance_reason: "제한능력자, 착오, 사기·강박 시 권리 구제", visual_anchor: "↩️ 되돌리기 화살표 버튼" },
+    { word: "조건과기한", definition: "법률행위 효력의 발생·소멸을 장래의 불확실한 사실이나 확실한 때에 의존케 함", importance_reason: "계약 내용의 유연한 조율", visual_anchor: "📅 달력과 주사위 상자" },
+    { word: "신의성실원칙", definition: "권리의 행사와 의무의 이행은 신의를 좇아 성실히 하여야 한다는 대원칙", importance_reason: "민법 전체를 관통하는 최고 조리", visual_anchor: "⚖️ 공평한 천칭 저울" },
+    { word: "통정허위표시", definition: "상대방과 짜고 거짓으로 한 가짜 의사표시(무효)", importance_reason: "가장매매와 채권자 취소권의 쟁점", visual_anchor: "🎭 속삭이며 쓴 가면" },
+    { word: "착오", definition: "표시 내용과 진의가 일치하지 않음을 표의자가 알지 못한 상태", importance_reason: "법률행위 중요부분 취소 요건", visual_anchor: "👓 도수가 엉뚱한 안경" },
+    { word: "사기강박", definition: "타인의 기망이나 공포심 유발로 인해 불완전한 의사표시를 한 경우", importance_reason: "의사형성의 자유 침해 구제(취소)", visual_anchor: "🐍 거짓을 속삭이는 뱀" },
+    { word: "무권대리", definition: "대리권 없는 자가 대리인이라 칭하며 한 법률행위", importance_reason: "본인의 추인권과 상대방 철회권 대립", visual_anchor: "🃏 가짜 신분증 카드" },
+    { word: "추인", definition: "불확정한 법률행위를 사후에 인정하여 유효로 확정짓는 단독행위", importance_reason: "무권대리 행위의 유효화", visual_anchor: "✅ 빨간색 합격 승인 도장" },
+    { word: "제척기간", definition: "법률이 정한 권리의 존속기간으로, 경과 시 권리가 소멸함", importance_reason: "소멸시효와 달리 중단이 없음", visual_anchor: "⏱️ 멈추지 않고 달리는 스톱워치" },
+    { word: "자연인", definition: "살아있는 인간으로서 태어나서 사망할 때까지 권리능력을 가짐", importance_reason: "법률 주체의 근본", visual_anchor: "👤 숨 쉬는 사람의 실루엣" },
+    { word: "법인", definition: "자연인은 아니지만 법률에 의해 권리주체성이 인정된 단체나 재단", importance_reason: "주식회사 및 사단법인 활동의 기반", visual_anchor: "🏢 우뚝 솟은 회사 빌딩" },
+    { word: "권리남용금지", definition: "권리가 있더라도 사회적 타당성을 잃고 오직 남을 해칠 목적이면 불허함", importance_reason: "형식적 권리 행사의 남용 제어", visual_anchor: "🚫 칼날을 막는 금지 표지판" },
+    { word: "물권법정주의", definition: "물권은 법률 또는 관습법에 의하는 외에는 임의로 창설하지 못함", importance_reason: "거래 안전과 공시 원칙 확립", visual_anchor: "🔒 법전에 못 박힌 자물쇠" },
+    { word: "원상회복", definition: "계약 해제 등으로 인해 계약 이전의 본래 상태로 되돌려놓는 의무", importance_reason: "해제의 소급효와 부당이득 반환", visual_anchor: "🔄 물건을 제자리로 돌려주는 손" }
+  ],
+  "컴퓨터네트워크": [
+    { word: "TCP/IP", definition: "인터넷 통신을 지탱하는 표준 전송 제어 및 인터넷 프로토콜 스택", importance_reason: "전 세계 인터넷 통신의 공통 규약", visual_anchor: "🌐 촘촘하게 연결된 지구본 그물망" },
+    { word: "DNS", definition: "사람이 읽는 도메인 이름을 컴퓨터용 IP 주소로 변환하는 시스템", importance_reason: "웹 브라우징의 전화번호부", visual_anchor: "📖 황금 전화번호부 책" },
+    { word: "라우팅", definition: "패킷이 출발지에서 목적지까지 최적의 경로를 찾아 전달되는 과정", importance_reason: "인터넷 트래픽 경로 최적화", visual_anchor: "🧭 갈림길을 가리키는 나침반" },
+    { word: "서브넷마스크", definition: "IP 주소에서 네트워크 영역과 호스트 영역을 구분하는 기준 비트열", importance_reason: "네트워크 분할과 브로드캐스트 제어", visual_anchor: "🎭 IP를 잘라내는 마스크" },
+    { word: "패킷", definition: "네트워크를 통해 전송되는 데이터의 기본 전송 단위", importance_reason: "분할 전송과 오류 검출의 단위", visual_anchor: "📦 주소 라벨이 붙은 소포 상자" },
+    { word: "3-Way핸드셰이크", definition: "TCP 연결 수립 시 SYN, SYN-ACK, ACK 3단계로 확인하는 절차", importance_reason: "신뢰성 있는 양방향 통신 보장", visual_anchor: "🤝 세 번 맞잡는 신뢰의 악수" },
+    { word: "HTTP/HTTPS", definition: "웹 브라우저와 서버 간 하이퍼텍스트 통신 프로토콜(암호화 포함)", importance_reason: "현대 모든 웹 서비스의 기반", visual_anchor: "🔒 자물쇠가 달린 브라우저 창" },
+    { word: "소켓", definition: "운영체제가 응용 프로그램에게 제공하는 네트워크 통신 끝점(Endpoint)", importance_reason: "실시간 네트워크 프로그래밍의 접점", visual_anchor: "🔌 벽에 꽂히는 2구 전원 플러그" },
+    { word: "NAT", definition: "사설 IP 주소를 하나의 공인 IP 주소로 변환하여 통신케 하는 기술", importance_reason: "IPv4 고갈 방지 및 내부 보안", visual_anchor: "🔄 가면을 바꿔 씌우는 관문" },
+    { word: "방화벽", definition: "미리 설정된 보안 규칙에 따라 들어오고 나가는 트래픽을 감시·차단", importance_reason: "네트워크 보안의 제1 방어선", visual_anchor: "🧱 불길을 막는 붉은 벽돌벽" },
+    { word: "MAC주소", definition: "네트워크 인터페이스 카드(NIC)에 부여된 고유한 물리적 하드웨어 주소", importance_reason: "2계층 데이터 링크 전송의 식별자", visual_anchor: "🏷️ 랜카드에 각인된 시리얼 바코드" },
+    { word: "ARP", definition: "논리적 IP 주소를 물리적 MAC 주소로 매핑해주는 프로토콜", importance_reason: "로컬 LAN 내 장비 간 실제 통신 필수", visual_anchor: "📢 주인을 찾는 확성기" },
+    { word: "DHCP", definition: "네트워크에 접속한 단말에게 IP 주소와 설정을 자동으로 동적 할당", importance_reason: "네트워크 수동 설정 번거로움 해소", visual_anchor: "🎫 입장 번호표를 뽑아주는 기계" },
+    { word: "로드밸런서", definition: "서버로 몰리는 대규모 트래픽을 여러 대의 서버로 분산시키는 장치", importance_reason: "대용량 고가용성 서비스의 필수품", visual_anchor: "⚖️ 무게를 나누는 공평한 분배기" },
+    { word: "SSL/TLS", definition: "전송 계층에서 데이터를 암호화하여 도청과 변조를 방지하는 프로토콜", importance_reason: "전자상거래 및 개인정보 보호 필수", visual_anchor: "🛡️ 데이터를 감싸는 방탄 보호막" },
+    { word: "포트포워딩", definition: "외부에서 특정 포트로 들어오는 요청을 내부 사설 IP 장비로 넘김", importance_reason: "공유기 내부 서버 호스팅 필수", visual_anchor: "🚪 비밀 통로를 열어주는 문지기" },
+    { word: "MTU", definition: "네트워크 인터페이스에서 한 번에 전송할 수 있는 최대 패킷 크기", importance_reason: "패킷 단편화와 전송 효율 결정", visual_anchor: "📏 짐칸의 최대 높이 제한 바" },
+    { word: "ICMP", definition: "네트워크 통신 중 발생하는 오류 보고 및 진단(Ping)을 담당", importance_reason: "네트워크 연결성 점검의 핵심", visual_anchor: "📡 핑을 쏘는 레이더 화면" },
+    { word: "게이트웨이", definition: "서로 다른 프로토콜이나 네트워크 세그먼트를 연결해주는 출입 관문", importance_reason: "외부 인터넷으로 나가는 유일한 문", visual_anchor: "⛩️ 국경을 넘는 거대 톨게이트" },
+    { word: "VPN", definition: "공용 네트워크 상에 암호화된 가상의 전용 터널을 구축하여 통신", importance_reason: "원격 근무 보안 및 사설망 확장", visual_anchor: "🚇 지하로 뚫린 비밀 콘크리트 터널" }
   ],
   "인공지능": [
     { word: "트랜스포머", definition: "어텐션 메커니즘을 기반으로 한 현대 딥러닝 핵심 아키텍처", importance_reason: "LLM 및 생성형 AI의 근간", visual_anchor: "🤖 변신하는 거대 로봇" },
@@ -161,21 +247,102 @@ const OFFLINE_BUILTIN_SETS = {
     { word: "손실함수", definition: "인공지능의 예측값과 실제 정답 사이의 오차를 수치화한 척도", importance_reason: "모델의 목표이자 채점 기준", visual_anchor: "🎯 과녁에서 빗나간 거리" },
     { word: "토큰화", definition: "문장을 인공지능이 이해할 수 있는 작은 의미 단위로 쪼개는 과정", importance_reason: "자연어 처리의 첫 번째 관문", visual_anchor: "🧩 쪼개지는 레고 블록" },
     { word: "할루시네이션", definition: "AI가 사실이 아닌 그럴듯한 거짓말을 생성해내는 현상", importance_reason: "생성형 AI 신뢰성의 핵심 과제", visual_anchor: "👻 사막의 신기루 유령" },
-    { word: "미세조정", definition: "사전 학습된 거대 모델을 특정 도메인에 맞게 추가 학습시키는 기법", importance_reason: "실무 맞춤형 AI 구축 필수 과정", visual_anchor: "🎻 현악기를 조율하는 튜너" }
+    { word: "미세조정", definition: "사전 학습된 거대 모델을 특정 도메인에 맞게 추가 학습시키는 기법", importance_reason: "실무 맞춤형 AI 구축 필수 과정", visual_anchor: "🎻 현악기를 조율하는 튜너" },
+    { word: "CNN", definition: "합성곱 연산을 통해 이미지의 국소 특징을 효과적으로 추출하는 신경망", importance_reason: "컴퓨터 비전 분야의 황제", visual_anchor: "🖼️ 돋보기로 스캔하는 격자 필터" },
+    { word: "RNN", definition: "순차적 시계열 데이터의 이전 정보를 기억하며 처리하는 순환 신경망", importance_reason: "음성 인식 및 초기 자연어 처리", visual_anchor: "🔄 꼬리를 무는 원형 기차 레일" },
+    { word: "가중치", definition: "신경망에서 각 입력 신호의 중요도를 조절하는 학습 파라미터", importance_reason: "AI 지능이 저장되는 물리적 실체", visual_anchor: "⚖️ 각도마다 조절되는 미세 추" },
+    { word: "편향", definition: "뉴런이 얼마나 쉽게 활성화되는지를 조절하는 고유 민감도 상수", importance_reason: "출력 기준점 이동을 통한 유연성", visual_anchor: "📐 기울어진 각도 조절판" },
+    { word: "임베딩", definition: "단어나 개념을 컴퓨터가 계산할 수 있는 실수 벡터로 변환한 표현", importance_reason: "의미적 유사도 측정의 핵심", visual_anchor: "📍 다차원 공간에 꽂힌 핀" },
+    { word: "활성화함수", definition: "입력 신호의 총합을 비선형 출력 신호로 변환하는 함수(ReLU 등)", importance_reason: "신경망에 비선형 표현력 부여", visual_anchor: "⚡ 임계값을 넘으면 켜지는 전등" },
+    { word: "드롭아웃", definition: "학습 도중 무작위로 일부 뉴런을 꺼서 과적합을 방지하는 정규화", importance_reason: "뉴런 간 공동적응 차단", visual_anchor: "💤 일부 전구를 끄는 스위치" },
+    { word: "GAN", definition: "생성자와 판별자가 서로 경쟁하며 진짜 같은 가짜 데이터를 만드는 모델", importance_reason: "초고화질 이미지 합성 혁신", visual_anchor: "🎨 위조범과 감정사의 대결" },
+    { word: "강화학습", definition: "보상과 처벌을 통해 환경과 상호작용하며 최적의 행동 정책을 학습", importance_reason: "알파고 및 로봇 제어의 근간", visual_anchor: "🧀 미로 끝의 치즈를 찾는 쥐" },
+    { word: "제로샷학습", definition: "한 번도 명시적으로 훈련받지 않은 새로운 작업도 스스로 추론해 수행", importance_reason: "거대 언어 모델 범용 지능의 징표", visual_anchor: "🪄 설명서 없이 마법을 부리는 마법사" }
   ],
-  "전자기학": [
-    { word: "전계", definition: "전하가 놓였을 때 전기력이 작용하는 공간", importance_reason: "쿨롱의 법칙과 전위 계산의 기초", visual_anchor: "⚡ 뿜어져 나오는 번개 그물" },
-    { word: "자계", definition: "자석이나 전류 주변에 자기력이 작용하는 공간", importance_reason: "전자석과 모터의 구동 원리", visual_anchor: "🧲 나침반을 돌리는 거대 자석" },
-    { word: "맥스웰방정식", definition: "전기장과 자기장의 상호작용을 통합한 4대 전자기학 방정식", importance_reason: "빛과 전파의 본질을 설명함", visual_anchor: "📜 전자기의 4대 천왕 비급" },
-    { word: "유전율", definition: "물질이 전하를 유도하여 전기장을 축적하는 정도", importance_reason: "커패시터 용량 결정 핵심 계수", visual_anchor: "🧽 전기를 머금는 스펀지" },
-    { word: "투자율", definition: "물질이 자기력선을 얼마나 잘 통과시키는지를 나타내는 척도", importance_reason: "변압기 철심 설계의 핵심", visual_anchor: "🚪 자석 통로를 여는 황금문" },
-    { word: "패러데이법칙", definition: "자기장의 시간적 변화가 전압을 유도한다는 전자기 유도 법칙", importance_reason: "발전기와 변압기의 기본 원리", visual_anchor: "🌀 코일 안을 통과하는 자석" },
-    { word: "렌츠의법칙", definition: "유도 기전력은 자기 선속의 변화를 방해하는 방향으로 발생한다는 법칙", importance_reason: "에너지 보존과 방향 결정", visual_anchor: "🛡️ 밀어내는 반발 방패" },
-    { word: "쿨롱의법칙", definition: "두 전하 사이에 작용하는 정전기적 인력과 척도를 나타낸 법칙", importance_reason: "정전기학의 가장 기본이 되는 식", visual_anchor: "⚖️ 전하를 저울질하는 천칭" },
-    { word: "가우스법칙", definition: "폐곡면을 통과하는 총 전속은 내부 전하량과 같다는 법칙", importance_reason: "대칭적인 전계 계산의 지름길", visual_anchor: "🔮 전하를 가둔 수정구슬" },
-    { word: "포인팅벡터", definition: "전자기파가 단위 시간당 전달하는 에너지 흐름의 방향과 크기", importance_reason: "무선 통신 에너지 전송의 척도", visual_anchor: "➡️ 에너지를 실어나르는 화살" }
+  "기억술": [
+    { word: "기억의궁전", definition: "친숙한 공간에 정보를 배치하는 고대 기억술", importance_reason: "공간기억과 시각화 결합의 정점", visual_anchor: "🏛️ 웅장한 대리석 궁전" },
+    { word: "시각앵커", definition: "추상적 개념을 구체적 사물로 고정하는 연결고리", importance_reason: "망각을 방지하는 강력한 트리거", visual_anchor: "⚓ 거대한 황금 닻" },
+    { word: "정교화부호화", definition: "새 정보를 기존 기억과 연결하여 심층 저장하는 기법", importance_reason: "장기기억 전환율을 극대화함", visual_anchor: "🔗 얽혀있는 황금 사슬" },
+    { word: "초두효과", definition: "목록의 맨 앞 정보를 가장 쉽게 기억하는 심리", importance_reason: "암기 순서 배치의 핵심 원리", visual_anchor: "🥇 1등 금메달" },
+    { word: "최신효과", definition: "가장 마지막에 접한 정보를 단기기억에서 바로 꺼내 잘 회상하는 현상", importance_reason: "직전 복습의 파괴력", visual_anchor: "🕒 방금 울린 따끈한 알람" },
+    { word: "작업기억", definition: "의식적 사고와 정보 처리를 담당하는 단기 두뇌 용량", importance_reason: "전두엽 집중력의 척도", visual_anchor: "💻 번쩍이는 두뇌 RAM" },
+    { word: "망각곡선", definition: "시간 경과에 따라 기억이 급격히 소실되는 자연 법칙", importance_reason: "복습 주기를 설계하는 과학적 근거", visual_anchor: "📉 가파른 낭떠러지" },
+    { word: "페그시스템", definition: "숫자나 순서에 고정된 말뚝 이미지를 거는 기억법", importance_reason: "순서 기억에 탁월한 효과", visual_anchor: "📌 벽에 박힌 황금 못" },
+    { word: "인출단서", definition: "잠들어 있는 기억을 깨워 의식으로 끌어올리는 신호", importance_reason: "시험 볼 때 기억을 끄집어내는 열쇠", visual_anchor: "🗝️ 황금 마스터 키" },
+    { word: "메타인지", definition: "자신이 아는 것과 모르는 것을 객관적으로 자각하는 능력", importance_reason: "공부 효율을 3배 높이는 최상위 감각", visual_anchor: "🪞 머릿속을 비추는 거울" },
+    { word: "분산학습", definition: "벼락치기 대신 시간을 두고 여러 번 나누어 공부하는 방법", importance_reason: "신경망을 단단하게 굳히는 비결", visual_anchor: "🌱 주기적으로 물을 주는 화분" },
+    { word: "청킹", definition: "여러 낱개의 정보를 의미 있는 덩어리로 묶어 기억 용량을 늘리는 기법", importance_reason: "작업기억 한계 돌파", visual_anchor: "🧱 벽돌을 묶은 커다란 블록" },
+    { word: "이중부호화", definition: "언어 정보와 시각 이미지를 동시에 결합해 두 개의 경로로 저장", importance_reason: "회상 확률을 2배로 상승시킴", visual_anchor: "🖼️ 그림이 그려진 단어 카드" },
+    { word: "간섭이론", definition: "이전에 배운 내용이나 새로 배운 내용이 서로 방해하여 망각을 유발", importance_reason: "학습 과목 간 휴식의 필요성", visual_anchor: "📻 찌지직거리는 잡음 라디오" },
+    { word: "간격반복", definition: "망각 직전 시점마다 점진적으로 간격을 늘려가며 복습하는 시스템", importance_reason: "에빙하우스 망각곡선 완벽 정복", visual_anchor: "📅 1일-3일-7일 알림 달력" },
+    { word: "공간지각", definition: "위치, 방향, 공간적 관계를 파악하고 머릿속에 지도를 그리는 능력", importance_reason: "기억의 궁전 훈련의 엔진", visual_anchor: "🗺️ 입체 홀로그램 지도" },
+    { word: "자가시험효과", definition: "단순히 읽는 것보다 스스로 퀴즈를 풀고 틀려보는 것이 기억에 깊게 남음", importance_reason: "최고의 능동 인출 훈련", visual_anchor: "📝 붉은 채점 펜과 모의고사" },
+    { word: "심상화", definition: "개념을 생생한 색상, 감촉, 움직임이 있는 마음속 영상으로 재생", importance_reason: "우뇌 시각 피질의 전면 활용", visual_anchor: "🎬 머릿속에서 상영되는 영화" },
+    { word: "부호화특수성", definition: "정보를 입력할 때의 주변 맥락과 인출할 때의 맥락이 같을 때 회상이 극대화", importance_reason: "실제 시험장 환경 시뮬레이션", visual_anchor: "🏷️ 장소와 냄새가 적힌 라벨" },
+    { word: "능동회상", definition: "책을 덮고 머릿속에서 능동적으로 정답을 끄집어내는 인출 연습", importance_reason: "수동적 읽기와 차별화된 기억 정착", visual_anchor: "🧲 깊은 우물에서 기억을 낚는 낚싯대" }
+  ],
+  "한국사": [
+    { word: "빗살무늬토기", definition: "신석기 시대를 대표하는 빗살 모양 무늬가 새겨진 뾰족한 토기", importance_reason: "정착 생활과 농경의 시작", visual_anchor: "🏺 모래에 꽂힌 빗살무늬 토기" },
+    { word: "고조선", definition: "단군왕검이 아사달에 건국한 우리 역사상 최초의 국가", importance_reason: "홍익인간 이념과 8조법", visual_anchor: "👑 청동검을 든 고조선 군장" },
+    { word: "광개토대왕릉비", definition: "고구려 장수왕이 아버지 광개토대왕의 정복 업적을 기려 세운 비석", importance_reason: "고구려의 만주 영토 확장과 천하관", visual_anchor: "🗿 6미터 거대 화강암 비석" },
+    { word: "살수대첩", definition: "을지문덕 장군이 살수에서 수나라 30만 대군을 수공으로 궤멸시킨 전투", importance_reason: "고구려의 대수 전쟁 승리", visual_anchor: "🌊 둑이 터져 쏟아지는 강물" },
+    { word: "삼국통일", definition: "신라가 당나라와 연합하여 백제와 고구려를 멸망시키고 이룬 통일", importance_reason: "한반도 최초의 민족적 통합", visual_anchor: "🗺️ 세 조각이 합쳐진 황금 지도" },
+    { word: "훈민정음", definition: "세종대왕이 백성을 가르치기 위해 창제한 28자의 독창적인 문자", importance_reason: "세계에서 가장 과학적인 문자", visual_anchor: "📜 나랏말싸미 적힌 훈민정음 해례본" },
+    { word: "임진왜란", definition: "1592년 일본 도요토미 히데요시가 조선을 침략하여 일어난 7년 전쟁", importance_reason: "이순신 해전과 의병의 활약", visual_anchor: "🐢 불을 뿜는 거북선" },
+    { word: "대동법", definition: "지방 특산물 공납 대신 토지 결수에 따라 쌀이나 돈으로 통일 납부케 한 제도", importance_reason: "농민 부담 경감 및 상업 발달", visual_anchor: "🌾 수레에 실린 황금 쌀가마니" },
+    { word: "탕평책", definition: "영조와 정조가 붕당 정치의 폐해를 막기 위해 인재를 고르게 등용한 정책", importance_reason: "왕권 강화와 사회 개혁 추진", visual_anchor: "⚖️ 균형을 맞춘 탕평비 비석" },
+    { word: "강화도조약", definition: "1876년 일본의 운요호 사건을 계기로 체결된 최초의 근대적 불평등 조약", importance_reason: "조선의 개항과 문호 개방", visual_anchor: "⚓ 제물포 앞바다의 일본 군함" },
+    { word: "갑신정변", definition: "1884년 김옥균 등 급진개화파가 우정총국 개국 축하연을 틈타 일으킨 정변", importance_reason: "근대 국가 수립을 위한 최초의 정치 개혁", visual_anchor: "📬 불타는 우정총국 편지" },
+    { word: "동학농민운동", definition: "1894년 전봉준을 중심으로 보국안민과 제폭구민을 외치며 일어난 농민 항쟁", importance_reason: "반봉건·반외세 민족 운동", visual_anchor: "🌾 죽창을 든 녹두장군" },
+    { word: "을사늑약", definition: "1905년 일제가 강제로 체결하여 대한제국의 외교권을 박탈한 조약", importance_reason: "외교권 박탈 및 통감부 설치", visual_anchor: "🔒 외교 문서를 묶은 쇠사슬" },
+    { word: "3·1운동", definition: "1919년 3월 1일 일제 식민 지배에 맞서 전 민족이 전개한 평화적 만세 시위", importance_reason: "대한민국 임시정부 수립의 도화선", visual_anchor: "🇰🇷 허공에 펄럭이는 태극기 물결" },
+    { word: "임시정부", definition: "3·1운동 직후 중국 상하이에 수립된 대한민국 최초의 민주공화정 정부", importance_reason: "독립운동의 총본산이자 대한민국 법통", visual_anchor: "🏛️ 태극기가 걸린 상하이 청사" },
+    { word: "6·25전쟁", definition: "1950년 6월 25일 북한의 기습 남침으로 발발한 동족상잔의 비극", importance_reason: "분단의 고착화와 전후 재건", visual_anchor: "🛡️ 철조망이 쳐진 38선 군사분계선" },
+    { word: "4·19혁명", definition: "1960년 이승만 정권의 3·15 부정선거에 맞서 일어난 민주주의 혁명", importance_reason: "한국 현대사 최초의 민주주의 승리", visual_anchor: "📢 거리로 쏟아져 나온 학생들의 함성" },
+    { word: "5·18민주화운동", definition: "1980년 광주에서 신군부 세력의 헌정 파괴에 맞서 전개된 민주 항쟁", importance_reason: "한국 민주화 운동의 상징적 이정표", visual_anchor: "🕊️ 금남로를 수놓은 평화의 비둘기" },
+    { word: "6월민주항쟁", definition: "1987년 6월 전두환 정권의 호헌 조치에 맞서 대통령 직선제를 쟁취한 항쟁", importance_reason: "현행 5년 단임 직선제 개헌 쟁취", visual_anchor: "🗳️ 국민의 손으로 넣는 투표함" },
+    { word: "88서울올림픽", definition: "1988년 서울에서 개최된 제24회 하계 올림픽 경기대회", importance_reason: "한국의 국제적 위상 도약과 동서 화합", visual_anchor: "🐯 상모를 돌리는 호돌이" }
   ]
 };
+
+
+// ⚡ 0초 만에 즉각 단어를 반환하는 오프라인 스마트 라이브러리 엔진
+function getInstantOfflineWords(userInput, count = 10, excludeWords = []) {
+  const clean = (userInput || '').trim().toLowerCase();
+  
+  // 1. 유연한 주제 키워드 매칭
+  let targetKey = "전자기학";
+  if (clean.includes("전기") || clean.includes("전자") || clean.includes("자기") || clean.includes("회로")) targetKey = "전자기학";
+  else if (clean.includes("경제") || clean.includes("거시") || clean.includes("금융") || clean.includes("환율")) targetKey = "거시경제학";
+  else if (clean.includes("뇌") || clean.includes("신경") || clean.includes("심리") || clean.includes("인지")) targetKey = "뇌과학";
+  else if (clean.includes("민법") || clean.includes("법률") || clean.includes("법학") || clean.includes("계약")) targetKey = "민법총칙";
+  else if (clean.includes("네트워크") || clean.includes("컴퓨터") || clean.includes("통신") || clean.includes("인터넷")) targetKey = "컴퓨터네트워크";
+  else if (clean.includes("인공지능") || clean.includes("ai") || clean.includes("머신러닝") || clean.includes("딥러닝")) targetKey = "인공지능";
+  else if (clean.includes("기억") || clean.includes("암기") || clean.includes("메타인지")) targetKey = "기억술";
+  else if (clean.includes("역사") || clean.includes("한국사") || clean.includes("조선") || clean.includes("고려")) targetKey = "한국사";
+  else {
+    // 키워드가 없으면 사전 중 랜덤 1개 선택
+    const keys = Object.keys(OFFLINE_BUILTIN_SETS);
+    targetKey = keys[Math.floor(Math.random() * keys.length)];
+  }
+
+  const pool = [...OFFLINE_BUILTIN_SETS[targetKey]].map(item => ({
+    ...item,
+    chosung: extractChosung(item.word)
+  }));
+
+  // 셔플
+  pool.sort(() => Math.random() - 0.5);
+
+  const excludeSet = new Set(excludeWords || []);
+  const available = pool.filter(w => !excludeSet.has(w.word));
+  const picked = (available.length >= count ? available : pool).slice(0, count);
+
+  return {
+    source_name: userInput || targetKey,
+    quiz_data: picked
+  };
+}
 
 // 클라이언트 단어 생성 (영구 로컬 캐시 + Gemini 호출 + 오프라인 폴백 완비)
 async function generateWordsClient(mode, userInput, count = 5, excludeWords = []) {
@@ -188,6 +355,11 @@ async function generateWordsClient(mode, userInput, count = 5, excludeWords = []
     const cached = localStorage.getItem(cacheKey);
     if (cached) pool = JSON.parse(cached);
   } catch (e) {}
+
+  // [핵심] API 키가 없으면 (순수 오프라인/서버리스) 0초 즉시 내장 고품질 단어 풀 반환!
+  if (!SERVERLESS_CONFIG.getGeminiKey()) {
+    return getInstantOfflineWords(cleanInput, count, excludeWords);
+  }
 
   // 2. 캐시가 부족하면 Gemini API 호출 시도
   if (!pool || pool.length < count) {
@@ -397,7 +569,6 @@ function switchView(viewName) {
   const btnQuiz = document.getElementById('btnModeQuiz');
   const btnConcept = document.getElementById('btnModeConcept');
   const btnSpatial = document.getElementById('btnModeSpatial');
-  const btnSudoku = document.getElementById('btnModeSudoku');
   
   const navBtns = [btnDash, btnFast, btnQuiz, btnConcept, btnSpatial, btnSudoku].filter(Boolean);
   navBtns.forEach(b => b.classList.remove('active'));
@@ -419,7 +590,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setupSettingsModal();
   setupModeSwitcher();
   setupSpatialGame();
-  setupSudokuGame();
   setupDifficultySelector();
   setupTabs();
   setupPdfDropzone();
@@ -439,7 +609,6 @@ function setupModeSwitcher() {
   const btnQuiz = document.getElementById('btnModeQuiz');
   const btnConcept = document.getElementById('btnModeConcept');
   const btnSpatial = document.getElementById('btnModeSpatial');
-  const btnSudoku = document.getElementById('btnModeSudoku');
 
   if (btnDash) {
     btnDash.addEventListener('click', () => {
@@ -498,20 +667,9 @@ function setupModeSwitcher() {
     });
   }
 
-  if (btnSudoku) {
-    btnSudoku.addEventListener('click', () => {
-      switchView('viewSudoku');
-      loadSudokuStats();
-      if (!sudokuState.isGameActive) {
-        startNewSudokuGame();
-      }
-    });
-  }
-
   // 메인 대시보드 내 3대 훈련 퀵 런처 카드
   const launchConcept = document.getElementById('launchConceptCard');
   const launchSpatial = document.getElementById('launchSpatialCard');
-  const launchSudoku = document.getElementById('launchSudokuCard');
 
   if (launchConcept) {
     launchConcept.addEventListener('click', () => {
@@ -538,16 +696,6 @@ function setupModeSwitcher() {
     launchSpatial.addEventListener('click', () => {
       switchView('viewSpatial');
       loadSpatialStats();
-    });
-  }
-
-  if (launchSudoku) {
-    launchSudoku.addEventListener('click', () => {
-      switchView('viewSudoku');
-      loadSudokuStats();
-      if (!sudokuState.isGameActive) {
-        startNewSudokuGame();
-      }
     });
   }
 
@@ -851,6 +999,37 @@ function setupKeybindings() {
         if (e.key === ' ' || e.key === 'Enter') {
           e.preventDefault();
           nextFastRound();
+        }
+      }
+    } else if (state.currentView === 'viewQuizMCQ') {
+      const previewStep = document.getElementById('mcqPreviewStep');
+      const solveStep = document.getElementById('mcqSolveStep');
+      
+      // 단어 암기 화면에서 Space 또는 Enter 누르면 즉시 퀴즈 시작!
+      if (previewStep && previewStep.style.display !== 'none') {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          clearInterval(mcqPreviewTimerId);
+          state.memorizeDuration = ((Date.now() - mcqPreviewStartTime) / 1000).toFixed(1);
+          startMcqSolving();
+        }
+      } else if (solveStep && solveStep.style.display !== 'none') {
+        // 퀴즈 풀기 화면에서 1, 2, 3, 4 키로 즉시 보기 선택!
+        const btns = document.querySelectorAll('.mcq-option-btn:not(:disabled)');
+        if (btns.length === 4) {
+          if (e.key === '1' || e.code === 'Numpad1' || e.key === 'a' || e.key === 'A') {
+            e.preventDefault();
+            btns[0].click();
+          } else if (e.key === '2' || e.code === 'Numpad2' || e.key === 'b' || e.key === 'B') {
+            e.preventDefault();
+            btns[1].click();
+          } else if (e.key === '3' || e.code === 'Numpad3' || e.key === 'c' || e.key === 'C') {
+            e.preventDefault();
+            btns[2].click();
+          } else if (e.key === '4' || e.code === 'Numpad4' || e.key === 'd' || e.key === 'D') {
+            e.preventDefault();
+            btns[3].click();
+          }
         }
       }
     } else if (state.currentView === 'viewMemorize') {
@@ -1508,15 +1687,14 @@ function setupMcqTopicSelector() {
 }
 
 function startMcqQuiz() {
-  // 만약 단어가 아직 없으면 입력된 주제로 자동 생성 시도
   const inputTopic = document.getElementById('inputMcqTopic');
   const currentTopic = (state.sessionData && state.sessionData.source_name) || (inputTopic ? inputTopic.value.trim() : '전기기사 전자기학');
 
   if (!state.sessionData || !state.sessionData.quiz_data || state.sessionData.quiz_data.length === 0) {
-    const defaultList = (OFFLINE_BUILTIN_SETS[currentTopic] || OFFLINE_BUILTIN_SETS["기억술"] || []).slice(0, state.mcqWordCount || 10);
+    const instantData = getInstantOfflineWords(currentTopic, state.mcqWordCount || 10);
     state.sessionData = {
-      quiz_data: defaultList,
-      source_name: currentTopic,
+      quiz_data: instantData.quiz_data,
+      source_name: instantData.source_name,
       user_story: '',
       history: []
     };
@@ -1537,36 +1715,33 @@ function startMcqQuiz() {
   if (previewStep) previewStep.style.display = 'block';
   if (solveStep) solveStep.style.display = 'none';
 
-  // 단어 열람 상태 초기화 (처음엔 가려진 상태)
-  state.mcqIsRevealed = false;
+  // [중요] 단어는 처음부터 즉시 100% 공개 상태! (거추장스러운 가림막 제거)
+  state.mcqIsRevealed = true;
 
-  // 타이머는 00.0s에서 대기
+  // 타이머 즉시 카운트다운/업 시작!
   clearInterval(mcqPreviewTimerId);
+  mcqPreviewStartTime = Date.now();
   const timerElem = document.getElementById('mcqPreviewTimer');
   if (timerElem) timerElem.innerText = '00.0s';
+  mcqPreviewTimerId = setInterval(() => {
+    const elapsed = ((Date.now() - mcqPreviewStartTime) / 1000).toFixed(1);
+    if (timerElem) timerElem.innerText = `${elapsed}s`;
+  }, 100);
 
-  // 단어 목록 렌더링 (블라인드 가림막 상태)
+  // 단어 목록 즉시 렌더링!
   renderMcqWordPreview();
 
-  // 전체 열람 버튼 이벤트 바인딩
-  const btnReveal = document.getElementById('btnRevealAllWords');
-  if (btnReveal) {
-    btnReveal.style.display = 'inline-block';
-    btnReveal.onclick = () => revealMcqWordsAndStartTimer();
-  }
+  // 상단 및 하단 [퀴즈 시작하기] 버튼 이벤트 바인딩
+  const handleStartSolve = () => {
+    clearInterval(mcqPreviewTimerId);
+    state.memorizeDuration = ((Date.now() - mcqPreviewStartTime) / 1000).toFixed(1);
+    startMcqSolving();
+  };
 
-  const solveWrap = document.getElementById('mcqStartSolveWrap');
-  if (solveWrap) solveWrap.style.display = 'none';
-
-  // [퀴즈 시작하기] 버튼 이벤트 바인딩
-  const btnStartSolve = document.getElementById('btnStartSolveMcq');
-  if (btnStartSolve) {
-    btnStartSolve.onclick = () => {
-      clearInterval(mcqPreviewTimerId);
-      state.memorizeDuration = ((Date.now() - mcqPreviewStartTime) / 1000).toFixed(1);
-      startMcqSolving();
-    };
-  }
+  const btnTop = document.getElementById('btnStartSolveMcqTop');
+  const btnBottom = document.getElementById('btnStartSolveMcq');
+  if (btnTop) btnTop.onclick = handleStartSolve;
+  if (btnBottom) btnBottom.onclick = handleStartSolve;
 }
 
 // 🔓 단어 열람 및 각인 타이머 START 함수
@@ -1607,43 +1782,19 @@ function renderMcqWordPreview() {
   container.innerHTML = '';
 
   const quizData = state.sessionData.quiz_data || [];
-  const isRevealed = state.mcqIsRevealed;
 
   quizData.forEach((item, idx) => {
     const card = document.createElement('div');
     card.className = 'prepare-word-card';
-    card.style.background = isRevealed ? 'var(--bg-surface)' : 'var(--bg-card)';
-    card.style.border = isRevealed ? '1px solid var(--border-color)' : '2px dashed #6366f1';
-    card.style.borderRadius = 'var(--radius-lg)';
-    card.style.padding = '18px';
-    card.style.boxShadow = isRevealed ? 'var(--shadow-sm)' : '0 4px 14px rgba(99, 102, 241, 0.12)';
-    card.style.cursor = isRevealed ? 'default' : 'pointer';
-    card.style.transition = 'all 0.25s ease';
-
-    if (!isRevealed) {
-      // 🔒 가림막(블라인드) 상태: 클릭하면 열람 및 타이머 시작!
-      card.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-          <span style="background: rgba(99, 102, 241, 0.15); color: #6366f1; font-weight: 800; font-size: 12px; padding: 2px 8px; border-radius: 6px;">#0${idx + 1}</span>
-          <span style="font-size: 12px; font-weight: 800; color: #6366f1;">🔒 탭하여 잠금 해제</span>
-        </div>
-        <div style="font-size: 20px; font-weight: 800; color: #6366f1; margin-bottom: 6px; letter-spacing: 2px;">???</div>
-        <div style="font-size: 13px; color: var(--text-muted); line-height: 1.4;">👆 카드를 탭하면 단어가 공개되며 각인 타이머가 시작됩니다.</div>
-      `;
-      card.onclick = () => revealMcqWordsAndStartTimer();
-    } else {
-      // 👁️ 공개 상태: 단어, 앵커, 설명 완전 노출
-      card.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 800; font-size: 12px; padding: 2px 8px; border-radius: 6px;">#0${idx + 1}</span>
-          <span style="font-size: 13px; font-weight: 800; color: #f59e0b;">${item.visual_anchor || '💡 시각 앵커'}</span>
-        </div>
-        <div style="font-size: 21px; font-weight: 800; color: var(--text-primary); margin-bottom: 6px;">${item.word}</div>
-        <div style="font-size: 14px; color: var(--text-secondary); line-height: 1.4;">${item.definition || ''}</div>
-        ${item.importance_reason ? `<div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">📌 ${item.importance_reason}</div>` : ''}
-      `;
-    }
-
+    card.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 800; font-size: 12px; padding: 3px 8px; border-radius: 6px;">#${String(idx + 1).padStart(2, '0')}</span>
+        <span style="font-size: 13px; font-weight: 800; color: #f59e0b;">${item.visual_anchor || '💡 시각 앵커'}</span>
+      </div>
+      <div style="font-size: 21px; font-weight: 800; color: var(--text-primary); margin-bottom: 6px; letter-spacing: -0.5px;">${item.word}</div>
+      <div style="font-size: 14px; color: var(--text-secondary); line-height: 1.45; margin-bottom: 6px;">${item.definition || ''}</div>
+      ${item.importance_reason ? `<div style="font-size: 12px; color: var(--text-muted); background: var(--bg-card); padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border-color);">📌 ${item.importance_reason}</div>` : ''}
+    `;
     container.appendChild(card);
   });
 }
@@ -1796,7 +1947,7 @@ function selectMcqOption(selectedWord, correctWord, currentItem, clickedBtn, gri
     } else {
       finishMcqQuiz();
     }
-  }, 800);
+  }, 350);
 }
 
 function finishMcqQuiz() {
@@ -2578,11 +2729,10 @@ async function loadMainDashboard() {
     // 1. 개념 훈련 DB & 공간 기억 DB & 스도쿠 DB 병렬 조회 (서버 우선 -> 로컬 폴백)
     let conceptRes = { sessions: [], trainings: {} };
     let spatialRes = { history: [], max_span: 0, avg_rt: 0, total_wins: 0, total_plays: 0 };
-    let sudokuRes = { history: [], best_time: 0, avg_time: 0, total_clears: 0 };
-
+    
     if (!SERVERLESS_CONFIG.isStandalone()) {
       try {
-        [conceptRes, spatialRes, sudokuRes] = await Promise.all([
+        [conceptRes, spatialRes] = await Promise.all([
           fetch(`/api/dashboard?user_id=${userId}`).then(r => r.json()),
           fetch(`/api/spatial-dashboard?user_id=${userId}`).then(r => r.json()),
           fetch(`/api/sudoku-dashboard?user_id=${userId}`).then(r => r.json())
@@ -2620,7 +2770,7 @@ async function loadMainDashboard() {
     // 2. 4대 KPI 계산 및 렌더링
     const totalConceptCount = conceptSessions.length;
     const totalSpatialCount = spatialRes.total_plays || 0;
-    const totalSudokuCount = sudokuRes.total_clears || 0;
+    const totalSudokuCount = 0;
     const grandTotalPlays = totalConceptCount + totalSpatialCount + totalSudokuCount;
 
     // 평균 정답률
@@ -2722,19 +2872,6 @@ async function loadMainDashboard() {
         });
       });
 
-      // 스도쿠 훈련 로그 정규화
-      sudokuSessions.forEach(s => {
-        const isWin = s.is_cleared === 1;
-        const diffName = s.difficulty === 'easy' ? '쉬움' : (s.difficulty === 'hard' ? '어려움' : (s.difficulty === 'expert' ? '전문가' : '보통'));
-        unifiedLogs.push({
-          type: 'sudoku',
-          created_at: s.created_at || '',
-          title: `스도쿠 9x9 (${diffName})`,
-          performance: isWin ? `완주 성공 (힌트 ${s.hints_used}회)` : `미완성`,
-          scoreClass: isWin ? 'high' : 'low',
-          duration: `클리어 ${s.clear_time_sec}초`
-        });
-      });
 
       // 시간순 내림차순 정렬
       unifiedLogs.sort((a, b) => (b.created_at > a.created_at ? 1 : -1));
@@ -2796,485 +2933,6 @@ async function loadMainDashboard() {
 
   } catch (err) {
     console.error('메인 대시보드 로드 오류:', err);
-  }
-}
-
-// =================================================================
-// 🔢 두뇌 활성 9x9 스도쿠 (Sudoku) 게임 엔진
-// =================================================================
-
-const sudokuState = {
-  difficulty: 'normal',   // easy, normal, hard, expert
-  board: [],             // 현재 사용자 상태 9x9
-  solution: [],          // 정답 보드 9x9
-  initial: [],           // 초기 고정 보드 9x9 (0은 빈칸)
-  selectedCell: null,    // { row, col }
-  timerId: null,
-  elapsedSec: 0,
-  mistakes: 0,
-  hintsRemaining: 3,
-  isGameActive: false
-};
-
-// 스도쿠 UI 초기화 및 이벤트 리스너
-function setupSudokuGame() {
-  const diffSelect = document.getElementById('sudokuDiffSelect');
-  const btnNew = document.getElementById('btnNewSudokuGame');
-  const btnHint = document.getElementById('btnSudokuHint');
-  const btnRestart = document.getElementById('btnSudokuRestart');
-  const btnCheck = document.getElementById('btnSudokuCheck');
-  const btnErase = document.getElementById('btnKeypadErase');
-
-  if (diffSelect) {
-    diffSelect.addEventListener('change', () => {
-      sudokuState.difficulty = diffSelect.value;
-      startNewSudokuGame();
-    });
-  }
-
-  if (btnNew) btnNew.addEventListener('click', () => startNewSudokuGame());
-  if (btnRestart) btnRestart.addEventListener('click', () => restartSudokuGame());
-  if (btnHint) btnHint.addEventListener('click', () => giveSudokuHint());
-  if (btnCheck) btnCheck.addEventListener('click', () => validateCurrentSudokuBoard(true));
-  if (btnErase) btnErase.addEventListener('click', () => eraseSelectedCell());
-
-  // 온스크린 키패드 숫자 버튼 (1~9)
-  document.querySelectorAll('.btn-keypad-num').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const num = parseInt(btn.getAttribute('data-num'), 10);
-      fillNumberInSelectedCell(num);
-    });
-  });
-
-  // 키보드 입력 지원
-  window.addEventListener('keydown', (e) => {
-    if (state.currentView !== 'viewSudoku' || !sudokuState.selectedCell) return;
-    
-    // 숫자 1~9
-    if (e.key >= '1' && e.key <= '9') {
-      fillNumberInSelectedCell(parseInt(e.key, 10));
-    } else if (e.key === 'Backspace' || e.key === 'Delete') {
-      eraseSelectedCell();
-    } else if (e.key === 'ArrowUp' && sudokuState.selectedCell.row > 0) {
-      selectSudokuCell(sudokuState.selectedCell.row - 1, sudokuState.selectedCell.col);
-    } else if (e.key === 'ArrowDown' && sudokuState.selectedCell.row < 8) {
-      selectSudokuCell(sudokuState.selectedCell.row + 1, sudokuState.selectedCell.col);
-    } else if (e.key === 'ArrowLeft' && sudokuState.selectedCell.col > 0) {
-      selectSudokuCell(sudokuState.selectedCell.row, sudokuState.selectedCell.col - 1);
-    } else if (e.key === 'ArrowRight' && sudokuState.selectedCell.col < 8) {
-      selectSudokuCell(sudokuState.selectedCell.row, sudokuState.selectedCell.col + 1);
-    }
-  });
-}
-
-// 🚀 새 스도쿠 게임 생성 및 시작
-function startNewSudokuGame() {
-  if (sudokuState.timerId) clearInterval(sudokuState.timerId);
-  
-  sudokuState.elapsedSec = 0;
-  sudokuState.mistakes = 0;
-  sudokuState.hintsRemaining = 3;
-  sudokuState.selectedCell = null;
-  sudokuState.isGameActive = true;
-
-  updateSudokuTimerDisplay();
-  updateSudokuMistakesDisplay();
-  document.getElementById('sudokuHintCount').innerText = sudokuState.hintsRemaining;
-
-  // 1. 유효한 9x9 완전 정답 보드 생성 (백트래킹)
-  sudokuState.solution = generateSudokuSolution();
-
-  // 2. 난이도별 빈칸 개수 산정 및 마스킹 퍼즐 생성
-  // easy: 30개 빈칸, normal: 42개 빈칸, hard: 52개 빈칸, expert: 58개 빈칸
-  const blankCounts = {
-    easy: 30,
-    normal: 42,
-    hard: 52,
-    expert: 58
-  };
-  const blanks = blankCounts[sudokuState.difficulty] || 42;
-  sudokuState.initial = createPuzzleFromSolution(sudokuState.solution, blanks);
-  
-  // 현재 보드 복사 (깊은 복사)
-  sudokuState.board = sudokuState.initial.map(row => [...row]);
-
-  // 보드 UI 렌더링
-  renderSudokuBoard();
-
-  // 타이머 시작
-  sudokuState.timerId = setInterval(() => {
-    sudokuState.elapsedSec++;
-    updateSudokuTimerDisplay();
-  }, 1000);
-}
-
-// 현재 퍼즐 초기화 (타이머 유지, 입력값만 리셋)
-function restartSudokuGame() {
-  if (!sudokuState.initial.length) return;
-  sudokuState.board = sudokuState.initial.map(row => [...row]);
-  sudokuState.mistakes = 0;
-  updateSudokuMistakesDisplay();
-  renderSudokuBoard();
-}
-
-// 9x9 스도쿠 보드 DOM 렌더링
-function renderSudokuBoard() {
-  const boardElem = document.getElementById('sudokuBoard');
-  if (!boardElem) return;
-  boardElem.innerHTML = '';
-
-  for (let r = 0; r < 9; r++) {
-    for (let c = 0; c < 9; c++) {
-      const cell = document.createElement('div');
-      cell.className = 'sudoku-cell';
-      cell.dataset.row = r;
-      cell.dataset.col = c;
-
-      const initVal = sudokuState.initial[r][c];
-      const curVal = sudokuState.board[r][c];
-
-      if (initVal !== 0) {
-        cell.classList.add('fixed');
-        cell.innerText = initVal;
-      } else if (curVal !== 0) {
-        cell.classList.add('user-filled');
-        cell.innerText = curVal;
-        
-        // 오류 검증
-        if (curVal !== sudokuState.solution[r][c]) {
-          cell.classList.add('error');
-        }
-      } else {
-        cell.innerText = '';
-      }
-
-      cell.addEventListener('click', () => selectSudokuCell(r, c));
-      boardElem.appendChild(cell);
-    }
-  }
-
-  // 선택된 셀이 있으면 하이라이트 복원
-  if (sudokuState.selectedCell) {
-    applySudokuHighlights(sudokuState.selectedCell.row, sudokuState.selectedCell.col);
-  }
-}
-
-// 셀 선택 및 스마트 하이라이트 (행, 열, 3x3 박스, 동일 숫자)
-function selectSudokuCell(row, col) {
-  sudokuState.selectedCell = { row, col };
-  applySudokuHighlights(row, col);
-}
-
-function applySudokuHighlights(row, col) {
-  const cells = document.querySelectorAll('.sudoku-cell');
-  const targetVal = sudokuState.board[row][col];
-
-  cells.forEach(cell => {
-    const r = parseInt(cell.dataset.row, 10);
-    const c = parseInt(cell.dataset.col, 10);
-    const val = sudokuState.board[r][c];
-
-    cell.classList.remove('selected', 'same-num', 'highlight-line');
-
-    // 선택된 셀
-    if (r === row && c === col) {
-      cell.classList.add('selected');
-    }
-    // 동일 숫자 하이라이트
-    else if (targetVal !== 0 && val === targetVal) {
-      cell.classList.add('same-num');
-    }
-    // 같은 행/열/3x3 박스 하이라이트
-    else if (r === row || c === col || (Math.floor(r / 3) === Math.floor(row / 3) && Math.floor(c / 3) === Math.floor(col / 3))) {
-      cell.classList.add('highlight-line');
-    }
-  });
-}
-
-// 선택된 셀에 숫자 입력
-function fillNumberInSelectedCell(num) {
-  if (!sudokuState.isGameActive || !sudokuState.selectedCell) return;
-  const { row, col } = sudokuState.selectedCell;
-
-  // 고정 셀은 수정 불가
-  if (sudokuState.initial[row][col] !== 0) return;
-
-  sudokuState.board[row][col] = num;
-
-  // 정답 검증 및 오류 처리
-  if (num !== sudokuState.solution[row][col]) {
-    sudokuState.mistakes++;
-    updateSudokuMistakesDisplay();
-  }
-
-  renderSudokuBoard();
-  checkSudokuCompletion();
-}
-
-// 선택된 셀 지우기
-function eraseSelectedCell() {
-  if (!sudokuState.isGameActive || !sudokuState.selectedCell) return;
-  const { row, col } = sudokuState.selectedCell;
-
-  // 고정 셀은 삭제 불가
-  if (sudokuState.initial[row][col] !== 0) return;
-
-  sudokuState.board[row][col] = 0;
-  renderSudokuBoard();
-}
-
-// 💡 힌트 제공 (선택된 빈칸에 정답 채우기)
-function giveSudokuHint() {
-  if (!sudokuState.isGameActive || sudokuState.hintsRemaining <= 0) {
-    alert('남은 힌트가 없습니다!');
-    return;
-  }
-
-  let targetRow = -1, targetCol = -1;
-
-  // 1. 현재 선택된 셀이 빈칸이거나 틀린 값이면 거길 채워줌
-  if (sudokuState.selectedCell) {
-    const { row, col } = sudokuState.selectedCell;
-    if (sudokuState.initial[row][col] === 0 && sudokuState.board[row][col] !== sudokuState.solution[row][col]) {
-      targetRow = row;
-      targetCol = col;
-    }
-  }
-
-  // 2. 아니면 아직 안 채워진 빈칸 중 하나를 자동 탐색
-  if (targetRow === -1) {
-    const emptyCells = [];
-    for (let r = 0; r < 9; r++) {
-      for (let c = 0; c < 9; c++) {
-        if (sudokuState.board[r][c] !== sudokuState.solution[r][c]) {
-          emptyCells.push({ r, c });
-        }
-      }
-    }
-    if (emptyCells.length > 0) {
-      const picked = emptyCells[Math.floor(Math.random() * emptyCells.length)];
-      targetRow = picked.r;
-      targetCol = picked.c;
-    }
-  }
-
-  if (targetRow !== -1) {
-    sudokuState.board[targetRow][targetCol] = sudokuState.solution[targetRow][targetCol];
-    sudokuState.hintsRemaining--;
-    document.getElementById('sudokuHintCount').innerText = sudokuState.hintsRemaining;
-    selectSudokuCell(targetRow, targetCol);
-    renderSudokuBoard();
-    checkSudokuCompletion();
-  }
-}
-
-// 스도쿠 완주 검증 및 자동 SQLite 저장
-async function checkSudokuCompletion() {
-  for (let r = 0; r < 9; r++) {
-    for (let c = 0; c < 9; c++) {
-      if (sudokuState.board[r][c] !== sudokuState.solution[r][c]) {
-        return; // 아직 미완성
-      }
-    }
-  }
-
-  // 🎉 9x9 완벽 클리어 성공!
-  sudokuState.isGameActive = false;
-  if (sudokuState.timerId) clearInterval(sudokuState.timerId);
-
-  const clearSec = sudokuState.elapsedSec;
-  const usedHints = 3 - sudokuState.hintsRemaining;
-
-  setTimeout(async () => {
-    alert(`🎉 축하합니다! 9x9 스도쿠 [${sudokuState.difficulty.toUpperCase()}] 퍼즐을 ${clearSec}초 만에 완벽히 풀었습니다! 🧠⚡`);
-    
-    // SQLite 영구 자동 저장
-    await saveSudokuResult(sudokuState.difficulty, clearSec, usedHints, 1);
-    loadSudokuStats();
-  }, 100);
-}
-
-// 수동 검증 버튼
-function validateCurrentSudokuBoard(showAlert = false) {
-  let hasError = false;
-  for (let r = 0; r < 9; r++) {
-    for (let c = 0; c < 9; c++) {
-      const val = sudokuState.board[r][c];
-      if (val !== 0 && val !== sudokuState.solution[r][c]) {
-        hasError = true;
-      }
-    }
-  }
-  if (showAlert) {
-    if (hasError) {
-      alert('⚠️ 현재 보드에 잘못 입력된 숫자가 있습니다. 빨간색 하이라이트를 확인하세요!');
-    } else {
-      alert('👍 현재까지 입력하신 숫자는 모두 정확합니다! 계속 진행하세요.');
-    }
-  }
-}
-
-// 스도쿠 타이머 텍스트 갱신
-function updateSudokuTimerDisplay() {
-  const min = String(Math.floor(sudokuState.elapsedSec / 60)).padStart(2, '0');
-  const sec = String(sudokuState.elapsedSec % 60).padStart(2, '0');
-  const elem = document.getElementById('sudokuTimerDisplay');
-  if (elem) elem.innerText = `${min}:${sec}`;
-}
-
-// 스도쿠 오류 표시 갱신
-function updateSudokuMistakesDisplay() {
-  const elem = document.getElementById('sudokuMistakesDisplay');
-  if (elem) elem.innerText = `${sudokuState.mistakes} / 3`;
-}
-
-// SQLite 스도쿠 통계 저장 통신
-async function saveSudokuResult(difficulty, clearTimeSec, hintsUsed, isCleared) {
-  const payload = {
-    difficulty: difficulty,
-    clear_time_sec: clearTimeSec,
-    hints_used: hintsUsed,
-    is_cleared: isCleared
-  };
-
-  saveHybrid('log_sudoku', payload);
-
-  try {
-    const userId = state.currentUser ? state.currentUser.user_id : 1;
-    await fetch('/api/save-sudoku', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: userId, ...payload })
-    });
-  } catch (e) {}
-}
-
-// 스도쿠 통계 로드 (서버 -> 로컬 하이브리드)
-async function loadSudokuStats() {
-  try {
-    const userId = state.currentUser ? state.currentUser.user_id : 1;
-    let data;
-    try {
-      const res = await fetch(`/api/sudoku-dashboard?user_id=${userId}`);
-      data = await res.json();
-    } catch (e) {
-      const localDb = JSON.parse(localStorage.getItem('brainlock_local_db') || '{"sudoku":[]}');
-      const list = localDb.sudoku || [];
-      const clears = list.filter(s => s.is_cleared === 1);
-      data = {
-        best_time: clears.length > 0 ? Math.min(...clears.map(s => s.clear_time_sec || 999)) : 0,
-        avg_time: clears.length > 0 ? Math.round(clears.reduce((acc, s) => acc + (s.clear_time_sec || 0), 0) / clears.length) : 0,
-        total_clears: clears.length
-      };
-    }
-
-    const bestTime = data.best_time > 0 ? `${data.best_time}초` : '-';
-    const avgTime = data.avg_time > 0 ? `${data.avg_time}초` : '-';
-
-    document.getElementById('statSudokuBestTime').innerText = bestTime;
-    document.getElementById('statSudokuAvgTime').innerText = avgTime;
-    document.getElementById('statSudokuTotalClears').innerText = `${data.total_clears || 0}회`;
-  } catch (e) {}
-}
-
-// =================================================================
-// 🎲 9x9 스도쿠 알고리즘 (완전 보드 생성 & 백트래킹)
-// =================================================================
-
-function generateSudokuSolution() {
-  const board = Array.from({ length: 9 }, () => Array(9).fill(0));
-
-  function isValid(b, row, col, num) {
-    for (let i = 0; i < 9; i++) {
-      if (b[row][i] === num || b[i][col] === num) return false;
-    }
-    const startRow = Math.floor(row / 3) * 3;
-    const startCol = Math.floor(col / 3) * 3;
-    for (let r = 0; r < 3; r++) {
-      for (let c = 0; c < 3; c++) {
-        if (b[startRow + r][startCol + c] === num) return false;
-      }
-    }
-    return true;
-  }
-
-  function solve(b) {
-    for (let r = 0; r < 9; r++) {
-      for (let c = 0; c < 9; c++) {
-        if (b[r][c] === 0) {
-          const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-          // 셔플하여 매번 완전히 새로운 스도쿠 퍼즐 생성
-          for (let i = numbers.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
-          }
-
-          for (const num of numbers) {
-            if (isValid(b, r, c, num)) {
-              b[r][c] = num;
-              if (solve(b)) return true;
-              b[r][c] = 0;
-            }
-          }
-          return false;
-        }
-      }
-    }
-    return true;
-  }
-
-  solve(board);
-  return board;
-}
-
-// 정답 보드에서 난이도별 빈칸을 마스킹하여 플레이용 퍼즐 생성
-function createPuzzleFromSolution(solutionBoard, blanksCount) {
-  const puzzle = solutionBoard.map(row => [...row]);
-  const positions = [];
-  for (let r = 0; r < 9; r++) {
-    for (let c = 0; c < 9; c++) {
-      positions.push({ r, c });
-    }
-  }
-
-  // 좌표 셔플
-  for (let i = positions.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [positions[i], positions[j]] = [positions[j], positions[i]];
-  }
-
-  for (let i = 0; i < blanksCount && i < positions.length; i++) {
-    const { r, c } = positions[i];
-    puzzle[r][c] = 0;
-  }
-
-  return puzzle;
-}
-
-// =================================================================
-// 🗑️ 단어장 삭제 유틸리티 (SQLite + Google Sheets 양방향 삭제)
-// =================================================================
-async function deleteTrainingSet(title) {
-  try {
-    const userId = state.currentUser ? state.currentUser.user_id : 1;
-    toggleLoading(true, `'${title}' 단어장을 삭제하는 중입니다...`);
-    const res = await fetch('/api/delete-training', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, user_id: userId })
-    });
-    toggleLoading(false);
-    const data = await res.json();
-    if (data.success) {
-      alert(`'${title}' 단어장이 정상적으로 삭제되었습니다.`);
-      await loadMainDashboard();
-      await loadSavedList();
-    } else {
-      alert('삭제 실패: ' + (data.error || '알 수 없는 오류'));
-    }
-  } catch (err) {
-    toggleLoading(false);
-    alert('삭제 통신 오류: ' + err);
   }
 }
 
