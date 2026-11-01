@@ -81,7 +81,23 @@ def clean_and_parse_json(raw_text: str) -> dict:
         first_bracket = text.find("[")
         last_bracket = text.rfind("]")
         if first_bracket != -1 and last_bracket > first_bracket:
-            return json.loads(text[first_bracket:last_bracket+1])
+            try:
+                return json.loads(text[first_bracket:last_bracket+1])
+            except Exception:
+                pass
+        
+        # 잘린 JSON 배열 자동 복구 (마지막 온전한 닫는 중괄호까지 구출)
+        if first_bracket != -1:
+            after_bracket = text[first_bracket+1:]
+            last_obj_end = after_bracket.rfind("}")
+            if last_obj_end != -1:
+                try:
+                    repaired = "[" + after_bracket[:last_obj_end+1] + "]"
+                    arr = json.loads(repaired)
+                    if isinstance(arr, list) and len(arr) > 0:
+                        return {"quiz_data": arr}
+                except Exception:
+                    pass
         raise
 
 def unload_other_ollama_models(target_model=""):
@@ -163,8 +179,8 @@ def get_or_create_word_pool(mode: str, user_input: str, difficulty: str = "norma
     target_model = model or (OLLAMA_MODEL if target_provider == "ollama" else DEFAULT_GEMINI_MODEL)
     cache_key = f"{target_provider}:{target_model}:{mode}:{difficulty}:{user_input.strip()}"
     
-    # 캐시에 10개 이상 남아있으면 그대로 사용
-    if cache_key in WORD_POOL_CACHE and len(WORD_POOL_CACHE[cache_key]) >= 10:
+    # 캐시에 요청 개수 이상 남아있으면 그대로 사용 (0초 즉시 반환)
+    if cache_key in WORD_POOL_CACHE and len(WORD_POOL_CACHE[cache_key]) >= word_count:
         return WORD_POOL_CACHE[cache_key]
 
     # 엔트로피를 극대화하기 위한 랜덤 서브 도메인 앵커 생성

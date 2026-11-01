@@ -541,8 +541,27 @@ function cleanAndParseJSON(rawText) {
     const firstBracket = text.indexOf('[');
     const lastBracket = text.lastIndexOf(']');
     if (firstBracket !== -1 && lastBracket > firstBracket) {
-      return JSON.parse(text.substring(firstBracket, lastBracket + 1));
+      try {
+        return JSON.parse(text.substring(firstBracket, lastBracket + 1));
+      } catch (e3) {}
     }
+
+    // 5. 토큰 제한 등으로 잘린 JSON 배열 자동 복구 (Auto-Repair)
+    if (firstBracket !== -1) {
+      const afterBracket = text.substring(firstBracket + 1);
+      const lastObjEnd = afterBracket.lastIndexOf('}');
+      if (lastObjEnd !== -1) {
+        try {
+          const repaired = '[' + afterBracket.substring(0, lastObjEnd + 1) + ']';
+          const arr = JSON.parse(repaired);
+          if (Array.isArray(arr) && arr.length > 0) {
+            console.warn(`[JSON 자동 복구] 잘린 응답에서 ${arr.length}개 객체 정상 구출 완료`);
+            return { quiz_data: arr };
+          }
+        } catch (e4) {}
+      }
+    }
+
     throw e1;
   }
 }
@@ -620,8 +639,8 @@ async function callOllamaClient(prompt, temperature = 0.7, system = "") {
 
   // 2. 브라우저 직접 fetch
   const targetUrl = `${url}/api/generate`;
-  // 요청 프롬프트 길이에 맞춰 num_predict를 500~800으로 최적화하여 딜레이 60% 단축
-  const maxPred = prompt.length > 500 ? 800 : 500;
+  // 20개 대용량 단어 풀도 잘림 없이 100% 온전하게 생성되도록 2048 토큰 확보
+  const maxPred = 2048;
   const payload = {
     model: model,
     prompt: prompt,
@@ -1003,12 +1022,16 @@ async function generateWordsClient(mode, userInput, count = 5, excludeWords = []
       const reqCount = count || 5;
       let prompt = '';
 
+      const randomSeed = Math.floor(Math.random() * 100000);
+      const poolTargetCount = Math.max(20, (count || 5) * 2);
+
       if (isLocalAI) {
-        // ⚡ 로컬 AI(Ollama) 특화: 요청 개수(5개/10개)만큼만 초간결 생성하여 10~20초 컷!
+        // ⚡ 로컬 AI(Ollama): 20개 대용량 풀 1회 생성 후 캐싱 ➔ 이후 0초 즉시 랜덤 서브샘플링!
         prompt = `
-[역할]: '${cleanInput}' 전공 교수
+[역할]: '${cleanInput}' 전공 교수 (시드: ${randomSeed})
 ${diffInstruction}
-주제 '${cleanInput}'에 관련된 핵심 전문 용어 정확히 ${reqCount}개를 초간결 JSON으로 생성하세요.
+주제 '${cleanInput}'에 관련된 핵심 전문 용어 총 20개를 다양하고 폭넓게 엄선하세요.
+[다양성 지침]: 상위 1~2개 뻔한 용어에만 편중되지 말고, 기초 이론, 핵심 법칙, 공식, 부품, 응용 메커니즘 등 세부 영역별로 골고루 20개를 선정하세요.
 [필수 JSON 포맷]:
 {
   "quiz_data": [
@@ -1020,14 +1043,14 @@ ${diffInstruction}
     }
   ]
 }
-- 불필요한 서두나 사족 없이, 정확히 ${reqCount}개의 JSON 배열만 출력하세요.
+- 불필요한 사족 없이 정확히 20개의 JSON 배열만 출력하세요.
 `;
       } else {
         // 클라우드 Gemini: 25개 대용량 풀 생성
         prompt = `
-[역할]: '${cleanInput}' 분야 전공 교수
+[역할]: '${cleanInput}' 분야 전공 교수 (시드: ${randomSeed})
 ${diffInstruction}
-주제 '${cleanInput}'에 관련된 핵심 전문 용어 총 25개를 엄선하세요.
+주제 '${cleanInput}'에 관련된 핵심 전문 용어 총 25개를 다양하게 엄선하세요.
 [필수 JSON 포맷]:
 {
   "quiz_data": [
@@ -1734,6 +1757,10 @@ document.getElementById('btnStartGenerate').addEventListener('click', async () =
       alert('주제 또는 원문 내용을 입력해주세요.');
       return;
     }
+
+    // UI 인풋창의 단어 개수와 state 동기화 보장
+    const uiWc = parseInt(document.getElementById('wordCount')?.value, 10);
+    if (!isNaN(uiWc) && uiWc > 0) state.wordCount = uiWc;
 
     const curProv = SERVERLESS_CONFIG.getProvider();
     const curModel = curProv === 'ollama' ? SERVERLESS_CONFIG.getOllamaModel() : SERVERLESS_CONFIG.getModel();
