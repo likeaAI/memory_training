@@ -3324,3 +3324,63 @@ textarea:focus {
   background: rgba(239, 68, 68, 0.15);
   border-color: #ef4444;
 }
+
+
+/* =================================================================
+   🧠 AI 엔진 설정 모달 & 공급자 탭 스타일 (Gemini / Ollama / Offline)
+   ================================================================= */
+.provider-setting-card {
+  padding: 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+  transition: all 0.2s ease;
+}
+#cardGeminiSettings {
+  background: rgba(59, 130, 246, 0.04);
+  border-color: rgba(59, 130, 246, 0.25);
+}
+#cardOllamaSettings {
+  background: rgba(168, 85, 247, 0.04);
+  border-color: rgba(168, 85, 247, 0.25);
+}
+#cardOfflineNotice {
+  background: rgba(16, 185, 129, 0.04);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+.ai-provider-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.ai-provider-selector .btn-provider-tab {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 10px 6px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+  color: var(--text-secondary);
+}
+.ai-provider-selector .btn-provider-tab:hover {
+  background: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+.ai-provider-selector .btn-provider-tab.active {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: #3b82f6;
+  color: var(--text-primary);
+  box-shadow: 0 0 0 1px #3b82f6 inset;
+}
+.ai-provider-selector .btn-provider-tab[data-provider="ollama"].active {
+  background: rgba(168, 85, 247, 0.12);
+  border-color: #a855f7;
+  box-shadow: 0 0 0 1px #a855f7 inset;
+}
+.ai-provider-selector .btn-provider-tab[data-provider="offline"].active {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: #10b981;
+  box-shadow: 0 0 0 1px #10b981 inset;
+}

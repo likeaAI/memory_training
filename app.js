@@ -509,12 +509,143 @@ const state = {
 // 🌐 100% 서버리스 클라이언트 엔진 (GitHub Pages + Google Sheets + Gemini)
 // =================================================================
 const SERVERLESS_CONFIG = {
+  getProvider: () => localStorage.getItem('brainlock_ai_provider') || 'gemini',
   getModel: () => localStorage.getItem('brainlock_ai_model') || 'gemini-2.5-flash',
   getGeminiKey: () => localStorage.getItem('brainlock_gemini_key') || '',
+  getOllamaUrl: () => localStorage.getItem('brainlock_ollama_url') || 'http://localhost:11434',
+  getOllamaModel: () => localStorage.getItem('brainlock_ollama_model') || 'gemma4:e4b',
   getSheetUrl: () => localStorage.getItem('brainlock_sheet_url') || '',
   // 🌐 로컬 파일(file:) 또는 GitHub Pages(github.io) 접속 시 100% 서버리스 경량 모드로 동작!
   isStandalone: () => window.location.protocol === 'file:' || window.location.origin.includes('github.io')
 };
+
+// =================================================================
+// 🦙 Ollama 로컬 LLM & 통합 AI 클라이언트 호출 레이어
+// =================================================================
+
+// Ollama 설치 모델 목록 비동기 조회
+async function fetchOllamaModels(customUrl) {
+  const url = (customUrl || SERVERLESS_CONFIG.getOllamaUrl() || 'http://localhost:11434').replace(/\/+$/, '');
+
+  // 1. Python 서버 프록시 시도 (CORS 및 로컬 루프백 방지)
+  if (!SERVERLESS_CONFIG.isStandalone()) {
+    try {
+      const res = await fetch(`/api/ollama-tags?url=${encodeURIComponent(url)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.models)) {
+          return { success: true, models: data.models };
+        }
+      }
+    } catch (e) {
+      console.warn('Ollama 태그 프록시 실패, 직접 fetch 시도:', e);
+    }
+  }
+
+  // 2. 브라우저 직접 fetch
+  try {
+    const res = await fetch(`${url}/api/tags`);
+    if (res.ok) {
+      const data = await res.json();
+      return { success: true, models: data.models || [] };
+    }
+    return { success: false, error: `HTTP ${res.status}` };
+  } catch (err) {
+    return { success: false, error: err.message || 'Ollama 서버에 연결할 수 없습니다.' };
+  }
+}
+
+// Ollama 단일 요청 호출 (JSON 응답)
+async function callOllamaClient(prompt, temperature = 0.7, system = "") {
+  const url = (SERVERLESS_CONFIG.getOllamaUrl() || 'http://localhost:11434').replace(/\/+$/, '');
+  const model = SERVERLESS_CONFIG.getOllamaModel() || 'gemma4:e4b';
+
+  // 1. Python 서버 프록시 시도
+  if (!SERVERLESS_CONFIG.isStandalone()) {
+    try {
+      const res = await fetch('/api/ollama-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: url,
+          model: model,
+          prompt: prompt,
+          system: system,
+          temperature: temperature,
+          format: 'json'
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.response) {
+          let text = data.response.trim();
+          if (text.startsWith('```')) {
+            text = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
+          }
+          return JSON.parse(text);
+        } else if (data.error) {
+          throw new Error(data.error);
+        }
+      }
+    } catch (proxyErr) {
+      console.warn('Ollama 서버 프록시 오류, 브라우저 직접 fetch 시도:', proxyErr);
+    }
+  }
+
+  // 2. 브라우저 직접 fetch
+  const targetUrl = `${url}/api/generate`;
+  const payload = {
+    model: model,
+    prompt: prompt,
+    stream: false,
+    format: 'json',
+    options: {
+      temperature: temperature
+    }
+  };
+  if (system) payload.system = system;
+
+  const res = await fetch(targetUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  if (!res.ok) {
+    throw new Error(`Ollama API 오류 (${res.status}): ${res.statusText}`);
+  }
+
+  const json = await res.json();
+  let text = (json.response || '').trim();
+  if (text.startsWith('```')) {
+    text = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
+  }
+  return JSON.parse(text);
+}
+
+// 통합 AI 분기 호출 (Provider: 'gemini' | 'ollama' | 'offline')
+async function callAIClient(prompt, temperature = 0.9, system = "") {
+  const provider = SERVERLESS_CONFIG.getProvider();
+
+  if (provider === 'offline') {
+    throw new Error('오프라인 내장 모드 선택됨 (내장 단어장 엔진으로 전환)');
+  }
+
+  if (provider === 'ollama') {
+    try {
+      return await callOllamaClient(prompt, temperature, system);
+    } catch (ollamaErr) {
+      console.warn(`[Ollama 로컬 AI 오류] ${ollamaErr.message} -> 폴백 시도`);
+      if (SERVERLESS_CONFIG.getGeminiKey()) {
+        return await callGeminiClient(prompt, temperature);
+      }
+      throw ollamaErr;
+    }
+  }
+
+  // provider === 'gemini' (기본값)
+  return await callGeminiClient(prompt, temperature);
+}
 
 // 한글 초성 분리 유틸
 function extractChosung(text) {
@@ -814,8 +945,9 @@ async function generateWordsClient(mode, userInput, count = 5, excludeWords = []
     if (cached) pool = JSON.parse(cached);
   } catch (e) {}
 
-  // [핵심] API 키가 없으면 (순수 오프라인/서버리스) 0초 즉시 내장 고품질 단어 풀 반환!
-  if (!SERVERLESS_CONFIG.getGeminiKey()) {
+  // [핵심] 오프라인 모드이거나, Gemini 모드인데 API 키가 없으면 0초 즉시 내장 고품질 단어 풀 반환!
+  const currentAiProvider = SERVERLESS_CONFIG.getProvider();
+  if (currentAiProvider === 'offline' || (currentAiProvider === 'gemini' && !SERVERLESS_CONFIG.getGeminiKey())) {
     return getInstantOfflineWords(cleanInput, count, excludeWords);
   }
 
@@ -855,7 +987,7 @@ ${diffInstruction}
 - 25개 단어, 한국어로 작성.
 `;
       console.log(`[AI 프롬프트 생성] 난이도: ${diff} 적용 완료`);
-      const res = await callGeminiClient(prompt, 0.95);
+      const res = await callAIClient(prompt, 0.95);
       pool = (res.quiz_data || []).map(item => ({
         ...item,
         chosung: extractChosung(item.word)
@@ -930,7 +1062,7 @@ ${gradingRule}
 results 개수와 순서는 정답 단어 목록과 동일해야 합니다.
 `;
   try {
-    return await callGeminiClient(prompt, 0.2);
+    return await callAIClient(prompt, 0.2);
   } catch (err) {
     // 오프라인 정밀 대조 폴백
     const copied = [...userInputs];
@@ -963,7 +1095,7 @@ JSON 응답:
 }
 `;
   try {
-    return await callGeminiClient(prompt, 0.5);
+    return await callAIClient(prompt, 0.5);
   } catch (e) {
     return { technique_score: 80, coach_summary: '훌륭한 연상 스토리입니다.', weak_points: '시간 단축 훈련 권장', tip: '시각적 이미지를 더 과장해보세요.' };
   }
@@ -3480,23 +3612,175 @@ function setupSettingsModal() {
   const modal = document.getElementById('settingsModal');
   const btnOpen = document.getElementById('btnOpenSettings');
   const btnClose = document.getElementById('btnCloseSettings');
+
+  // 공급자 탭 & 카드
+  const tabGemini = document.getElementById('tabProviderGemini');
+  const tabOllama = document.getElementById('tabProviderOllama');
+  const tabOffline = document.getElementById('tabProviderOffline');
+  const cardGemini = document.getElementById('cardGeminiSettings');
+  const cardOllama = document.getElementById('cardOllamaSettings');
+  const cardOffline = document.getElementById('cardOfflineNotice');
+
+  // Gemini 설정 인풋
   const selectModel = document.getElementById('selectAiModel');
   const inputKey = document.getElementById('inputGeminiKey');
+
+  // Ollama 설정 인풋
+  const inputOllamaUrl = document.getElementById('inputOllamaUrl');
+  const btnRefreshOllama = document.getElementById('btnRefreshOllamaModels');
+  const selectOllama = document.getElementById('selectOllamaModel');
+  const wrapperCustomOllama = document.getElementById('wrapperCustomOllamaModel');
+  const inputCustomOllama = document.getElementById('inputCustomOllamaModel');
+  const badgeOllamaStatus = document.getElementById('ollamaStatusBadge');
+
+  // 시트 및 공통 설정
   const inputUrl = document.getElementById('inputSheetUrl');
   const btnTest = document.getElementById('btnTestWebhook');
   const btnSave = document.getElementById('btnSaveSheetUrl');
   const resultBox = document.getElementById('webhookTestResult');
   const btnClearLogs = document.getElementById('btnClearAllLogs');
 
+  let currentProvider = SERVERLESS_CONFIG.getProvider();
+
+  // 공급자 탭 전환 UI 함수
+  function setProviderUI(provider, autoFetchOllama = true) {
+    currentProvider = provider;
+    [tabGemini, tabOllama, tabOffline].forEach(t => t && t.classList.remove('active'));
+    if (cardGemini) cardGemini.style.display = 'none';
+    if (cardOllama) cardOllama.style.display = 'none';
+    if (cardOffline) cardOffline.style.display = 'none';
+
+    if (provider === 'gemini') {
+      if (tabGemini) tabGemini.classList.add('active');
+      if (cardGemini) cardGemini.style.display = 'block';
+    } else if (provider === 'ollama') {
+      if (tabOllama) tabOllama.classList.add('active');
+      if (cardOllama) cardOllama.style.display = 'block';
+      if (autoFetchOllama) {
+        refreshOllamaModelsUI(false);
+      }
+    } else if (provider === 'offline') {
+      if (tabOffline) tabOffline.classList.add('active');
+      if (cardOffline) cardOffline.style.display = 'block';
+    }
+  }
+
+  // 탭 클릭 이벤트 바인딩
+  if (tabGemini) tabGemini.onclick = () => setProviderUI('gemini');
+  if (tabOllama) tabOllama.onclick = () => setProviderUI('ollama', true);
+  if (tabOffline) tabOffline.onclick = () => setProviderUI('offline');
+
+  // Ollama 모델 목록 실시간 새로고침 함수
+  async function refreshOllamaModelsUI(isManual = false) {
+    if (!badgeOllamaStatus) return;
+    badgeOllamaStatus.innerText = '연결 확인 중...';
+    badgeOllamaStatus.style.color = '#3b82f6';
+    badgeOllamaStatus.style.background = 'rgba(59, 130, 246, 0.15)';
+
+    const url = inputOllamaUrl ? inputOllamaUrl.value.trim() : 'http://localhost:11434';
+    const res = await fetchOllamaModels(url);
+
+    if (res.success && Array.isArray(res.models)) {
+      const models = res.models;
+      if (models.length === 0) {
+        badgeOllamaStatus.innerText = '🟡 연결됨 (모델 0개)';
+        badgeOllamaStatus.style.color = '#eab308';
+        badgeOllamaStatus.style.background = 'rgba(234, 179, 8, 0.15)';
+      } else {
+        badgeOllamaStatus.innerText = `🟢 연결됨 (${models.length}개 모델)`;
+        badgeOllamaStatus.style.color = '#10b981';
+        badgeOllamaStatus.style.background = 'rgba(16, 185, 129, 0.15)';
+      }
+
+      if (selectOllama) {
+        const savedModel = localStorage.getItem('brainlock_ollama_model') || 'gemma4:e4b';
+        let matched = false;
+        selectOllama.innerHTML = '';
+
+        models.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m.name;
+          const sizeGb = m.size ? ` (${(m.size / (1024 * 1024 * 1024)).toFixed(1)} GB)` : '';
+          opt.innerText = `${m.name}${sizeGb}`;
+          if (m.name === savedModel) {
+            opt.selected = true;
+            matched = true;
+          }
+          selectOllama.appendChild(opt);
+        });
+
+        // 커스텀 옵션 추가
+        const customOpt = document.createElement('option');
+        customOpt.value = 'custom';
+        customOpt.innerText = '✏️ 직접 입력 (커스텀 모델명)';
+        if (!matched && savedModel) {
+          customOpt.selected = true;
+          if (wrapperCustomOllama) wrapperCustomOllama.style.display = 'block';
+          if (inputCustomOllama) inputCustomOllama.value = savedModel;
+        } else {
+          if (wrapperCustomOllama) wrapperCustomOllama.style.display = 'none';
+        }
+        selectOllama.appendChild(customOpt);
+      }
+
+      if (isManual) {
+        alert(`✅ Ollama 로컬 서버 연결 성공!\n감지된 모델: ${models.length}개\n(${models.map(m => m.name).join(', ') || '설치된 모델 없음'})`);
+      }
+    } else {
+      badgeOllamaStatus.innerText = '🔴 연결 실패';
+      badgeOllamaStatus.style.color = '#ef4444';
+      badgeOllamaStatus.style.background = 'rgba(239, 68, 68, 0.15)';
+      if (isManual) {
+        alert(`❌ Ollama 서버 연결 실패:\n${res.error || '연결 거부됨'}\n\n1. 터미널에서 'ollama serve' 또는 백그라운드 앱이 켜져 있는지 확인하세요.\n2. 서버 주소(${url})가 올바른지 확인하세요.`);
+      }
+    }
+  }
+
+  if (btnRefreshOllama) {
+    btnRefreshOllama.onclick = () => refreshOllamaModelsUI(true);
+  }
+
+  // 커스텀 모델 토글
+  if (selectOllama) {
+    selectOllama.onchange = () => {
+      if (wrapperCustomOllama) {
+        wrapperCustomOllama.style.display = selectOllama.value === 'custom' ? 'block' : 'none';
+      }
+    };
+  }
+
   if (btnOpen && modal) {
     btnOpen.onclick = () => {
       modal.style.display = 'flex';
-      resultBox.style.display = 'none';
+      if (resultBox) resultBox.style.display = 'none';
 
       // 저장된 설정값 불러오기
+      currentProvider = SERVERLESS_CONFIG.getProvider();
+      setProviderUI(currentProvider, currentProvider === 'ollama');
+
       if (selectModel) selectModel.value = localStorage.getItem('brainlock_ai_model') || 'gemini-2.5-flash';
       if (inputKey) inputKey.value = localStorage.getItem('brainlock_gemini_key') || '';
+      if (inputOllamaUrl) inputOllamaUrl.value = localStorage.getItem('brainlock_ollama_url') || 'http://localhost:11434';
       if (inputUrl) inputUrl.value = localStorage.getItem('brainlock_sheet_url') || '';
+
+      const savedOllamaModel = localStorage.getItem('brainlock_ollama_model') || 'gemma4:e4b';
+      if (selectOllama) {
+        let found = false;
+        for (let i = 0; i < selectOllama.options.length; i++) {
+          if (selectOllama.options[i].value === savedOllamaModel) {
+            selectOllama.selectedIndex = i;
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          selectOllama.value = 'custom';
+          if (wrapperCustomOllama) wrapperCustomOllama.style.display = 'block';
+          if (inputCustomOllama) inputCustomOllama.value = savedOllamaModel;
+        } else {
+          if (wrapperCustomOllama) wrapperCustomOllama.style.display = 'none';
+        }
+      }
     };
   }
 
@@ -3516,7 +3800,7 @@ function setupSettingsModal() {
   // 🔗 웹훅 연결 테스트 (브라우저 직접 핑 & GitHub Pages 완전 대응)
   if (btnTest) {
     btnTest.onclick = async () => {
-      const url = inputUrl.value.trim();
+      const url = inputUrl ? inputUrl.value.trim() : '';
       if (!url) {
         alert('테스트할 구글 시트 웹 앱 URL을 먼저 입력해주세요.');
         return;
@@ -3548,7 +3832,6 @@ function setupSettingsModal() {
           throw new Error(`HTTP ${res.status}`);
         }
       } catch (err) {
-        // no-cors 비동기 핑으로 최종 도달 여부 검증
         try {
           await fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ type: 'ping' }) });
           latency = Date.now() - startTime;
@@ -3572,36 +3855,70 @@ function setupSettingsModal() {
     };
   }
 
-  // 💾 전체 설정 저장 (AI 모델, API Key, 구글 시트 URL)
+  // 💾 전체 설정 저장 (AI 엔진, 모델, Ollama, 시트 URL)
   if (btnSave) {
     btnSave.onclick = async () => {
-      const selectedModel = selectModel ? selectModel.value : 'gemini-2.5-flash';
-      const key = inputKey ? inputKey.value.trim() : '';
+      const provider = currentProvider || 'gemini';
+      const geminiModel = selectModel ? selectModel.value : 'gemini-2.5-flash';
+      const geminiKey = inputKey ? inputKey.value.trim() : '';
+      const ollamaUrl = inputOllamaUrl ? inputOllamaUrl.value.trim() : 'http://localhost:11434';
+      
+      let ollamaModel = selectOllama ? selectOllama.value : 'gemma4:e4b';
+      if (ollamaModel === 'custom') {
+        ollamaModel = (inputCustomOllama ? inputCustomOllama.value.trim() : '') || 'gemma4:e4b';
+      }
+
       const url = inputUrl ? inputUrl.value.trim() : '';
 
       // 1. 브라우저 로컬스토리지에 영구 보관 (100% 서버리스 즉시 반영)
-      localStorage.setItem('brainlock_ai_model', selectedModel);
-      if (key) localStorage.setItem('brainlock_gemini_key', key);
+      localStorage.setItem('brainlock_ai_provider', provider);
+      localStorage.setItem('brainlock_ai_model', geminiModel);
+      localStorage.setItem('brainlock_gemini_key', geminiKey);
+      localStorage.setItem('brainlock_ollama_url', ollamaUrl);
+      localStorage.setItem('brainlock_ollama_model', ollamaModel);
       if (url) localStorage.setItem('brainlock_sheet_url', url);
 
-      // 2. 서버가 켜져 있으면 서버 환경변수에도 저장 시도
+      // 2. 서버가 켜져 있으면 서버 환경변수 및 ai_service에도 저장 동기화
       try {
-        if (url) {
-          await fetch('/api/set-sheet-url', {
+        if (!SERVERLESS_CONFIG.isStandalone()) {
+          await fetch('/api/set-ai-config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url })
+            body: JSON.stringify({
+              provider,
+              gemini_model: geminiModel,
+              gemini_key: geminiKey,
+              ollama_url: ollamaUrl,
+              ollama_model: ollamaModel
+            })
           });
+
+          if (url) {
+            await fetch('/api/set-sheet-url', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url })
+            });
+          }
         }
       } catch (e) {}
 
-      alert(`✅ 설정이 성공적으로 저장되었습니다!\n\n• AI 모델: ${selectedModel}\n• API 키: ${key ? '등록 완료' : '미등록'}\n• 시트 연동: ${url ? '설정 완료' : '미등록'}`);
+      let providerDesc = '☁️ Google Gemini (클라우드)';
+      let activeModelDesc = geminiModel;
+      if (provider === 'ollama') {
+        providerDesc = '🦙 Ollama (로컬 LLM)';
+        activeModelDesc = `${ollamaModel} (${ollamaUrl})`;
+      } else if (provider === 'offline') {
+        providerDesc = '⚡ 내장 오프라인 엔진';
+        activeModelDesc = '8대 전문 전공 내장 단어장';
+      }
+
+      alert(`✅ 설정이 성공적으로 저장되었습니다!\n\n• 활성 AI 엔진: ${providerDesc}\n• 주 사용 모델: ${activeModelDesc}\n• 시트 연동: ${url ? '설정 완료' : '미등록'}`);
       modal.style.display = 'none';
       loadMainDashboard();
     };
   }
 
-  // 🧹 전체 훈련 로그 초기화
   if (btnClearLogs) {
     btnClearLogs.onclick = async () => {
       if (confirm('⚠️ 정말로 모든 훈련 로그를 초기화하시겠습니까?\n(SQLite 및 구글 시트의 로그가 모두 삭제되며 복구할 수 없습니다)')) {

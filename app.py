@@ -5,6 +5,7 @@ import base64
 import webbrowser
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
+import urllib.request
 
 # Windows 콘솔 UTF-8 출력 강제 (이모지 충돌 방지)
 if sys.platform == "win32":
@@ -265,6 +266,64 @@ class MemoryAppHandler(SimpleHTTPRequestHandler):
             db.clear_finetune_dataset(user_id=user_id)
             return self._send_json({"success": True})
 
+        # 12. 🦙 Ollama 로컬 모델 생성 API (CORS 방지 프록시)
+        elif path == "/api/ollama-generate":
+            ollama_url = (data.get("url") or "http://localhost:11434").rstrip("/")
+            model = data.get("model", "gemma4:e4b")
+            prompt = data.get("prompt", "")
+            system = data.get("system", "")
+            temperature = float(data.get("temperature", 0.7))
+            format_type = data.get("format", "json")
+
+            target_url = f"{ollama_url}/api/generate"
+            payload = {
+                "model": model,
+                "prompt": prompt,
+                "stream": False,
+                "options": {
+                    "temperature": temperature
+                }
+            }
+            if system:
+                payload["system"] = system
+            if format_type:
+                payload["format"] = format_type
+
+            try:
+                req = urllib.request.Request(
+                    target_url,
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers={"Content-Type": "application/json"}
+                )
+                with urllib.request.urlopen(req, timeout=120) as res:
+                    resp_json = json.loads(res.read().decode("utf-8"))
+                    return self._send_json({"success": True, "response": resp_json.get("response", "")})
+            except Exception as e:
+                return self._send_json({"success": False, "error": f"Ollama 생성 오류: {e}"}, status=500)
+
+        # 13. ⚙️ AI 공급자 및 모델 설정 저장 API (서버 메모리 동기화)
+        elif path == "/api/set-ai-config":
+            provider = data.get("provider", "gemini")
+            gemini_model = data.get("gemini_model", "gemini-2.5-flash")
+            gemini_key = data.get("gemini_key", "").strip()
+            ollama_url = data.get("ollama_url", "http://localhost:11434").strip()
+            ollama_model = data.get("ollama_model", "gemma4:e4b").strip()
+
+            ai.OLLAMA_BASE_URL = ollama_url
+            ai.OLLAMA_MODEL = ollama_model
+            ai.DEFAULT_GEMINI_MODEL = gemini_model
+            if gemini_key:
+                ai.GEMINI_API_KEY = gemini_key
+
+            return self._send_json({
+                "success": True,
+                "provider": provider,
+                "gemini_model": gemini_model,
+                "ollama_model": ollama_model,
+                "ollama_url": ollama_url
+            })
+
+
         return self._send_json({"error": "Not Found"}, status=404)
 
     def do_GET(self):
@@ -273,8 +332,21 @@ class MemoryAppHandler(SimpleHTTPRequestHandler):
         query = parse_qs(parsed_url.query)
         user_id = int(query.get("user_id", [1])[0])
 
+
+        # 14. 🦙 Ollama 로컬 모델 태그 목록 조회 API (CORS 방지 프록시)
+        if path == "/api/ollama-tags":
+            ollama_url = query.get("url", ["http://localhost:11434"])[0].rstrip("/")
+            try:
+                tags_url = f"{ollama_url}/api/tags"
+                req = urllib.request.Request(tags_url, headers={"User-Agent": "BrainLock-Web/1.0"})
+                with urllib.request.urlopen(req, timeout=4) as res:
+                    data = json.loads(res.read().decode("utf-8"))
+                    return self._send_json({"success": True, "models": data.get("models", [])})
+            except Exception as e:
+                return self._send_json({"success": False, "error": f"Ollama 연결 실패: {e}", "models": []})
+
         # 🤖 [신규] LLM 파인튜닝 데이터셋 조회 API
-        if path == "/api/finetune-dataset":
+        elif path == "/api/finetune-dataset":
             data = db.get_finetune_dataset(user_id=user_id)
             return self._send_json(data)
 

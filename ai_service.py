@@ -27,7 +27,7 @@ def get_gemini_api_key():
 GEMINI_API_KEY = get_gemini_api_key()
 USE_LOCAL_FALLBACK = True
 OLLAMA_BASE_URL = "http://localhost:11434"
-OLLAMA_MODEL = "mistral"
+OLLAMA_MODEL = "gemma4:e4b"
 
 # =================================================================
 # 🌐 AI LLM 통신 기반 레이어 (Gemini REST / Ollama)
@@ -54,11 +54,12 @@ def call_gemini_rest(prompt: str, model: str = None, temperature: float = 0.9) -
         text_content = res_data["candidates"][0]["content"]["parts"][0]["text"]
         return json.loads(text_content)
 
-def call_ollama(prompt: str, system_instruction: str = "") -> dict:
-    """로컬 Ollama LLM 폴백 호출"""
+def call_ollama(prompt: str, system_instruction: str = "", model: str = None) -> dict:
+    """로컬 Ollama LLM 폴백 호출 (Gemma 4 / Qwen 등)"""
+    target_model = model or OLLAMA_MODEL
     url = f"{OLLAMA_BASE_URL}/api/generate"
     payload = {
-        "model": OLLAMA_MODEL,
+        "model": target_model,
         "prompt": prompt,
         "system": system_instruction,
         "format": "json",
@@ -66,9 +67,14 @@ def call_ollama(prompt: str, system_instruction: str = "") -> dict:
     }
     headers = {"Content-Type": "application/json"}
     req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
-    with urllib.request.urlopen(req, timeout=60) as response:
+    with urllib.request.urlopen(req, timeout=120) as response:
         res_data = json.loads(response.read().decode("utf-8"))
-        return json.loads(res_data["response"])
+        text = res_data.get("response", "").strip()
+        if text.startswith("```"):
+            import re
+            text = re.sub(r"^```(?:json)?\s*\n?", "", text)
+            text = re.sub(r"\n?```\s*$", "", text).strip()
+        return json.loads(text)
 
 # =================================================================
 # 🎯 비즈니스 AI 기능: 단어 생성 / 채점 / 연상법 코칭
