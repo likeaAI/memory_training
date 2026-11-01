@@ -1126,6 +1126,11 @@
               <label for="inputCustomOllamaModel"><strong>✏️ 커스텀 모델 태그 입력</strong></label>
               <input type="text" id="inputCustomOllamaModel" placeholder="예: my_memory_gemma4:latest, qwen2.5:14b" style="width: 100%; padding: 10px; margin-top: 6px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: var(--radius-md); color: var(--text-primary); font-size: 13px;">
             </div>
+                        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+              <button type="button" id="btnUnloadVram" class="btn-secondary btn-sm" style="flex: 1; border-color: rgba(168, 85, 247, 0.4); color: #a855f7; font-weight: 700; padding: 8px;">
+                🧹 VRAM 즉시 비우기 (GPU 메모리 100% 반환)
+              </button>
+            </div>
             <div style="font-size: 11px; color: var(--text-muted); line-height: 1.45; background: rgba(0,0,0,0.18); padding: 8px 10px; border-radius: 6px;">
               💡 <strong>Tip:</strong> PC에서 <code>ollama pull gemma4:e4b</code> 또는 본인이 파인튜닝한 모델을 등록해두면 로컬 오프라인 환경에서도 고성능 연상 암기 스토리를 무제한 생성합니다. (VRAM 8GB 최적)
             </div>

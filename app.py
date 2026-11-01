@@ -289,7 +289,7 @@ class MemoryAppHandler(SimpleHTTPRequestHandler):
                     "num_ctx": 4096,
                     "num_predict": 2048,
                     "repeat_penalty": 1.15,
-                    "num_gpu": 45
+                    "num_gpu": 99
                 }
             }
             if system:
@@ -308,6 +308,30 @@ class MemoryAppHandler(SimpleHTTPRequestHandler):
                     return self._send_json({"success": True, "response": resp_json.get("response", "")})
             except Exception as e:
                 return self._send_json({"success": False, "error": f"Ollama 생성 오류: {e}"}, status=500)
+
+                # 12-4. 🧹 VRAM 즉시 반환 / 잔여 모델 언로드 API
+        elif path == "/api/ollama-unload":
+            ollama_url = (data.get("url") or "http://localhost:11434").rstrip("/")
+            model_to_unload = data.get("model", "")
+            try:
+                models = []
+                if model_to_unload:
+                    models = [model_to_unload]
+                else:
+                    ps_req = urllib.request.Request(f"{ollama_url}/api/ps")
+                    with urllib.request.urlopen(ps_req, timeout=2) as ps_res:
+                        ps_data = json.loads(ps_res.read().decode("utf-8"))
+                        models = [m.get("name") for m in ps_data.get("models", []) if m.get("name")]
+                for m in models:
+                    req = urllib.request.Request(
+                        f"{ollama_url}/api/generate",
+                        data=json.dumps({"model": m, "keep_alive": 0}).encode("utf-8"),
+                        headers={"Content-Type": "application/json"}
+                    )
+                    urllib.request.urlopen(req, timeout=3)
+                return self._send_json({"success": True, "unloaded": models})
+            except Exception as e:
+                return self._send_json({"success": False, "error": str(e)})
 
         # 13. ⚙️ AI 공급자 및 모델 설정 저장 API (서버 메모리 동기화)
         elif path == "/api/set-ai-config":

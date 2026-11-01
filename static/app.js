@@ -632,7 +632,7 @@ async function callOllamaClient(prompt, temperature = 0.7, system = "") {
       num_ctx: 4096,
       num_predict: 2048,
       repeat_penalty: 1.15,
-      num_gpu: 45
+      num_gpu: 99
     }
   };
   if (system) payload.system = system;
@@ -3796,6 +3796,55 @@ function setupSettingsModal() {
     };
   }
 
+    // 🧹 VRAM 즉시 비우기 버튼
+  const btnUnloadVram = document.getElementById('btnUnloadVram');
+  if (btnUnloadVram) {
+    btnUnloadVram.onclick = async () => {
+      const url = (inputOllamaUrl ? inputOllamaUrl.value.trim() : 'http://localhost:11434').replace(/\/+$/, '');
+      btnUnloadVram.innerText = '🧹 VRAM 비우는 중...';
+      btnUnloadVram.disabled = true;
+
+      try {
+        let unloaded = [];
+        if (!SERVERLESS_CONFIG.isStandalone()) {
+          const res = await fetch('/api/ollama-unload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+          });
+          const d = await res.json();
+          unloaded = d.unloaded || [];
+        } else {
+          // 브라우저 직접 ps 후 언로드
+          const psRes = await fetch(`${url}/api/ps`);
+          if (psRes.ok) {
+            const psData = await psRes.json();
+            for (const m of (psData.models || [])) {
+              if (m.name) {
+                await fetch(`${url}/api/generate`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ model: m.name, keep_alive: 0 })
+                });
+                unloaded.push(m.name);
+              }
+            }
+          }
+        }
+        alert(`🧹 VRAM 비우기 완료!\nGPU 메모리가 100% 반환되었습니다.\n(언로드된 모델: ${unloaded.join(', ') || '없음'})`);
+        if (badgeOllamaStatus) {
+          badgeOllamaStatus.innerText = '🟡 VRAM 반환 완료';
+          badgeOllamaStatus.style.color = '#eab308';
+        }
+      } catch (err) {
+        alert(`⚠️ VRAM 비우기 오류: ${err.message}`);
+      } finally {
+        btnUnloadVram.innerText = '🧹 VRAM 즉시 비우기 (GPU 메모리 100% 반환)';
+        btnUnloadVram.disabled = false;
+      }
+    };
+  }
+
   if (btnOpen && modal) {
     btnOpen.onclick = () => {
       modal.style.display = 'flex';
@@ -4510,6 +4559,55 @@ function setupCustomWordModal() {
   const btnApply = document.getElementById('btnApplyCustomWords');
   const inputName = document.getElementById('inputCustomSetName');
   const inputText = document.getElementById('inputCustomWordsText');
+
+    // 🧹 VRAM 즉시 비우기 버튼
+  const btnUnloadVram = document.getElementById('btnUnloadVram');
+  if (btnUnloadVram) {
+    btnUnloadVram.onclick = async () => {
+      const url = (inputOllamaUrl ? inputOllamaUrl.value.trim() : 'http://localhost:11434').replace(/\/+$/, '');
+      btnUnloadVram.innerText = '🧹 VRAM 비우는 중...';
+      btnUnloadVram.disabled = true;
+
+      try {
+        let unloaded = [];
+        if (!SERVERLESS_CONFIG.isStandalone()) {
+          const res = await fetch('/api/ollama-unload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+          });
+          const d = await res.json();
+          unloaded = d.unloaded || [];
+        } else {
+          // 브라우저 직접 ps 후 언로드
+          const psRes = await fetch(`${url}/api/ps`);
+          if (psRes.ok) {
+            const psData = await psRes.json();
+            for (const m of (psData.models || [])) {
+              if (m.name) {
+                await fetch(`${url}/api/generate`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ model: m.name, keep_alive: 0 })
+                });
+                unloaded.push(m.name);
+              }
+            }
+          }
+        }
+        alert(`🧹 VRAM 비우기 완료!\nGPU 메모리가 100% 반환되었습니다.\n(언로드된 모델: ${unloaded.join(', ') || '없음'})`);
+        if (badgeOllamaStatus) {
+          badgeOllamaStatus.innerText = '🟡 VRAM 반환 완료';
+          badgeOllamaStatus.style.color = '#eab308';
+        }
+      } catch (err) {
+        alert(`⚠️ VRAM 비우기 오류: ${err.message}`);
+      } finally {
+        btnUnloadVram.innerText = '🧹 VRAM 즉시 비우기 (GPU 메모리 100% 반환)';
+        btnUnloadVram.disabled = false;
+      }
+    };
+  }
 
   if (btnOpen && modal) {
     btnOpen.onclick = () => {

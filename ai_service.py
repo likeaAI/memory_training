@@ -84,16 +84,35 @@ def clean_and_parse_json(raw_text: str) -> dict:
             return json.loads(text[first_bracket:last_bracket+1])
         raise
 
+def unload_other_ollama_models(target_model=""):
+    """새 작업 시작 전, 현재 선택된 모델 외의 잔여 모델을 VRAM에서 즉시 퇴출하여 100% VRAM 확보"""
+    try:
+        req = urllib.request.Request(f"{OLLAMA_BASE_URL}/api/ps")
+        with urllib.request.urlopen(req, timeout=2.0) as res:
+            data = json.loads(res.read().decode("utf-8"))
+            for m in data.get("models", []):
+                name = m.get("name", "")
+                if name and name != target_model:
+                    evict_req = urllib.request.Request(
+                        f"{OLLAMA_BASE_URL}/api/generate",
+                        data=json.dumps({"model": name, "keep_alive": 0}).encode("utf-8"),
+                        headers={"Content-Type": "application/json"}
+                    )
+                    urllib.request.urlopen(evict_req, timeout=2.0)
+    except Exception:
+        pass
+
 def call_ollama(prompt: str, system_instruction: str = "", model: str = None, temperature: float = 0.05) -> dict:
     """로컬 Ollama LLM 호출 (원서번역 Gemma 4 12B 최적화 프리셋 적용)"""
     target_model = model or OLLAMA_MODEL
+    unload_other_ollama_models(target_model)
     url = f"{OLLAMA_BASE_URL}/api/generate"
     ollama_opts = {
         "temperature": temperature,
         "num_ctx": 4096,
         "num_predict": 2048,
         "repeat_penalty": 1.15,
-        "num_gpu": 45
+        "num_gpu": 99
     }
     payload = {
         "model": target_model,
