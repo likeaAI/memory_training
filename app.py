@@ -268,13 +268,13 @@ class MemoryAppHandler(SimpleHTTPRequestHandler):
             db.clear_finetune_dataset(user_id=user_id)
             return self._send_json({"success": True})
 
-        # 12. 🦙 Ollama 로컬 모델 생성 API (CORS 방지 프록시)
+        # 12. 🦙 Ollama 로컬 모델 생성 API (원서번역 Gemma4 12B 최적화 프리셋)
         elif path == "/api/ollama-generate":
             ollama_url = (data.get("url") or "http://localhost:11434").rstrip("/")
-            model = data.get("model", "gemma4:e4b")
+            model = data.get("model", "batiai/gemma4-12b:iq4")
             prompt = data.get("prompt", "")
             system = data.get("system", "")
-            temperature = float(data.get("temperature", 0.7))
+            temperature = float(data.get("temperature", 0.05))
             format_type = data.get("format", "json")
 
             target_url = f"{ollama_url}/api/generate"
@@ -282,8 +282,14 @@ class MemoryAppHandler(SimpleHTTPRequestHandler):
                 "model": model,
                 "prompt": prompt,
                 "stream": False,
+                "think": False,
+                "keep_alive": -1,
                 "options": {
-                    "temperature": temperature
+                    "temperature": temperature,
+                    "num_ctx": 4096,
+                    "num_predict": 2048,
+                    "repeat_penalty": 1.15,
+                    "num_gpu": 45
                 }
             }
             if system:
@@ -309,7 +315,7 @@ class MemoryAppHandler(SimpleHTTPRequestHandler):
             gemini_model = data.get("gemini_model", "gemini-2.5-flash")
             gemini_key = data.get("gemini_key", "").strip()
             ollama_url = data.get("ollama_url", "http://localhost:11434").strip()
-            ollama_model = data.get("ollama_model", "gemma4:e4b").strip()
+            ollama_model = data.get("ollama_model", "batiai/gemma4-12b:iq4").strip()
 
             ai.OLLAMA_BASE_URL = ollama_url
             ai.OLLAMA_MODEL = ollama_model

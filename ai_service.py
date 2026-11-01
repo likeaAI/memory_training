@@ -34,7 +34,7 @@ def get_gemini_api_key():
 GEMINI_API_KEY = get_gemini_api_key()
 USE_LOCAL_FALLBACK = True
 OLLAMA_BASE_URL = "http://localhost:11434"
-OLLAMA_MODEL = "gemma4:e4b"
+OLLAMA_MODEL = "batiai/gemma4-12b:iq4"
 
 # =================================================================
 # 🌐 AI LLM 통신 기반 레이어 (Gemini REST / Ollama)
@@ -84,23 +84,47 @@ def clean_and_parse_json(raw_text: str) -> dict:
             return json.loads(text[first_bracket:last_bracket+1])
         raise
 
-def call_ollama(prompt: str, system_instruction: str = "", model: str = None) -> dict:
-    """로컬 Ollama LLM 호출 (Gemma 4 / Qwen / Exaone 등)"""
+def call_ollama(prompt: str, system_instruction: str = "", model: str = None, temperature: float = 0.05) -> dict:
+    """로컬 Ollama LLM 호출 (원서번역 Gemma 4 12B 최적화 프리셋 적용)"""
     target_model = model or OLLAMA_MODEL
     url = f"{OLLAMA_BASE_URL}/api/generate"
+    ollama_opts = {
+        "temperature": temperature,
+        "num_ctx": 4096,
+        "num_predict": 2048,
+        "repeat_penalty": 1.15,
+        "num_gpu": 45
+    }
     payload = {
         "model": target_model,
         "prompt": prompt,
         "system": system_instruction,
         "format": "json",
-        "stream": False
+        "stream": False,
+        "think": False,
+        "keep_alive": -1,
+        "options": ollama_opts
     }
     headers = {"Content-Type": "application/json"}
-    req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
-    with urllib.request.urlopen(req, timeout=120) as response:
-        res_data = json.loads(response.read().decode("utf-8"))
-        raw_resp = res_data.get("response", "")
-        return clean_and_parse_json(raw_resp)
+    try:
+        req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
+        with urllib.request.urlopen(req, timeout=180) as response:
+            res_data = json.loads(response.read().decode("utf-8"))
+            return clean_and_parse_json(res_data.get("response", ""))
+    except urllib.error.HTTPError as e:
+        if e.code == 400 and "think" in payload:
+            payload.pop("think", None)
+            req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
+            with urllib.request.urlopen(req, timeout=180) as response:
+                res_data = json.loads(response.read().decode("utf-8"))
+                return clean_and_parse_json(res_data.get("response", ""))
+        elif e.code == 500 and payload["options"]["num_ctx"] > 1024:
+            payload["options"]["num_ctx"] = 1024
+            req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
+            with urllib.request.urlopen(req, timeout=180) as response:
+                res_data = json.loads(response.read().decode("utf-8"))
+                return clean_and_parse_json(res_data.get("response", ""))
+        raise
 
 # =================================================================
 # 🎯 비즈니스 AI 기능: 단어 생성 / 채점 / 연상법 코칭

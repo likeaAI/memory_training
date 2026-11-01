@@ -513,7 +513,7 @@ const SERVERLESS_CONFIG = {
   getModel: () => localStorage.getItem('brainlock_ai_model') || 'gemini-2.5-flash',
   getGeminiKey: () => localStorage.getItem('brainlock_gemini_key') || '',
   getOllamaUrl: () => localStorage.getItem('brainlock_ollama_url') || 'http://localhost:11434',
-  getOllamaModel: () => localStorage.getItem('brainlock_ollama_model') || 'gemma4:e4b',
+  getOllamaModel: () => localStorage.getItem('brainlock_ollama_model') || 'batiai/gemma4-12b:iq4',
   getSheetUrl: () => localStorage.getItem('brainlock_sheet_url') || '',
   // 🌐 로컬 파일(file:) 또는 GitHub Pages(github.io) 접속 시 100% 서버리스 경량 모드로 동작!
   isStandalone: () => window.location.protocol === 'file:' || window.location.origin.includes('github.io')
@@ -624,9 +624,15 @@ async function callOllamaClient(prompt, temperature = 0.7, system = "") {
     model: model,
     prompt: prompt,
     stream: false,
+    think: false,
+    keep_alive: -1,
     format: 'json',
     options: {
-      temperature: temperature
+      temperature: 0.05,
+      num_ctx: 4096,
+      num_predict: 2048,
+      repeat_penalty: 1.15,
+      num_gpu: 45
     }
   };
   if (system) payload.system = system;
@@ -3719,7 +3725,7 @@ function setupSettingsModal() {
       }
 
       if (selectOllama) {
-        const savedModel = localStorage.getItem('brainlock_ollama_model') || 'gemma4:e4b';
+        const savedModel = localStorage.getItem('brainlock_ollama_model') || 'batiai/gemma4-12b:iq4';
         let matched = false;
         selectOllama.innerHTML = '';
 
@@ -3805,7 +3811,7 @@ function setupSettingsModal() {
       if (inputOllamaUrl) inputOllamaUrl.value = localStorage.getItem('brainlock_ollama_url') || 'http://localhost:11434';
       if (inputUrl) inputUrl.value = localStorage.getItem('brainlock_sheet_url') || '';
 
-      const savedOllamaModel = localStorage.getItem('brainlock_ollama_model') || 'gemma4:e4b';
+      const savedOllamaModel = localStorage.getItem('brainlock_ollama_model') || 'batiai/gemma4-12b:iq4';
       if (selectOllama) {
         let found = false;
         for (let i = 0; i < selectOllama.options.length; i++) {
