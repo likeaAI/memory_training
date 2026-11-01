@@ -157,7 +157,7 @@ import time
 # =================================================================
 WORD_POOL_CACHE = {}
 
-def get_or_create_word_pool(mode: str, user_input: str, difficulty: str = "normal", provider: str = "gemini", model: str = None) -> list:
+def get_or_create_word_pool(mode: str, user_input: str, difficulty: str = "normal", provider: str = "gemini", model: str = None, word_count: int = 5) -> list:
     """주제에 대한 25~30개의 방대한 단어 풀을 생성하거나 캐시에서 반환 (모델별 격리 캐시)"""
     target_provider = provider or "gemini"
     target_model = model or (OLLAMA_MODEL if target_provider == "ollama" else DEFAULT_GEMINI_MODEL)
@@ -228,9 +228,26 @@ def get_or_create_word_pool(mode: str, user_input: str, difficulty: str = "norma
 - 한국어로 작성
 """
     if target_provider == "ollama":
-        print(f"[단어 생성] Ollama 로컬 모델 [{target_model}] 직접 호출...")
+        req_count = word_count or 5
+        print(f"[단어 생성] Ollama 로컬 모델 [{target_model}] 직접 호출 (타겟: {req_count}개 초고속 생성)...")
+        fast_prompt = f"""[역할]: '{user_input}' 전공 교수
+{diff_instruction}
+주제 '{user_input}'에 관련된 핵심 전문 용어 정확히 {req_count}개를 초간결 JSON으로 작성하세요.
+반드시 아래 JSON 포맷으로만 응답:
+{{
+  "quiz_data": [
+    {{
+      "word": "핵심전문용어",
+      "category": "{user_input}",
+      "definition": "1문장 핵심 정의 (15자 이내)",
+      "importance_reason": "핵심 포인트 (15자 이내)",
+      "visual_anchor": "💡 연상 사물"
+    }}
+  ]
+}}
+- 불필요한 설명 일절 금지, 정확히 {req_count}개의 단어 목록만 JSON으로 답하세요."""
         try:
-            result = call_ollama(prompt, "JSON Format", model=target_model)
+            result = call_ollama(fast_prompt, "JSON Format", model=target_model)
         except Exception as e:
             print(f"Ollama 생성 오류({e}), Gemini 폴백 시도")
             result = call_gemini_rest(prompt, temperature=0.95)
@@ -255,7 +272,7 @@ def generate_words(mode: str, user_input: str, word_count: int = 5, exclude_word
     target_provider = provider or "gemini"
     target_model = model or (OLLAMA_MODEL if target_provider == "ollama" else DEFAULT_GEMINI_MODEL)
     cache_key = f"{target_provider}:{target_model}:{mode}:{difficulty}:{user_input.strip()}"
-    pool = get_or_create_word_pool(mode, user_input, difficulty=difficulty, provider=target_provider, model=target_model)
+    pool = get_or_create_word_pool(mode, user_input, difficulty=difficulty, provider=target_provider, model=target_model, word_count=word_count)
     exclude_set = set(exclude_words or [])
 
     # 1. 이미 학습한 단어 제외

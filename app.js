@@ -620,6 +620,8 @@ async function callOllamaClient(prompt, temperature = 0.7, system = "") {
 
   // 2. 브라우저 직접 fetch
   const targetUrl = `${url}/api/generate`;
+  // 요청 프롬프트 길이에 맞춰 num_predict를 500~800으로 최적화하여 딜레이 60% 단축
+  const maxPred = prompt.length > 500 ? 800 : 500;
   const payload = {
     model: model,
     prompt: prompt,
@@ -630,7 +632,7 @@ async function callOllamaClient(prompt, temperature = 0.7, system = "") {
     options: {
       temperature: 0.05,
       num_ctx: 4096,
-      num_predict: 2048,
+      num_predict: maxPred,
       repeat_penalty: 1.15,
       num_gpu: 99
     }
@@ -997,7 +999,32 @@ async function generateWordsClient(mode, userInput, count = 5, excludeWords = []
 - 시험 및 실무에서 가장 빈출되는 표준 핵심 전문 용어로 균형 있게 엄선하세요.`;
       }
 
-      const prompt = `
+      const isLocalAI = SERVERLESS_CONFIG.getProvider() === 'ollama';
+      const reqCount = count || 5;
+      let prompt = '';
+
+      if (isLocalAI) {
+        // ⚡ 로컬 AI(Ollama) 특화: 요청 개수(5개/10개)만큼만 초간결 생성하여 10~20초 컷!
+        prompt = `
+[역할]: '${cleanInput}' 전공 교수
+${diffInstruction}
+주제 '${cleanInput}'에 관련된 핵심 전문 용어 정확히 ${reqCount}개를 초간결 JSON으로 생성하세요.
+[필수 JSON 포맷]:
+{
+  "quiz_data": [
+    {
+      "word": "핵심전문용어",
+      "definition": "1문장 핵심 정의 (15자 이내)",
+      "importance_reason": "출제 포인트 (15자 이내)",
+      "visual_anchor": "💡 연상 사물"
+    }
+  ]
+}
+- 불필요한 서두나 사족 없이, 정확히 ${reqCount}개의 JSON 배열만 출력하세요.
+`;
+      } else {
+        // 클라우드 Gemini: 25개 대용량 풀 생성
+        prompt = `
 [역할]: '${cleanInput}' 분야 전공 교수
 ${diffInstruction}
 주제 '${cleanInput}'에 관련된 핵심 전문 용어 총 25개를 엄선하세요.
@@ -1014,6 +1041,7 @@ ${diffInstruction}
 }
 - 25개 단어, 한국어로 작성.
 `;
+      }
       console.log(`[AI 프롬프트 생성] 난이도: ${diff} 적용 완료`);
       const res = await callAIClient(prompt, 0.95);
       pool = (res.quiz_data || []).map(item => ({
