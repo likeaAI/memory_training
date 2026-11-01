@@ -98,8 +98,10 @@ class MemoryAppHandler(SimpleHTTPRequestHandler):
             word_count = int(data.get("count", 10 if mode == "multi" else 5))
             exclude_words = data.get("exclude_words", [])
             difficulty = data.get("difficulty", "normal")
+            provider = data.get("provider", "gemini")
+            model = data.get("model")
             try:
-                result = ai.generate_words(mode, user_input, word_count, exclude_words=exclude_words, difficulty=difficulty)
+                result = ai.generate_words(mode, user_input, word_count, exclude_words=exclude_words, difficulty=difficulty, provider=provider, model=model)
                 return self._send_json(result)
             except Exception as e:
                 return self._send_json({"error": f"단어 생성 실패: {e}"}, status=500)

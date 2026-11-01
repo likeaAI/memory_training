@@ -1112,10 +1112,13 @@
             <div class="form-group" style="margin-bottom: 12px;">
               <label for="selectOllamaModel"><strong>📦 로컬 모델 선택</strong></label>
               <select id="selectOllamaModel" style="width: 100%; padding: 10px; margin-top: 6px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: var(--radius-md); color: var(--text-primary); font-size: 13px;">
-                <option value="gemma4:e4b">gemma4:e4b (Gemma 4 경량 파인튜닝 특화)</option>
-                <option value="gemma2:9b">gemma2:9b (Gemma 2 한국어 우수)</option>
-                <option value="qwen2.5:7b">qwen2.5:7b (Qwen 2.5 7B 추론)</option>
-                <option value="mistral:latest">mistral:latest (Mistral 7B 표준)</option>
+                <option value="gemma4:e4b" selected>gemma4:e4b (Gemma 4 E4B 파인튜닝 특화 / 7.5B Q4_K_M)</option>
+                <option value="gemma4:12b">gemma4:12b (Gemma 4 12B Q4_K_M 고지능 연상)</option>
+                <option value="batiai/gemma4-12b:iq4">batiai/gemma4-12b:iq4 (Gemma 4 12B IQ4_XS 경량)</option>
+                <option value="fauxpaslife/gemma-4-E4B-it-textonly-sysprmpt-Q4_K_M:latest">fauxpaslife/gemma-4-E4B-it-textonly (시스템 프롬프트 특화)</option>
+                <option value="qwen3.5:9b-q4_K_M">qwen3.5:9b-q4_K_M (Qwen 3.5 9B 고성능 추론)</option>
+                <option value="aiconjured/Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-MTP-GGUF-NVFP4:latest">Qwen3.5-9B-Uncensored (무검열 9.2B)</option>
+                <option value="exaone3.5:7.8b">exaone3.5:7.8b (LG EXAONE 3.5 한국어 특화)</option>
                 <option value="custom">✏️ 직접 입력 (커스텀 모델명)</option>
               </select>
             </div>

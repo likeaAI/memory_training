@@ -519,27 +519,54 @@ const SERVERLESS_CONFIG = {
   isStandalone: () => window.location.protocol === 'file:' || window.location.origin.includes('github.io')
 };
 
+// <thought> 태그 및 마크다운 코드블록 안전 제거 후 JSON 파싱
+function cleanAndParseJSON(rawText) {
+  let text = (rawText || '').trim();
+  // 1. <thought>...</thought> 블록 완전 제거 (Gemma4/Qwen 등 추론 모델 대응)
+  text = text.replace(/<thought>[\s\S]*?<\/thought>/gi, '').trim();
+  // 2. 마크다운 코드 블록 제거
+  text = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
+  // 3. 직접 파싱 시도
+  try {
+    return JSON.parse(text);
+  } catch (e1) {
+    // 4. JSON 객체({...}) 또는 배열([...]) 시작/끝 탐색
+    const firstBrace = text.indexOf('{');
+    const lastBrace = text.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      try {
+        return JSON.parse(text.substring(firstBrace, lastBrace + 1));
+      } catch (e2) {}
+    }
+    const firstBracket = text.indexOf('[');
+    const lastBracket = text.lastIndexOf(']');
+    if (firstBracket !== -1 && lastBracket > firstBracket) {
+      return JSON.parse(text.substring(firstBracket, lastBracket + 1));
+    }
+    throw e1;
+  }
+}
+
 // =================================================================
 // 🦙 Ollama 로컬 LLM & 통합 AI 클라이언트 호출 레이어
 // =================================================================
 
-// Ollama 설치 모델 목록 비동기 조회
+// Ollama 설치 모델 목록 비동기 조회 (프록시 & 브라우저 듀얼 감지)
 async function fetchOllamaModels(customUrl) {
   const url = (customUrl || SERVERLESS_CONFIG.getOllamaUrl() || 'http://localhost:11434').replace(/\/+$/, '');
 
-  // 1. Python 서버 프록시 시도 (CORS 및 로컬 루프백 방지)
-  if (!SERVERLESS_CONFIG.isStandalone()) {
+  // 1. Python 프록시 우선 시도 (상대 경로 및 localhost:10000)
+  const proxyEndpoints = [`/api/ollama-tags?url=${encodeURIComponent(url)}`, `http://localhost:10000/api/ollama-tags?url=${encodeURIComponent(url)}`];
+  for (const proxyUrl of proxyEndpoints) {
     try {
-      const res = await fetch(`/api/ollama-tags?url=${encodeURIComponent(url)}`);
+      const res = await fetch(proxyUrl);
       if (res.ok) {
         const data = await res.json();
         if (data.success && Array.isArray(data.models)) {
           return { success: true, models: data.models };
         }
       }
-    } catch (e) {
-      console.warn('Ollama 태그 프록시 실패, 직접 fetch 시도:', e);
-    }
+    } catch (e) {}
   }
 
   // 2. 브라우저 직접 fetch
@@ -555,15 +582,18 @@ async function fetchOllamaModels(customUrl) {
   }
 }
 
-// Ollama 단일 요청 호출 (JSON 응답)
+// Ollama 단일 요청 호출 (JSON 응답 및 <thought> 필터링)
 async function callOllamaClient(prompt, temperature = 0.7, system = "") {
   const url = (SERVERLESS_CONFIG.getOllamaUrl() || 'http://localhost:11434').replace(/\/+$/, '');
   const model = SERVERLESS_CONFIG.getOllamaModel() || 'gemma4:e4b';
 
-  // 1. Python 서버 프록시 시도
-  if (!SERVERLESS_CONFIG.isStandalone()) {
+  console.log(`🦙 [Ollama API 호출] 모델: ${model}, 대상: ${url}`);
+
+  // 1. Python 서버 프록시 시도 (로컬 포트 10000 또는 상대경로)
+  const proxyEndpoints = ['/api/ollama-generate', 'http://localhost:10000/api/ollama-generate'];
+  for (const proxyUrl of proxyEndpoints) {
     try {
-      const res = await fetch('/api/ollama-generate', {
+      const res = await fetch(proxyUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -578,17 +608,13 @@ async function callOllamaClient(prompt, temperature = 0.7, system = "") {
       if (res.ok) {
         const data = await res.json();
         if (data.success && data.response) {
-          let text = data.response.trim();
-          if (text.startsWith('```')) {
-            text = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
-          }
-          return JSON.parse(text);
+          return cleanAndParseJSON(data.response);
         } else if (data.error) {
           throw new Error(data.error);
         }
       }
-    } catch (proxyErr) {
-      console.warn('Ollama 서버 프록시 오류, 브라우저 직접 fetch 시도:', proxyErr);
+    } catch (e) {
+      // 다음 엔드포인트 또는 직접 fetch로 넘어감
     }
   }
 
@@ -616,11 +642,7 @@ async function callOllamaClient(prompt, temperature = 0.7, system = "") {
   }
 
   const json = await res.json();
-  let text = (json.response || '').trim();
-  if (text.startsWith('```')) {
-    text = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
-  }
-  return JSON.parse(text);
+  return cleanAndParseJSON(json.response || '');
 }
 
 // 통합 AI 분기 호출 (Provider: 'gemini' | 'ollama' | 'offline')
@@ -1679,11 +1701,15 @@ document.getElementById('btnStartGenerate').addEventListener('click', async () =
       return;
     }
 
+    const curProv = SERVERLESS_CONFIG.getProvider();
+    const curModel = curProv === 'ollama' ? SERVERLESS_CONFIG.getOllamaModel() : SERVERLESS_CONFIG.getModel();
     payload = {
       mode: state.activeTab,
       input: inputVal,
       count: state.wordCount,
-      difficulty: state.difficulty
+      difficulty: state.difficulty,
+      provider: curProv,
+      model: curModel
     };
     toggleLoading(true, `AI가 [${state.difficulty.toUpperCase()}] 난이도에 맞춰 핵심 전공 용어와 시각 앵커를 설계하고 있습니다...`);
   }
@@ -3697,11 +3723,27 @@ function setupSettingsModal() {
         let matched = false;
         selectOllama.innerHTML = '';
 
+        function getModelDisplayName(m) {
+          const name = m.name;
+          const param = m.details && m.details.parameter_size ? ' [' + m.details.parameter_size + ']' : '';
+          const quant = m.details && m.details.quantization_level ? ' (' + m.details.quantization_level + ')' : '';
+          if (name.includes('gemma4:e4b') || name.includes('gemma-4-E4B')) {
+            return '⚡ ' + name + ' - Gemma 4 E4B (VRAM 8GB 최적 / 파인튜닝 특화)' + param + quant;
+          } else if (name.includes('gemma4:12b') || name.includes('gemma4-12b')) {
+            return '🧠 ' + name + ' - Gemma 4 12B (고지능 심층 연상)' + param + quant;
+          } else if (name.toLowerCase().includes('qwen')) {
+            return '🚀 ' + name + ' - Qwen (고성능 추론)' + param + quant;
+          } else if (name.toLowerCase().includes('exaone')) {
+            return '🇰🇷 ' + name + ' - LG EXAONE 3.5 (한국어 특화)' + param + quant;
+          }
+          const sizeGb = m.size ? ' (' + (m.size / (1024 * 1024 * 1024)).toFixed(1) + ' GB)' : '';
+          return '📦 ' + name + sizeGb + param + quant;
+        }
+
         models.forEach(m => {
           const opt = document.createElement('option');
           opt.value = m.name;
-          const sizeGb = m.size ? ` (${(m.size / (1024 * 1024 * 1024)).toFixed(1)} GB)` : '';
-          opt.innerText = `${m.name}${sizeGb}`;
+          opt.innerText = getModelDisplayName(m);
           if (m.name === savedModel) {
             opt.selected = true;
             matched = true;
@@ -3709,7 +3751,6 @@ function setupSettingsModal() {
           selectOllama.appendChild(opt);
         });
 
-        // 커스텀 옵션 추가
         const customOpt = document.createElement('option');
         customOpt.value = 'custom';
         customOpt.innerText = '✏️ 직접 입력 (커스텀 모델명)';
@@ -3756,7 +3797,8 @@ function setupSettingsModal() {
 
       // 저장된 설정값 불러오기
       currentProvider = SERVERLESS_CONFIG.getProvider();
-      setProviderUI(currentProvider, currentProvider === 'ollama');
+      setProviderUI(currentProvider, false);
+      refreshOllamaModelsUI(false);
 
       if (selectModel) selectModel.value = localStorage.getItem('brainlock_ai_model') || 'gemini-2.5-flash';
       if (inputKey) inputKey.value = localStorage.getItem('brainlock_gemini_key') || '';

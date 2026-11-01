@@ -54,8 +54,31 @@ def call_gemini_rest(prompt: str, model: str = None, temperature: float = 0.9) -
         text_content = res_data["candidates"][0]["content"]["parts"][0]["text"]
         return json.loads(text_content)
 
+def clean_and_parse_json(raw_text: str) -> dict:
+    """<thought> 태그 및 마크다운 코드블록 제거 후 안전하게 JSON 파싱"""
+    import re
+    text = (raw_text or "").strip()
+    text = re.sub(r"<thought>[\s\S]*?</thought>", "", text, flags=re.IGNORECASE).strip()
+    text = re.sub(r"^```(?:json)?\s*\n?", "", text)
+    text = re.sub(r"\n?```\s*$", "", text).strip()
+    try:
+        return json.loads(text)
+    except Exception:
+        first_brace = text.find("{")
+        last_brace = text.rfind("}")
+        if first_brace != -1 and last_brace > first_brace:
+            try:
+                return json.loads(text[first_brace:last_brace+1])
+            except Exception:
+                pass
+        first_bracket = text.find("[")
+        last_bracket = text.rfind("]")
+        if first_bracket != -1 and last_bracket > first_bracket:
+            return json.loads(text[first_bracket:last_bracket+1])
+        raise
+
 def call_ollama(prompt: str, system_instruction: str = "", model: str = None) -> dict:
-    """로컬 Ollama LLM 폴백 호출 (Gemma 4 / Qwen 등)"""
+    """로컬 Ollama LLM 호출 (Gemma 4 / Qwen / Exaone 등)"""
     target_model = model or OLLAMA_MODEL
     url = f"{OLLAMA_BASE_URL}/api/generate"
     payload = {
@@ -69,12 +92,8 @@ def call_ollama(prompt: str, system_instruction: str = "", model: str = None) ->
     req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
     with urllib.request.urlopen(req, timeout=120) as response:
         res_data = json.loads(response.read().decode("utf-8"))
-        text = res_data.get("response", "").strip()
-        if text.startswith("```"):
-            import re
-            text = re.sub(r"^```(?:json)?\s*\n?", "", text)
-            text = re.sub(r"\n?```\s*$", "", text).strip()
-        return json.loads(text)
+        raw_resp = res_data.get("response", "")
+        return clean_and_parse_json(raw_resp)
 
 # =================================================================
 # 🎯 비즈니스 AI 기능: 단어 생성 / 채점 / 연상법 코칭
@@ -88,9 +107,11 @@ import time
 # =================================================================
 WORD_POOL_CACHE = {}
 
-def get_or_create_word_pool(mode: str, user_input: str, difficulty: str = "normal") -> list:
-    """주제에 대한 25~30개의 방대한 단어 풀을 생성하거나 캐시에서 반환"""
-    cache_key = f"{mode}:{difficulty}:{user_input.strip()}"
+def get_or_create_word_pool(mode: str, user_input: str, difficulty: str = "normal", provider: str = "gemini", model: str = None) -> list:
+    """주제에 대한 25~30개의 방대한 단어 풀을 생성하거나 캐시에서 반환 (모델별 격리 캐시)"""
+    target_provider = provider or "gemini"
+    target_model = model or (OLLAMA_MODEL if target_provider == "ollama" else DEFAULT_GEMINI_MODEL)
+    cache_key = f"{target_provider}:{target_model}:{mode}:{difficulty}:{user_input.strip()}"
     
     # 캐시에 10개 이상 남아있으면 그대로 사용
     if cache_key in WORD_POOL_CACHE and len(WORD_POOL_CACHE[cache_key]) >= 10:
@@ -156,11 +177,19 @@ def get_or_create_word_pool(mode: str, user_input: str, difficulty: str = "norma
 - 20~25개의 다양한 용어 목록
 - 한국어로 작성
 """
-    try:
-        result = call_gemini_rest(prompt, temperature=0.95)
-    except Exception as e:
-        print(f"Gemini API 풀 생성 오류({e}), 로컬 Ollama 폴백")
-        result = call_ollama(prompt, "JSON Format")
+    if target_provider == "ollama":
+        print(f"🦙 [단어 생성] Ollama 로컬 모델 [{target_model}] 직접 호출...")
+        try:
+            result = call_ollama(prompt, "JSON Format", model=target_model)
+        except Exception as e:
+            print(f"Ollama 생성 오류({e}), Gemini 폴백 시도")
+            result = call_gemini_rest(prompt, temperature=0.95)
+    else:
+        try:
+            result = call_gemini_rest(prompt, model=target_model, temperature=0.95)
+        except Exception as e:
+            print(f"Gemini API 풀 생성 오류({e}), 로컬 Ollama 폴백")
+            result = call_ollama(prompt, "JSON Format", model=OLLAMA_MODEL)
 
     pool = result.get("quiz_data", [])
     for item in pool:
@@ -171,10 +200,12 @@ def get_or_create_word_pool(mode: str, user_input: str, difficulty: str = "norma
     WORD_POOL_CACHE[cache_key] = pool
     return pool
 
-def generate_words(mode: str, user_input: str, word_count: int = 5, exclude_words: list = None, difficulty: str = "normal") -> dict:
-    """단어 풀에서 무작위 셔플링(Random Sampling)하여 신선한 단어 조합 반환 (난이도/정밀도 적용)"""
-    cache_key = f"{mode}:{difficulty}:{user_input.strip()}"
-    pool = get_or_create_word_pool(mode, user_input, difficulty=difficulty)
+def generate_words(mode: str, user_input: str, word_count: int = 5, exclude_words: list = None, difficulty: str = "normal", provider: str = "gemini", model: str = None) -> dict:
+    """단어 풀에서 무작위 셔플링(Random Sampling)하여 신선한 단어 조합 반환 (모델/공급자별)"""
+    target_provider = provider or "gemini"
+    target_model = model or (OLLAMA_MODEL if target_provider == "ollama" else DEFAULT_GEMINI_MODEL)
+    cache_key = f"{target_provider}:{target_model}:{mode}:{difficulty}:{user_input.strip()}"
+    pool = get_or_create_word_pool(mode, user_input, difficulty=difficulty, provider=target_provider, model=target_model)
     exclude_set = set(exclude_words or [])
 
     # 1. 이미 학습한 단어 제외
