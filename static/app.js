@@ -621,7 +621,8 @@ async function callOllamaClient(prompt, temperature = 0.7, system = "") {
           prompt: prompt,
           system: system,
           temperature: temperature,
-          format: 'json'
+          format: 'json',
+          think: false
         })
       });
       if (res.ok) {
@@ -726,7 +727,10 @@ async function callGeminiClient(prompt, temperature = 0.9) {
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: {
       response_mime_type: "application/json",
-      temperature: temperature
+      temperature: temperature,
+      thinkingConfig: {
+        thinkingBudget: 0
+      }
     }
   };
 
@@ -1063,7 +1067,8 @@ ${diffInstruction}${excludeInstruction}
     }
   ]
 }
-- 불필요한 사족 없이 정확히 20개의 JSON 배열만 출력하세요.
+- [추론모드 OFF]: <thought> 태그나 중간 생각/추론 과정을 일절 출력하지 마세요.
+- 불필요한 사족 없이 첫 글자부터 끝 글자까지 오직 완성된 JSON만 즉시 출력하세요.
 `;
       } else {
         // 클라우드 Gemini: 25개 대용량 풀 생성

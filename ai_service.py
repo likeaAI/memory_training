@@ -50,7 +50,10 @@ def call_gemini_rest(prompt: str, model: str = None, temperature: float = 0.9) -
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
             "response_mime_type": "application/json",
-            "temperature": temperature
+            "temperature": temperature,
+            "thinkingConfig": {
+                "thinkingBudget": 0
+            }
         }
     }
     headers = {"Content-Type": "application/json"}
@@ -261,7 +264,8 @@ def get_or_create_word_pool(mode: str, user_input: str, difficulty: str = "norma
     }}
   ]
 }}
-- 불필요한 설명 일절 금지, 정확히 {req_count}개의 단어 목록만 JSON으로 답하세요."""
+- [추론모드 OFF]: <thought> 태그나 중간 생각/추론 과정을 일절 출력하지 마세요.
+- 불필요한 설명 일절 금지, 정확히 {req_count}개의 단어 목록만 순수 JSON으로 즉시 답하세요."""
         try:
             result = call_ollama(fast_prompt, "JSON Format", model=target_model)
         except Exception as e:
