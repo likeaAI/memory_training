@@ -238,6 +238,33 @@ class MemoryAppHandler(SimpleHTTPRequestHandler):
             except Exception as e:
                 return self._send_json({"error": f"저장 실패: {e}"}, status=500)
 
+        # 9. 🤖 [신규] LLM 파인튜닝 데이터셋 샘플 저장 API
+        elif path == "/api/save-finetune-sample":
+            user_id = int(data.get("user_id", 1))
+            sample = data.get("sample", {})
+            if not sample or not sample.get("user_story"):
+                return self._send_json({"error": "사용자 작성 연상 스토리가 비어 있습니다."}, status=400)
+            try:
+                sample_id = db.save_finetune_sample(sample, user_id=user_id)
+                return self._send_json({"success": True, "sample_id": sample_id})
+            except Exception as e:
+                return self._send_json({"error": f"파인튜닝 샘플 저장 실패: {e}"}, status=500)
+
+        # 10. 파인튜닝 샘플 삭제 API
+        elif path == "/api/delete-finetune-sample":
+            user_id = int(data.get("user_id", 1))
+            sample_id = data.get("sample_id", "").strip()
+            if not sample_id:
+                return self._send_json({"error": "sample_id가 필요합니다."}, status=400)
+            db.delete_finetune_sample(sample_id, user_id=user_id)
+            return self._send_json({"success": True})
+
+        # 11. 파인튜닝 데이터셋 전체 초기화 API
+        elif path == "/api/clear-finetune-dataset":
+            user_id = int(data.get("user_id", 1))
+            db.clear_finetune_dataset(user_id=user_id)
+            return self._send_json({"success": True})
+
         return self._send_json({"error": "Not Found"}, status=404)
 
     def do_GET(self):
@@ -245,6 +272,11 @@ class MemoryAppHandler(SimpleHTTPRequestHandler):
         path = parsed_url.path
         query = parse_qs(parsed_url.query)
         user_id = int(query.get("user_id", [1])[0])
+
+        # 🤖 [신규] LLM 파인튜닝 데이터셋 조회 API
+        if path == "/api/finetune-dataset":
+            data = db.get_finetune_dataset(user_id=user_id)
+            return self._send_json(data)
 
         # 공간 순간 기억력 대시보드 API
         if path == "/api/spatial-dashboard":

@@ -1,3 +1,336 @@
+
+// =================================================================
+// 🤖 [핵심] LLM 파인튜닝 데이터셋 수집 & 내보내기 엔진 (Gemma 4 / Qwen)
+// =================================================================
+const FinetuneDatasetManager = {
+  storageKey: 'brainlock_finetune_dataset',
+  dataset: [],
+
+  init() {
+    this.loadFromStorage();
+    this.syncFromServer();
+    this.updateCounters();
+  },
+
+  loadFromStorage() {
+    try {
+      const raw = localStorage.getItem(this.storageKey);
+      this.dataset = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(this.dataset)) this.dataset = [];
+    } catch (e) {
+      this.dataset = [];
+    }
+  },
+
+  async syncFromServer() {
+    if (!SERVERLESS_CONFIG.isStandalone()) {
+      try {
+        const userId = state.currentUser ? state.currentUser.user_id : 1;
+        const res = await fetch(`/api/finetune-dataset?user_id=${userId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.samples)) {
+            // 로컬과 서버 병합 (ID 기준)
+            const map = new Map();
+            data.samples.forEach(s => map.set(s.id, s));
+            this.dataset.forEach(s => map.set(s.id, s));
+            this.dataset = Array.from(map.values());
+            this.dataset.sort((a, b) => (b.created_at > a.created_at ? 1 : -1));
+            this.saveToStorage();
+          }
+        }
+      } catch (e) {}
+    }
+  },
+
+  saveToStorage() {
+    try {
+      localStorage.setItem(this.storageKey, JSON.stringify(this.dataset));
+      this.updateCounters();
+    } catch (e) {}
+  },
+
+  updateCounters() {
+    const count = this.dataset.length;
+    const navElem = document.getElementById('navFinetuneCount');
+    const kpiElem = document.getElementById('dashFinetuneKpiCount');
+    const tabElem = document.getElementById('dashFinetuneTabCount');
+    const dispElem = document.getElementById('finetuneTotalCountDisplay');
+    if (navElem) navElem.innerText = count;
+    if (kpiElem) kpiElem.innerText = `${count}건`;
+    if (tabElem) tabElem.innerText = count;
+    if (dispElem) dispElem.innerText = count;
+  },
+
+  formatPromptInput(topic, words) {
+    const lines = [`[학습 주제]: ${topic || '전공 핵심 개념'}`];
+    lines.push('[학습 단어 및 시각 앵커 목록]:');
+    words.forEach((w, idx) => {
+      lines.push(`${idx + 1}. [단어]: ${w.word} / [시각 앵커]: ${w.visual_anchor || w.anchor || '💡 핵심사물'} / [정의]: ${w.definition || w.def || '핵심 개념'}`);
+    });
+    return lines.join('\n');
+  },
+
+  // 사용자가 단어들을 외우기 위해 직접 작성한 글을 파인튜닝 샘플로 포맷팅 & 수집
+  collectSample(topic, words, userStory, showToast = true) {
+    const cleanStory = (userStory || '').trim();
+    if (!cleanStory || cleanStory.length < 4) {
+      if (showToast) alert('단어를 외우기 위한 연상 스토리를 최소 4자 이상 작성해주세요.');
+      return null;
+    }
+    if (!words || !Array.isArray(words) || words.length === 0) {
+      if (showToast) alert('단어 목록이 없습니다.');
+      return null;
+    }
+
+    const cleanTopic = topic || (state.sessionData && state.sessionData.source_name) || '핵심 개념 훈련';
+    const promptInput = this.formatPromptInput(cleanTopic, words);
+
+    const sample = {
+      id: 'ft_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      topic: cleanTopic,
+      word_count: words.length,
+      words: words.map(w => ({
+        word: w.word,
+        visual_anchor: w.visual_anchor || w.anchor || '💡',
+        definition: w.definition || w.def || '',
+        importance_reason: w.importance_reason || w.reason || ''
+      })),
+      user_story: cleanStory,
+      // 1. Alpaca 포맷 (Unsloth, TRL SFTTrainer 기본)
+      alpaca: {
+        instruction: "제시된 전공 핵심 단어들과 각 단어의 시각 앵커를 활용하여, 물리적 충돌과 도미노 인과관계가 이어지는 강력한 기억 연상 스토리를 한국어로 창작하세요. 설명문이나 단순 나열은 배제하고 1~3문장의 흡인력 있는 장면으로 구성합니다.",
+        input: promptInput,
+        output: cleanStory
+      },
+      // 2. ShareGPT / ChatML 포맷 (멀티턴 대화형)
+      sharegpt: {
+        conversations: [
+          {
+            from: "system",
+            value: "당신은 제시된 핵심 단어들을 시각 앵커와 극적인 물리적 인과관계로 연결하여 뇌에 지워지지 않게 각인시키는 20년 경력의 기억술 마스터 코치입니다."
+          },
+          {
+            from: "human",
+            value: `다음 ${words.length}개 단어의 시각 앵커를 연결하여 뇌에 각인되는 연상 스토리를 창작해주세요:\n\n${promptInput}`
+          },
+          {
+            from: "gpt",
+            value: cleanStory
+          }
+        ]
+      }
+    };
+
+    // 중복 체크 (동일 주제 및 동일 스토리)
+    const existingIdx = this.dataset.findIndex(s => s.topic === cleanTopic && s.user_story === cleanStory);
+    if (existingIdx >= 0) {
+      this.dataset[existingIdx] = sample; // 업데이트
+    } else {
+      this.dataset.unshift(sample); // 신규 등록
+    }
+
+    this.saveToStorage();
+
+    // 서버 비동기 저장
+    if (!SERVERLESS_CONFIG.isStandalone()) {
+      const userId = state.currentUser ? state.currentUser.user_id : 1;
+      fetch('/api/save-finetune-sample', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, sample: sample })
+      }).catch(() => {});
+    }
+
+    if (showToast) {
+      SoundEngine.playCombo();
+      alert(`🤖 [AI 파인튜닝 데이터셋 수집 완료!]\n\n[주제]: ${cleanTopic} (${words.length}단어)\n[작성 스토리]: ${cleanStory}\n\n현재 총 ${this.dataset.length}건의 학습 데이터가 축적되었습니다.`);
+    }
+
+    this.renderTable();
+    return sample;
+  },
+
+  deleteSample(id) {
+    if (!confirm('이 파인튜닝 샘플을 삭제하시겠습니까?')) return;
+    this.dataset = this.dataset.filter(s => s.id !== id);
+    this.saveToStorage();
+    if (!SERVERLESS_CONFIG.isStandalone()) {
+      const userId = state.currentUser ? state.currentUser.user_id : 1;
+      fetch('/api/delete-finetune-sample', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, sample_id: id })
+      }).catch(() => {});
+    }
+    this.renderTable();
+  },
+
+  clearAll() {
+    if (!confirm('수집된 모든 파인튜닝 데이터셋을 초기화하시겠습니까? (다운로드하지 않은 데이터는 복구 불가)')) return;
+    this.dataset = [];
+    this.saveToStorage();
+    if (!SERVERLESS_CONFIG.isStandalone()) {
+      const userId = state.currentUser ? state.currentUser.user_id : 1;
+      fetch('/api/clear-finetune-dataset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId })
+      }).catch(() => {});
+    }
+    this.renderTable();
+  },
+
+  // 1. JSONL 내보내기 (Unsloth / LoRA 파인튜닝 스크립트 전용)
+  exportJsonl() {
+    SoundEngine.playClick();
+    if (this.dataset.length === 0) {
+      alert('내보낼 파인튜닝 데이터가 없습니다. 먼저 단어 스토리를 작성하거나 [골든 베이스 데이터 주입]을 눌러주세요.');
+      return;
+    }
+    const lines = this.dataset.map(s => JSON.stringify(s.alpaca, null, 0));
+    const content = lines.join('\n');
+    this.downloadFile(content, `gemma4_memory_finetune_${new Date().toISOString().substring(0, 10)}.jsonl`, 'application/jsonlines');
+  },
+
+  // 2. Alpaca JSON 내보내기 (HuggingFace 표준)
+  exportAlpacaJson() {
+    SoundEngine.playClick();
+    if (this.dataset.length === 0) {
+      alert('내보낼 파인튜닝 데이터가 없습니다.');
+      return;
+    }
+    const data = this.dataset.map(s => s.alpaca);
+    const content = JSON.stringify(data, null, 2);
+    this.downloadFile(content, `gemma4_memory_alpaca_${new Date().toISOString().substring(0, 10)}.json`, 'application/json');
+  },
+
+  // 3. ShareGPT 대화형 JSONL 내보내기
+  exportSharegpt() {
+    SoundEngine.playClick();
+    if (this.dataset.length === 0) {
+      alert('내보낼 파인튜닝 데이터가 없습니다.');
+      return;
+    }
+    const lines = this.dataset.map(s => JSON.stringify(s.sharegpt, null, 0));
+    const content = lines.join('\n');
+    this.downloadFile(content, `gemma4_memory_sharegpt_${new Date().toISOString().substring(0, 10)}.jsonl`, 'application/jsonlines');
+  },
+
+  downloadFile(content, filename, mimeType) {
+    const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
+
+  // 8대 전공 핵심 단어와 고품질 도미노 인과 사슬 스토리 24~30세트 즉시 자동 주입
+  seedDefaultGoldenDataset() {
+    SoundEngine.playClick();
+    if (typeof OFFLINE_BUILTIN_SETS === 'undefined') return;
+
+    const goldenStories = {
+      "전자기학": [
+        "거대한 ⚡ 번개 전계가 🧲 자석 자계를 내리치자, 그 충격으로 튕겨 오른 ⚖️ 저울 쿨롱의법칙이 📜 두루마리 맥스웰방정식을 두 동강 내며 🥊 글러브 로렌츠힘의 심장을 관통했다!",
+        "🧽 스펀지 유전율이 ⚡ 번개 전계를 가득 머금고 폭발하자, 튀어나온 🚪 황금문 투자율이 🌀 자석 코일 패러데이법칙을 통과하며 🛡️ 반발 방패 렌츠의법칙을 부숴버렸다!"
+      ],
+      "거시경제학": [
+        "하늘로 솟구치는 🎈 풍선 인플레이션이 🏦 중앙은행 수도꼭지 기준금리를 들이받자, 📈 황금피라미드 GDP가 흔들리며 🎢 롤러코스터 필립스곡선 위로 💸 돈비 양적완화가 쏟아져 내렸다!",
+        "뜨거운 얼음산 🧊 스태그플레이션 속에서 🪄 마법지팡이 통화승수가 꺾이자, 🕳️ 블랙홀 유동성함정이 ⚖️ IS-LM 저울대를 통째로 집어삼키며 📉 기름호스 테이퍼링을 조여버렸다!"
+      ],
+      "뇌과학": [
+        "푸른 바다의 🌊 해마가 ⚡ 신경 스파크 시냅스가소성을 뿜어내자, 👑 황금왕관 전전두엽이 깨어나며 🎯 과녁불꽃 도파민을 발사하여 🔥 아몬드 편도체의 공포를 잠재웠다!",
+        "두꺼운 버터 🧈 미엘린 전선을 타고 흐른 💡 은빛세포 뉴런 신호가 🌿 새싹 신경발생을 촉진하자, 💡 집중전구 아세틸콜린이 켜지며 🧪 산성용액 코르티솔을 완전히 중화시켰다!"
+      ],
+      "민법총칙": [
+        "도장 찍힌 📜 계약서 법률행위 위에 ⏳ 모래시계 소멸시효가 멈추자, 🛡️ 황금방패 권리능력이 깨지며 ↩️ 되돌리기 취소 버튼을 눌렀으나 💨 연기구름 무효로 흩어져버렸다!",
+        "입에서 뿜어나온 🗣️ 황금문서 의사표시를 🤝 대리인이 받아 쥐자, ⚖️ 공평한 천칭 신의성실원칙이 흔들리며 🎭 거짓가면 통정허위표시의 뒤통수를 걷어차 버렸다!"
+      ],
+      "컴퓨터네트워크": [
+        "지구본 그물망 🌐 TCP/IP를 타고 달린 📦 소포상자 패킷이 📖 황금전화번호부 DNS를 확인하고 🧭 나침반 라우팅을 따라 3번의 🤝 신뢰의 악수 3-Way핸드셰이크를 완성했다!",
+        "붉은 벽돌 🧱 방화벽을 뚫고 들어온 트래픽을 🔄 가면 NAT가 가로채자, 🏷️ 바코드 MAC주소가 📢 확성기 ARP를 울려 🚪 비밀통로 포트포워딩으로 안전하게 안내했다!"
+      ],
+      "인공지능": [
+        "거대 로봇 🤖 트랜스포머가 🔍 스포트라이트 어텐션을 켜자, ↩️ 나선형태엽 역전파가 회전하며 👔 꽉 끼는 정장 과적합을 찢어버리고 🌌 은하수 우주 잠재공간으로 날아올랐다!",
+        "안개를 뚫고 ⛷️ 스키 경사하강법이 🎯 과녁오차 손실함수를 0으로 좁히자, 쪼개진 🧩 레고블록 토큰화가 조율 튜너 🎻 미세조정을 거쳐 👻 신기루 유령 할루시네이션을 퇴치했다!"
+      ],
+      "기억술": [
+        "대리석 🏛️ 기억의궁전 문을 열고 ⚓ 황금닻 시각앵커를 내리자, 🔗 황금사슬 정교화부호화가 🥇 1등 금메달 초두효과와 결합하여 📉 낭떠러지 망각곡선을 메워버렸다!",
+        "번쩍이는 💻 두뇌RAM 작업기억 속에 📌 황금못 페그시스템을 박고 🗝️ 마스터키 인출단서를 돌리자, 🪞 머릿속 거울 메타인지에 잠겨있던 모든 지식이 폭포처럼 인출되었다!"
+      ],
+      "한국사": [
+        "모래에 꽂힌 🏺 빗살무늬토기에서 👑 청동검 고조선 군장이 걸어나와 🗿 6미터 광개토대왕릉비를 세우고, 쏟아지는 🌊 강물 살수대첩으로 30만 대군을 수장시켰다!",
+        "나랏말싸미 📜 훈민정음 해례본을 펼치자 불을 뿜는 🐢 거북선 임진왜란이 출격하고, 🌾 황금쌀가마니 대동법을 실은 수레가 ⚖️ 공평한 탕평책 비석 앞으로 모여들었다!"
+      ]
+    };
+
+    let addedCount = 0;
+    Object.keys(goldenStories).forEach(topic => {
+      const words = OFFLINE_BUILTIN_SETS[topic] || [];
+      const stories = goldenStories[topic] || [];
+      stories.forEach((story, idx) => {
+        const subWords = words.slice(idx * 5, (idx + 1) * 5);
+        if (subWords.length >= 3) {
+          const sample = this.collectSample(topic, subWords, story, false);
+          if (sample) addedCount++;
+        }
+      });
+    });
+
+    SoundEngine.playFanfare();
+    alert(`✨ 8대 전공 핵심 분야에서 총 ${addedCount}건의 고품질 골든 베이스 데이터셋이 성공적으로 생성·축적되었습니다!\n\n이제 [📥 Gemma4 JSONL 내보내기] 버튼을 눌러 파인튜닝 스크립트에 바로 투입할 수 있습니다.`);
+    this.renderTable();
+  },
+
+  renderTable() {
+    const tbody = document.getElementById('dashFinetuneTableBody');
+    if (!tbody) return;
+
+    if (this.dataset.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="empty-table-msg">수집된 파인튜닝 데이터가 없습니다. 퀴즈나 개념 연상술에서 단어를 외우기 위해 스토리를 직접 작성해보세요!</td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = '';
+    this.dataset.forEach(s => {
+      const tr = document.createElement('tr');
+      const promptText = (s.alpaca && s.alpaca.input) ? s.alpaca.input : (s.words || []).map(w => `${w.visual_anchor || ''} ${w.word}`).join(', ');
+      tr.innerHTML = `
+        <td style="font-size:12px; color:var(--text-muted); white-space:nowrap;">${s.created_at || '-'}</td>
+        <td>
+          <strong style="color:var(--text-primary); font-size:13px;">${s.topic || '개념 훈련'}</strong><br>
+          <span style="font-size:11px; color:#10b981; font-weight:700;">${s.word_count || (s.words ? s.words.length : 0)}개 단어</span>
+        </td>
+        <td>
+          <div class="ft-prompt-cell">${promptText}</div>
+        </td>
+        <td>
+          <div class="ft-output-cell">${s.user_story || ''}</div>
+        </td>
+        <td style="white-space:nowrap;">
+          <button class="ft-del-btn" data-id="${s.id}">삭제</button>
+        </td>
+      `;
+
+      const delBtn = tr.querySelector('.ft-del-btn');
+      if (delBtn) {
+        delBtn.onclick = () => FinetuneDatasetManager.deleteSample(s.id);
+      }
+      tbody.appendChild(tr);
+    });
+  }
+};
+
 // =================================================================
 // 🎵 [상용 유료급] 무지연 Web Audio API 효과음 엔진 (Zero Dependency)
 // =================================================================
@@ -712,6 +1045,8 @@ function switchView(viewName) {
 document.addEventListener('DOMContentLoaded', () => {
   setupThemeToggle();
   setupSoundToggle();
+  FinetuneDatasetManager.init();
+  setupFinetuneHubUI();
   setupCustomWordModal();
   setupAuth();
   setupSettingsModal();
@@ -1354,6 +1689,15 @@ function renderPrepareView() {
 
 // STEP 1 -> STEP 2 (1-Card 암기 진입)
 document.getElementById('btnGoToMemorize').addEventListener('click', () => {
+    const prepStory = document.getElementById('inputUserStory').value.trim();
+    if (prepStory && prepStory.length >= 4) {
+      FinetuneDatasetManager.collectSample(
+        state.sessionData.source_name,
+        state.sessionData.quiz_data,
+        prepStory,
+        false
+      );
+    }
   state.sessionData.user_story = document.getElementById('inputUserStory').value.trim();
   startMemorizeMode();
 });
@@ -1928,6 +2272,19 @@ function renderMcqWordPreview() {
 
 // 2단계: 실전 4지선다 퀴즈 풀기 시작
 function startMcqSolving() {
+  // 사용자가 외우기 위해 직접 작성한 연상 스토리가 있으면 파인튜닝 데이터셋으로 자동 수집!
+  const mcqStoryInput = document.getElementById('inputMcqStory');
+  const writtenStory = (mcqStoryInput ? mcqStoryInput.value.trim() : '') || (state.sessionData ? (state.sessionData.user_story || '') : '');
+  if (writtenStory && writtenStory.length >= 4) {
+    state.sessionData.user_story = writtenStory;
+    FinetuneDatasetManager.collectSample(
+      state.sessionData.source_name,
+      state.sessionData.quiz_data,
+      writtenStory,
+      false // 백그라운드 무소음 자동 수집
+    );
+  }
+
   const previewStep = document.getElementById('mcqPreviewStep');
   const solveStep = document.getElementById('mcqSolveStep');
   if (previewStep) previewStep.style.display = 'none';
@@ -3892,4 +4249,149 @@ if (btnExportCsv) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+}
+
+
+function setupFinetuneHubUI() {
+  const btnMode = document.getElementById('btnModeFinetune');
+  const kpiCard = document.getElementById('kpiFinetuneCard');
+  const tabBtn = document.getElementById('tabDashFinetuneBtn');
+  const tabSaved = document.getElementById('tabDashSavedBtn');
+  const tabLogs = document.getElementById('tabDashLogsBtn');
+
+  const containerFinetune = document.getElementById('dashFinetuneTableContainer');
+  const containerSaved = document.getElementById('dashSavedTableContainer');
+  const containerLogs = document.getElementById('dashLogsTableContainer');
+
+  function showFinetuneTab() {
+    [tabSaved, tabLogs, tabBtn].forEach(b => b && b.classList.remove('active'));
+    if (tabBtn) tabBtn.classList.add('active');
+
+    if (containerSaved) containerSaved.style.display = 'none';
+    if (containerLogs) containerLogs.style.display = 'none';
+    if (containerFinetune) containerFinetune.style.display = 'block';
+
+    FinetuneDatasetManager.renderTable();
+  }
+
+  if (tabBtn) {
+    tabBtn.onclick = () => showFinetuneTab();
+  }
+
+  if (btnMode) {
+    btnMode.onclick = () => {
+      SoundEngine.playClick();
+      switchView('viewDashboard');
+      showFinetuneTab();
+      if (containerFinetune) containerFinetune.scrollIntoView({ behavior: 'smooth' });
+    };
+  }
+
+  if (kpiCard) {
+    kpiCard.onclick = () => {
+      SoundEngine.playClick();
+      showFinetuneTab();
+      if (containerFinetune) containerFinetune.scrollIntoView({ behavior: 'smooth' });
+    };
+  }
+
+  // 기존 탭 클릭 시 파인튜닝 컨테이너 숨김
+  if (tabSaved) {
+    const origSaved = tabSaved.onclick;
+    tabSaved.addEventListener('click', () => {
+      if (containerFinetune) containerFinetune.style.display = 'none';
+      if (tabBtn) tabBtn.classList.remove('active');
+    });
+  }
+  if (tabLogs) {
+    tabLogs.addEventListener('click', () => {
+      if (containerFinetune) containerFinetune.style.display = 'none';
+      if (tabBtn) tabBtn.classList.remove('active');
+    });
+  }
+
+  // 액션 버튼 바인딩
+  const btnExportJsonl = document.getElementById('btnExportJsonl');
+  const btnExportAlpaca = document.getElementById('btnExportAlpacaJson');
+  const btnExportSharegpt = document.getElementById('btnExportSharegpt');
+  const btnSeed = document.getElementById('btnSeedGoldenDataset');
+  const btnClear = document.getElementById('btnClearFinetuneDataset');
+  const btnOpenGuide = document.getElementById('btnOpenFinetuneGuide');
+  const modalGuide = document.getElementById('finetuneGuideModal');
+  const btnCloseGuide = document.getElementById('btnCloseFinetuneGuide');
+  const btnCopyGuide = document.getElementById('btnCopyGuideCode');
+
+  if (btnExportJsonl) btnExportJsonl.onclick = () => FinetuneDatasetManager.exportJsonl();
+  if (btnExportAlpaca) btnExportAlpaca.onclick = () => FinetuneDatasetManager.exportAlpacaJson();
+  if (btnExportSharegpt) btnExportSharegpt.onclick = () => FinetuneDatasetManager.exportSharegpt();
+  if (btnSeed) btnSeed.onclick = () => FinetuneDatasetManager.seedDefaultGoldenDataset();
+  if (btnClear) btnClear.onclick = () => FinetuneDatasetManager.clearAll();
+
+  if (btnOpenGuide && modalGuide) {
+    btnOpenGuide.onclick = () => {
+      SoundEngine.playClick();
+      modalGuide.style.display = 'flex';
+    };
+  }
+  if (btnCloseGuide && modalGuide) {
+    btnCloseGuide.onclick = () => {
+      SoundEngine.playClick();
+      modalGuide.style.display = 'none';
+    };
+  }
+  if (btnCopyGuide) {
+    btnCopyGuide.onclick = () => {
+      const codeSnippet = `from unsloth import FastVisionModel
+from datasets import load_dataset
+from trl import SFTTrainer
+from transformers import TrainingArguments
+
+# 1. Gemma 4 E4B 로드 (8GB VRAM 최적화)
+model, tokenizer = FastVisionModel.from_pretrained(
+    model_name="unsloth/gemma-4-E4B-it",
+    max_seq_length=512,
+    load_in_4bit=True
+)
+model = FastVisionModel.get_peft_model(model, r=16, lora_alpha=16, finetune_vision_layers=False)
+
+# 2. 내보낸 JSONL 데이터 로드
+dataset = load_dataset("json", data_files="gemma4_memory_finetune.jsonl")
+
+# 3. 파인튜닝 훈련 시작 (15분 소요)
+trainer = SFTTrainer(
+    model=model, tokenizer=tokenizer,
+    train_dataset=dataset["train"],
+    dataset_text_field="output",
+    max_seq_length=512,
+    args=TrainingArguments(per_device_train_batch_size=1, gradient_accumulation_steps=8, max_steps=60, learning_rate=2e-4, fp16=True, output_dir="outputs")
+)
+trainer.train()
+
+# 4. GGUF 변환 (Ollama 등록용)
+model.save_pretrained_gguf("my_memory_gemma4", tokenizer, quantization_method="q4_k_m")`;
+      navigator.clipboard.writeText(codeSnippet).then(() => {
+        alert('📋 파이썬 파인튜닝 코드가 클립보드에 복사되었습니다! Google Colab이나 로컬 Python에 붙여넣어 실행하세요.');
+      });
+    };
+  }
+
+  // STEP 1(viewPrepare)의 수동 파인튜닝 등록 버튼
+  const btnSavePrepFt = document.getElementById('btnSavePrepareFinetune');
+  if (btnSavePrepFt) {
+    btnSavePrepFt.onclick = () => {
+      const story = document.getElementById('inputUserStory').value.trim();
+      const words = state.sessionData ? state.sessionData.quiz_data : [];
+      const topic = state.sessionData ? state.sessionData.source_name : '';
+      FinetuneDatasetManager.collectSample(topic, words, story, true);
+    };
+  }
+
+  // viewQuizMCQ의 스토리 입력 글자수 카운터
+  const inputMcqStory = document.getElementById('inputMcqStory');
+  const countMcqStory = document.getElementById('mcqStoryCharCount');
+  if (inputMcqStory && countMcqStory) {
+    inputMcqStory.oninput = () => {
+      countMcqStory.innerText = `${inputMcqStory.value.length} / 500자`;
+    };
+  }
 }

@@ -31,6 +31,7 @@
         <button id="btnModeQuiz" class="mode-nav-btn" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 800;">🎯 4지선다 객관식 퀴즈</button>
         <button id="btnModeConcept" class="mode-nav-btn">🧠 AI 개념 연상술</button>
         <button id="btnModeSpatial" class="mode-nav-btn">⚡ 공간 순간 기억력</button>
+        <button id="btnModeFinetune" class="mode-nav-btn" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(99, 102, 241, 0.2)); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.4); font-weight: 800;">🤖 AI 파인튜닝 데이터셋 (<span id="navFinetuneCount">0</span>)</button>
       </div>
 
       <!-- [우측 상단] 마스터 로그인 정보 & 글로벌 도구 -->
@@ -158,6 +159,15 @@
                 <span class="kpi-sub">영구 DB 자동 기록</span>
               </div>
             </div>
+
+            <div class="kpi-card" id="kpiFinetuneCard" style="cursor: pointer; border: 1px solid rgba(168, 85, 247, 0.4); background: linear-gradient(135deg, rgba(168, 85, 247, 0.08), rgba(99, 102, 241, 0.05));" title="클릭하여 AI 파인튜닝 데이터셋 허브로 이동합니다">
+              <div class="kpi-icon-wrap" style="background: rgba(168, 85, 247, 0.2); color: #a855f7;">🤖</div>
+              <div class="kpi-info">
+                <span class="kpi-label">AI 파인튜닝 학습 데이터</span>
+                <strong class="kpi-value" id="dashFinetuneKpiCount" style="color: #a855f7;">0건</strong>
+                <span class="kpi-sub">Gemma 4 / Qwen 학습용</span>
+              </div>
+            </div>
           </div>
 
           <!-- 훈련 퀵 런처 그리드 -->
@@ -222,6 +232,7 @@
               <div class="visual-tabs">
                 <button class="visual-tab-btn active" id="tabDashSavedBtn">📁 저장된 단어장 보관함 (<span id="dashSavedCount">0</span>개)</button>
                 <button class="visual-tab-btn" id="tabDashLogsBtn">📊 실시간 훈련 세션 로그</button>
+                <button class="visual-tab-btn" id="tabDashFinetuneBtn">🤖 AI 파인튜닝 데이터셋 (<span id="dashFinetuneTabCount">0</span>건)</button>
               </div>
               <span class="visual-badge">SQLite 영구 보관소</span>
             </div>
@@ -426,11 +437,17 @@
           <div class="editor-header">
             <div class="editor-title-wrap">
               <span class="editor-icon">✍️</span>
-              <h3>나만의 연상 스토리 메모 <span class="editor-sub">(선택 사항)</span></h3>
+              <h3>나만의 연상 스토리 작성 <span class="editor-sub" style="color:#a855f7; font-weight:700;">(🤖 AI 파인튜닝 데이터셋 자동 수집)</span></h3>
             </div>
             <span class="char-count" id="storyCharCount">0 / 1000자</span>
           </div>
-          <textarea id="inputUserStory" maxlength="1000" rows="3" placeholder="단어들의 시각 앵커를 엮은 한 줄 스토리를 가볍게 메모해보세요. (예: 🎈 풍선을 불다가 ⚖️ 저울로 쾅 내리쳤다...)"></textarea>
+          <textarea id="inputUserStory" maxlength="1000" rows="3" placeholder="단어들의 시각 앵커를 엮은 한 줄 스토리를 직접 작성해보세요. (예: ⚡ 번개 전계가 🧲 자석 자계를 내리치자 ⚖️ 저울 쿨롱의법칙이 솟구쳤다...)&#10;※ 작성한 글은 Gemma 4 파인튜닝용 고품질 데이터셋으로 자동 변환·보존됩니다."></textarea>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+            <span style="font-size: 11px; color: var(--text-muted);">💡 다음 단계로 넘어가면 파인튜닝 학습 데이터셋으로 자동 수집됩니다.</span>
+            <button type="button" id="btnSavePrepareFinetune" class="btn-secondary btn-sm" style="color: #a855f7; border-color: rgba(168,85,247,0.4); font-weight: 700; background: rgba(168,85,247,0.08);">
+              💾 파인튜닝 데이터셋에 즉시 등록
+            </button>
+          </div>
         </div>
       </section>
 
@@ -587,6 +604,18 @@
             <button id="btnStartSolveMcqTop" class="btn-primary btn-instant-solve">
               🚀 암기 완료! 바로 퀴즈 시작 (Space/Enter) ➔
             </button>
+          </div>
+
+          <!-- ✍️ [신규] 퀴즈 전 직접 작성하는 연상 암기 스토리 (파인튜닝 데이터 자동 축적) -->
+          <div class="mcq-story-input-card" id="mcqStoryInputCard">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 13px; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                <span>✍️ 단어 각인용 연상 스토리 작성</span>
+                <span style="font-size: 11px; color: #a855f7; background: rgba(168,85,247,0.12); padding: 2px 8px; border-radius: 8px; font-weight: 700;">🤖 파인튜닝 데이터셋 자동 수집</span>
+              </span>
+              <span id="mcqStoryCharCount" style="font-size: 11px; color: var(--text-muted);">0 / 500자</span>
+            </div>
+            <textarea id="inputMcqStory" maxlength="500" rows="2" placeholder="아래 단어들을 외우기 위해 머릿속에 떠올린 연상 문장을 한 줄로 적어보세요. (작성 후 퀴즈를 시작하면 파인튜닝 데이터셋에 자동 영구 저장됩니다)" style="width: 100%; padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 13px; resize: vertical; line-height: 1.45;"></textarea>
           </div>
 
           <!-- 단어 카드 프리뷰 그리드 (단어 즉시 전체 노출!) -->
@@ -963,6 +992,48 @@
           <div style="display: flex; gap: 10px; margin-top: 14px;">
             <button id="btnApplyCustomWords" class="btn-primary" style="flex: 1; padding: 13px; font-weight: 800; font-size: 14px; background: linear-gradient(135deg, #10b981, #059669); border-radius: var(--radius-md); cursor: pointer;">
               🚀 이 단어들로 즉시 4지선다 퀴즈 시작 ➔
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+      
+    <!-- 📖 [모달] Gemma 4 E4B 파인튜닝 10줄 퀵 가이드 모달 -->
+    <div id="finetuneGuideModal" class="modal-overlay" style="display:none;">
+      <div class="modal-card" style="max-width: 680px;">
+        <div class="modal-header">
+          <h3>📖 Gemma 4 / Qwen 로컬 파인튜닝 퀵 가이드</h3>
+          <button id="btnCloseFinetuneGuide" class="btn-icon">✕</button>
+        </div>
+        <div class="modal-body" style="font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
+          <p style="margin-bottom: 12px;">
+            내보낸 <strong><code>gemma4_memory_finetune.jsonl</code></strong> 파일을 사용하여, Google Colab(무료 T4 GPU) 또는 로컬 PC(VRAM 8GB)에서 <strong>Unsloth</strong>로 초고속 QLoRA 파인튜닝을 진행할 수 있습니다.
+          </p>
+
+          <div style="background: #1e1e2e; color: #cdd6f4; padding: 14px; border-radius: var(--radius-md); font-family: Consolas, monospace; font-size: 12px; overflow-x: auto; margin-bottom: 14px;">
+            <span style="color: #6c7086;"># 1. Unsloth 설치</span><br>
+            <span style="color: #89b4fa;">pip install</span> <span style="color: #a6e3a1;">"unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"</span><br><br>
+            <span style="color: #6c7086;"># 2. Gemma 4 E4B 베이스 로드 & LoRA 적용 (8GB VRAM 최적화)</span><br>
+            <span style="color: #cba6f7;">from</span> unsloth <span style="color: #cba6f7;">import</span> FastLanguageModel, FastVisionModel<br>
+            model, tokenizer = FastVisionModel.from_pretrained(<br>
+            &nbsp;&nbsp;model_name=<span style="color: #a6e3a1;">"unsloth/gemma-4-E4B-it"</span>,<br>
+            &nbsp;&nbsp;max_seq_length=<span style="color: #fab387;">512</span>, load_in_4bit=<span style="color: #fab387;">True</span><br>
+            )<br>
+            model = FastVisionModel.get_peft_model(model, r=<span style="color: #fab387;">16</span>, lora_alpha=<span style="color: #fab387;">16</span>, finetune_vision_layers=<span style="color: #fab387;">False</span>)<br><br>
+            <span style="color: #6c7086;"># 3. 내보낸 JSONL 데이터셋 로드 및 학습 (15분 소요)</span><br>
+            <span style="color: #cba6f7;">from</span> datasets <span style="color: #cba6f7;">import</span> load_dataset<br>
+            <span style="color: #cba6f7;">from</span> trl <span style="color: #cba6f7;">import</span> SFTTrainer<br>
+            dataset = load_dataset(<span style="color: #a6e3a1;">"json"</span>, data_files=<span style="color: #a6e3a1;">"gemma4_memory_finetune.jsonl"</span>)<br>
+            trainer = SFTTrainer(model=model, tokenizer=tokenizer, train_dataset=dataset[<span style="color: #a6e3a1;">"train"</span>], dataset_text_field=<span style="color: #a6e3a1;">"output"</span>)<br>
+            trainer.train()<br><br>
+            <span style="color: #6c7086;"># 4. GGUF 변환 후 Ollama 등록</span><br>
+            model.save_pretrained_gguf(<span style="color: #a6e3a1;">"my_memory_gemma4"</span>, tokenizer, quantization_method=<span style="color: #a6e3a1;">"q4_k_m"</span>)
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 8px;">
+            <button id="btnCopyGuideCode" class="btn-primary btn-sm" style="background: linear-gradient(135deg, #a855f7, #6366f1); font-weight: 700;">
+              📋 파이썬 학습 코드 복사하기
             </button>
           </div>
         </div>

@@ -154,8 +154,24 @@ def init_db():
         FOREIGN KEY (user_id) REFERENCES users (id)
     )
     """)
+
+    # 5. 🤖 [핵심] LLM 파인튜닝 데이터셋 수집 테이블 (Gemma 4 / Qwen 파인튜닝 전용)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS finetune_dataset (
+        id TEXT PRIMARY KEY,
+        user_id INTEGER DEFAULT 1,
+        topic TEXT,
+        word_count INTEGER,
+        words_json TEXT,
+        user_story TEXT,
+        alpaca_json TEXT,
+        sharegpt_json TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id)
+    )
+    """)
     
-    # 5. 기존 DB 마이그레이션
+    # 6. 기존 DB 마이그레이션
     try:
         cur.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
     except sqlite3.OperationalError:
@@ -571,3 +587,104 @@ def get_sudoku_dashboard(user_id=1):
         "avg_time": round(stats.get("avg_time") or 0, 1),
         "total_clears": stats.get("total_clears") or 0
     }
+
+# =================================================================
+# 🤖 [신규] LLM 파인튜닝 전용 데이터셋 영구 저장 & 조회 모듈
+# =================================================================
+def save_finetune_sample(sample_dict, user_id=1):
+    """사용자가 직접 입력한 단어와 암기용 연상 스토리를 파인튜닝 샘플로 저장"""
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    
+    sample_id = sample_dict.get("id") or f"ft_{int(time.time() * 1000)}"
+    topic = sample_dict.get("topic", "단어 훈련")
+    words = sample_dict.get("words", [])
+    word_count = int(sample_dict.get("word_count") or len(words))
+    user_story = (sample_dict.get("user_story") or "").strip()
+    alpaca = sample_dict.get("alpaca", {})
+    sharegpt = sample_dict.get("sharegpt", {})
+    created_at = sample_dict.get("created_at")
+
+    cur.execute("""
+        INSERT OR REPLACE INTO finetune_dataset (
+            id, user_id, topic, word_count, words_json, user_story, alpaca_json, sharegpt_json, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
+    """, (
+        sample_id,
+        user_id,
+        topic,
+        word_count,
+        json.dumps(words, ensure_ascii=False),
+        user_story,
+        json.dumps(alpaca, ensure_ascii=False),
+        json.dumps(sharegpt, ensure_ascii=False),
+        created_at
+    ))
+    conn.commit()
+    conn.close()
+
+    # 🌐 구글 시트 비동기 동기화
+    async_send_to_google_sheet({
+        "type": "log_finetune",
+        "sample_id": sample_id,
+        "topic": topic,
+        "word_count": word_count,
+        "user_story": user_story
+    })
+
+    return sample_id
+
+def get_finetune_dataset(user_id=1):
+    """저장된 파인튜닝 데이터셋 전체 조회"""
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT * FROM finetune_dataset
+        WHERE user_id = ? OR user_id = 1
+        ORDER BY created_at DESC
+    """, (user_id,))
+    rows = cur.fetchall()
+    conn.close()
+
+    samples = []
+    for r in rows:
+        item = dict(r)
+        try:
+            item["words"] = json.loads(item.get("words_json") or "[]")
+        except Exception:
+            item["words"] = []
+        try:
+            item["alpaca"] = json.loads(item.get("alpaca_json") or "{}")
+        except Exception:
+            item["alpaca"] = {}
+        try:
+            item["sharegpt"] = json.loads(item.get("sharegpt_json") or "{}")
+        except Exception:
+            item["sharegpt"] = {}
+        samples.append(item)
+
+    return {
+        "samples": samples,
+        "total_count": len(samples)
+    }
+
+def delete_finetune_sample(sample_id, user_id=1):
+    """특정 파인튜닝 샘플 삭제"""
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("DELETE FROM finetune_dataset WHERE id = ? AND (user_id = ? OR user_id = 1)", (sample_id, user_id))
+    conn.commit()
+    conn.close()
+    return True
+
+def clear_finetune_dataset(user_id=1):
+    """파인튜닝 데이터셋 전체 초기화"""
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("DELETE FROM finetune_dataset WHERE user_id = ? OR user_id = 1", (user_id,))
+    conn.commit()
+    conn.close()
+    return True
+
