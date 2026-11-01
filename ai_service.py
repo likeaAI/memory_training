@@ -118,7 +118,7 @@ def unload_other_ollama_models(target_model=""):
     except Exception:
         pass
 
-def call_ollama(prompt: str, system_instruction: str = "", model: str = None, temperature: float = 0.05) -> dict:
+def call_ollama(prompt: str, system_instruction: str = "", model: str = None, temperature: float = 0.85) -> dict:
     """로컬 Ollama LLM 호출 (원서번역 Gemma 4 12B 최적화 프리셋 적용)"""
     target_model = model or OLLAMA_MODEL
     unload_other_ollama_models(target_model)

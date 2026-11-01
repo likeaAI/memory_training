@@ -274,7 +274,7 @@ class MemoryAppHandler(SimpleHTTPRequestHandler):
             model = data.get("model", "batiai/gemma4-12b:iq4")
             prompt = data.get("prompt", "")
             system = data.get("system", "")
-            temperature = float(data.get("temperature", 0.05))
+            temperature = float(data.get("temperature", 0.85))
             format_type = data.get("format", "json")
 
             target_url = f"{ollama_url}/api/generate"

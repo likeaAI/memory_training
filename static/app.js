@@ -649,7 +649,7 @@ async function callOllamaClient(prompt, temperature = 0.7, system = "") {
     keep_alive: -1,
     format: 'json',
     options: {
-      temperature: 0.05,
+      temperature: typeof temperature === 'number' ? temperature : 0.85,
       num_ctx: 4096,
       num_predict: maxPred,
       repeat_penalty: 1.15,
@@ -983,16 +983,22 @@ function getInstantOfflineWords(userInput, count = 10, excludeWords = []) {
 }
 
 // 클라이언트 단어 생성 (영구 로컬 캐시 + Gemini 호출 + 오프라인 폴백 완비)
-async function generateWordsClient(mode, userInput, count = 5, excludeWords = []) {
+async function generateWordsClient(mode, userInput, count = 5, excludeWords = [], forceRefresh = false) {
   const cleanInput = (userInput || '').trim();
   const cacheKey = `brainlock_pool_${mode}_${cleanInput}`;
   
-  // 1. localStorage 영구 캐시 확인
+  // 1. localStorage 영구 캐시 확인 (forceRefresh일 경우 기존 캐시 비우고 완전 새로 생성)
   let pool = [];
-  try {
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) pool = JSON.parse(cached);
-  } catch (e) {}
+  if (!forceRefresh) {
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) pool = JSON.parse(cached);
+    } catch (e) {}
+  } else {
+    try {
+      localStorage.removeItem(cacheKey);
+    } catch (e) {}
+  }
 
   // [핵심] 오프라인 모드이거나, Gemini 모드인데 API 키가 없으면 0초 즉시 내장 고품질 단어 풀 반환!
   const currentAiProvider = SERVERLESS_CONFIG.getProvider();
@@ -1022,16 +1028,30 @@ async function generateWordsClient(mode, userInput, count = 5, excludeWords = []
       const reqCount = count || 5;
       let prompt = '';
 
-      const randomSeed = Math.floor(Math.random() * 100000);
-      const poolTargetCount = Math.max(20, (count || 5) * 2);
+      const randomSeed = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+      const subDomains = [
+        "1) 기초 이론, 핵심 법칙 및 기본 정의",
+        "2) 심화 공식, 정량 계산, 경계 조건 및 유도 과정",
+        "3) 시변 전자기장, 파동 방정식, 전파 및 맥스웰 응용",
+        "4) 실무 전기 소자(커패시터/인덕터), 유전체, 자성체 및 변압기 원리",
+        "5) 시험 기출 빈출 공식, 에너지 밀도, 임피던스 및 손실 메커니즘"
+      ];
+      const randomSubDomain = subDomains[Math.floor(Math.random() * subDomains.length)];
+
+      const cleanExcludes = (excludeWords || []).filter(w => typeof w === 'string' && w.trim());
+      const excludeInstruction = cleanExcludes.length > 0
+        ? `\n⚠️ [절대 중복 금지 목록]: 다음 단어들은 이미 학습 완료했으므로 절대로 다시 포함하지 마세요! (100% 새로운 단어만 엄선):\n[${cleanExcludes.slice(-30).join(', ')}]`
+        : '';
 
       if (isLocalAI) {
-        // ⚡ 로컬 AI(Ollama): 20개 대용량 풀 1회 생성 후 캐싱 ➔ 이후 0초 즉시 랜덤 서브샘플링!
+        // ⚡ 로컬 AI(Ollama): 20개 대용량 풀 1회 생성 후 캐싱 (다양한 챕터 회전 + 이전 단어 배제)
         prompt = `
 [역할]: '${cleanInput}' 전공 교수 (시드: ${randomSeed})
-${diffInstruction}
-주제 '${cleanInput}'에 관련된 핵심 전문 용어 총 20개를 다양하고 폭넓게 엄선하세요.
-[다양성 지침]: 상위 1~2개 뻔한 용어에만 편중되지 말고, 기초 이론, 핵심 법칙, 공식, 부품, 응용 메커니즘 등 세부 영역별로 골고루 20개를 선정하세요.
+[중점 탐구 영역]: ${randomSubDomain}
+${diffInstruction}${excludeInstruction}
+
+주제 '${cleanInput}'에 관련된 핵심 전문 용어 총 20개를 중복 없이 신선하게 엄선하세요.
+[다양성 지침]: 상위 1~2개 뻔한 대표 단어에만 편중되지 말고, '${randomSubDomain}' 영역을 중심으로 다양한 세부 개념 20개를 선정하세요.
 [필수 JSON 포맷]:
 {
   "quiz_data": [
@@ -1049,7 +1069,9 @@ ${diffInstruction}
         // 클라우드 Gemini: 25개 대용량 풀 생성
         prompt = `
 [역할]: '${cleanInput}' 분야 전공 교수 (시드: ${randomSeed})
-${diffInstruction}
+[중점 탐구 영역]: ${randomSubDomain}
+${diffInstruction}${excludeInstruction}
+
 주제 '${cleanInput}'에 관련된 핵심 전문 용어 총 25개를 다양하게 엄선하세요.
 [필수 JSON 포맷]:
 {
@@ -1813,7 +1835,8 @@ document.getElementById('btnStartGenerate').addEventListener('click', async () =
         }
       }
 
-      data = await generateWordsClient(targetMode, targetInput, payload.count || 5);
+      const currentExcludes = [...(state.learnedWordsList || []), ...(state.sessionData?.quiz_data?.map(w => w.word) || [])];
+      data = await generateWordsClient(targetMode, targetInput, payload.count || 5, currentExcludes, false);
     }
     toggleLoading(false);
 
@@ -2327,7 +2350,8 @@ function setupMcqTopicSelector() {
       const targetCount = state.mcqWordCount || 10;
       toggleLoading(true, `'${topicVal}' 분야의 핵심 개념어 ${targetCount}개를 엄선하여 퀴즈를 설계하고 있습니다...`);
       try {
-        const data = await generateWordsClient('topic', topicVal, targetCount);
+        const currentExcludes = [...(state.learnedWordsList || []), ...(state.sessionData?.quiz_data?.map(w => w.word) || [])];
+        const data = await generateWordsClient('topic', topicVal, targetCount, currentExcludes, true);
         toggleLoading(false);
 
         if (data && data.quiz_data && data.quiz_data.length > 0) {
