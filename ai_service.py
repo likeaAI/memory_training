@@ -3,6 +3,13 @@ import json
 import urllib.request
 import urllib.error
 from utils import extract_chosung
+import sys
+
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
 
 # .env 파일 또는 시스템 환경변수에서 안전하게 API Key 로드
 def get_gemini_api_key():
@@ -178,7 +185,7 @@ def get_or_create_word_pool(mode: str, user_input: str, difficulty: str = "norma
 - 한국어로 작성
 """
     if target_provider == "ollama":
-        print(f"🦙 [단어 생성] Ollama 로컬 모델 [{target_model}] 직접 호출...")
+        print(f"[단어 생성] Ollama 로컬 모델 [{target_model}] 직접 호출...")
         try:
             result = call_ollama(prompt, "JSON Format", model=target_model)
         except Exception as e:
