@@ -990,6 +990,36 @@ function getInstantOfflineWords(userInput, count = 10, excludeWords = []) {
 async function generateWordsClient(mode, userInput, count = 5, excludeWords = [], forceRefresh = false) {
   const cleanInput = (userInput || '').trim();
   const cacheKey = `brainlock_pool_${mode}_${cleanInput}`;
+
+  // ⚡ [0초 초고속 인출] 주제 모드인 경우 SQLite 대용량 word_bank에서 먼저 즉시 랜덤 인출(0.001초)
+  if (mode === 'topic' && !forceRefresh) {
+    try {
+      const bankRes = await fetch('/api/word-bank/random', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          topic: cleanInput,
+          count: count,
+          exclude_words: excludeWords || []
+        })
+      });
+      if (bankRes.ok) {
+        const bankData = await bankRes.json();
+        if (bankData && bankData.quiz_data && bankData.quiz_data.length >= count) {
+          console.log(`[Word Bank 0초 인출 성공] '${cleanInput}' 단어 은행에서 ${bankData.quiz_data.length}개 즉시 무작위 인출 완료!`);
+          return {
+            source_name: cleanInput || "기억술 훈련",
+            quiz_data: bankData.quiz_data.map(item => ({
+              ...item,
+              chosung: extractChosung(item.word)
+            }))
+          };
+        }
+      }
+    } catch (bankErr) {
+      // 서버 미연결/오프라인 환경 시 로컬 캐시 및 AI 클라이언트로 계속 진행
+    }
+  }
   
   // 1. localStorage 영구 캐시 확인 (forceRefresh일 경우 기존 캐시 비우고 완전 새로 생성)
   let pool = [];
@@ -1102,6 +1132,23 @@ ${diffInstruction}${excludeInstruction}
       try {
         localStorage.setItem(cacheKey, JSON.stringify(pool));
       } catch (e) {}
+
+      // 📥 [단어 은행 자동 누적] AI로 새로 생성된 단어들을 SQLite word_bank에 비동기 저장
+      if (mode === 'topic' && pool && pool.length > 0) {
+        fetch('/api/word-bank/insert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            topic: cleanInput,
+            words: pool
+          })
+        }).then(r => r.json()).then(res => {
+          if (res.inserted > 0) {
+            console.log(`[Word Bank 자동 누적] '${cleanInput}' 새 단어 ${res.inserted}개 저장 완료`);
+            if (typeof updateWordBankNavStats === 'function') updateWordBankNavStats();
+          }
+        }).catch(() => {});
+      }
     } catch (apiErr) {
       console.warn("Gemini API 미연결 또는 오류 -> 오프라인 내장 단어장으로 자동 폴백:", apiErr);
       
@@ -1299,6 +1346,9 @@ document.addEventListener('DOMContentLoaded', () => {
   setupKeybindings();
   setupMcqTopicSelector();
   setupFastModeEvents();
+  setupTopicCatalogModal();
+  setupWordBankMinerModal();
+  updateWordBankNavStats();
   checkAuthAndInit();
 });
 
@@ -4940,5 +4990,431 @@ model.save_pretrained_gguf("my_memory_gemma4", tokenizer, quantization_method="q
     inputMcqStory.oninput = () => {
       countMcqStory.innerText = `${inputMcqStory.value.length} / 500자`;
     };
+  }
+}
+
+
+// =================================================================
+// 📚 106대 국가자격·전공·학문 카탈로그 & ⛏️ 1,000단어 마이닝 센터 컨트롤러
+// =================================================================
+
+let currentCatalogTargetInputId = 'inputTopic';
+let activeCatalogCategory = '전체';
+let minerPollTimer = null;
+let currentMiningTopic = '';
+let minerSelectedTarget = 100;
+
+// 상단 네비게이션 단어 은행 총 보유량 업데이트
+async function updateWordBankNavStats() {
+  const badge = document.getElementById('navBankWordCount');
+  if (!badge) return;
+  try {
+    const res = await fetch('/api/word-bank/topics');
+    if (res.ok) {
+      const data = await res.json();
+      if (data && typeof data.total_words === 'number') {
+        badge.innerText = data.total_words.toLocaleString();
+        window.WORD_BANK_TOPIC_STATS = data.topic_counts || {};
+      }
+    }
+  } catch (e) {
+    // 오프라인이거나 서버 미연결 시 로컬스토리지 카운트로 대체
+  }
+}
+
+// 📚 106대 주제 카탈로그 모달 설정
+function setupTopicCatalogModal() {
+  const modal = document.getElementById('modalTopicCatalog');
+  const btnClose = document.getElementById('btnCloseTopicCatalog');
+  const btnOpenConcept = document.getElementById('btnOpenTopicCatalog');
+  const btnOpenMcq = document.getElementById('btnOpenMcqTopicCatalog');
+  const btnOpenMinerFromCat = document.getElementById('btnOpenMinerFromCatalog');
+  const searchInput = document.getElementById('catalogSearchInput');
+  const chipsContainer = document.getElementById('catalogCategoryChips');
+  const gridContainer = document.getElementById('catalogCardsGrid');
+
+  if (!modal) return;
+
+  function openCatalog(targetInputId) {
+    currentCatalogTargetInputId = targetInputId || 'inputTopic';
+    modal.style.display = 'flex';
+    if (searchInput) {
+      searchInput.value = '';
+      setTimeout(() => searchInput.focus(), 100);
+    }
+    renderCategoryChips();
+    renderCatalogCards();
+    updateWordBankNavStats().then(() => renderCatalogCards());
+  }
+
+  function closeCatalog() {
+    modal.style.display = 'none';
+  }
+
+  if (btnClose) btnClose.onclick = closeCatalog;
+  modal.onclick = (e) => {
+    if (e.target === modal) closeCatalog();
+  };
+
+  if (btnOpenConcept) {
+    btnOpenConcept.onclick = () => openCatalog('inputTopic');
+  }
+  if (btnOpenMcq) {
+    btnOpenMcq.onclick = () => openCatalog('inputMcqTopic');
+  }
+  if (btnOpenMinerFromCat) {
+    btnOpenMinerFromCat.onclick = () => {
+      closeCatalog();
+      openWordBankMiner();
+    };
+  }
+
+  // 카테고리 칩 렌더링
+  function renderCategoryChips() {
+    if (!chipsContainer) return;
+    const catalog = window.TOPICS_CATALOG_106 || [];
+    const categories = ['전체', ...new Set(catalog.map(t => t.category))];
+
+    chipsContainer.innerHTML = categories.map(cat => {
+      const isActive = cat === activeCatalogCategory;
+      const count = cat === '전체' ? catalog.length : catalog.filter(t => t.category === cat).length;
+      return `<button type="button" class="catalog-cat-btn" data-category="${cat}" style="
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px solid ${isActive ? '#3b82f6' : 'var(--border-color)'};
+        background: ${isActive ? 'rgba(59, 130, 246, 0.2)' : 'var(--bg-card)'};
+        color: ${isActive ? '#60a5fa' : 'var(--text-secondary)'};
+      ">${cat} (${count})</button>`;
+    }).join('');
+
+    chipsContainer.querySelectorAll('.catalog-cat-btn').forEach(btn => {
+      btn.onclick = () => {
+        activeCatalogCategory = btn.getAttribute('data-category');
+        renderCategoryChips();
+        renderCatalogCards();
+      };
+    });
+  }
+
+  // 카드 그리드 렌더링
+  function renderCatalogCards() {
+    if (!gridContainer) return;
+    const catalog = window.TOPICS_CATALOG_106 || [];
+    const query = (searchInput?.value || '').trim().toLowerCase();
+    const stats = window.WORD_BANK_TOPIC_STATS || {};
+
+    const filtered = catalog.filter(t => {
+      const matchCat = activeCatalogCategory === '전체' || t.category === activeCatalogCategory;
+      if (!matchCat) return false;
+      if (!query) return true;
+      const text = `${t.name} ${t.category} ${t.description} ${(t.sub_domains || []).join(' ')}`.toLowerCase();
+      return text.includes(query);
+    });
+
+    if (filtered.length === 0) {
+      gridContainer.innerHTML = `
+        <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">
+          🔍 '${query}'에 일치하는 주제를 찾지 못했습니다.<br>
+          <span style="font-size: 13px;">직접 입력창에 원하는 주제를 자유롭게 입력하여 인출할 수도 있습니다.</span>
+        </div>`;
+      return;
+    }
+
+    gridContainer.innerHTML = filtered.map(t => {
+      const count = stats[t.name] || 0;
+      const countBadge = count > 0 
+        ? `<span style="font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 12px; background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4);">⛏️ ${count}단어 보유</span>`
+        : `<span style="font-size: 11px; padding: 2px 8px; border-radius: 12px; background: rgba(156, 163, 175, 0.15); color: var(--text-muted); border: 1px solid var(--border-color);">0단어 (마이닝 가능)</span>`;
+
+      const subChips = (t.sub_domains || []).slice(0, 3).map(s => {
+        const shortName = s.replace(/^[0-9]+[)\.]\s*/, '');
+        return `<span style="font-size: 11px; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.06); color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">${shortName}</span>`;
+      }).join('');
+
+      return `
+        <div class="catalog-card-item" data-topic-name="${t.name}" style="
+          padding: 14px;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--border-color);
+          background: var(--bg-card);
+          cursor: pointer;
+          transition: all 0.2s ease;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        " onmouseover="this.style.borderColor='#3b82f6'; this.style.transform='translateY(-2px)';" onmouseout="this.style.borderColor='var(--border-color)'; this.style.transform='none';">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 24px;">${t.icon || '📘'}</span>
+              <div>
+                <div style="font-weight: 800; font-size: 15px; color: var(--text-primary); line-height: 1.2;">${t.name}</div>
+                <span style="font-size: 11px; color: #60a5fa; font-weight: 600;">${t.category}</span>
+              </div>
+            </div>
+            ${countBadge}
+          </div>
+          <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+            ${t.description || ''}
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: auto; padding-top: 6px; border-top: 1px dashed rgba(255,255,255,0.08);">
+            ${subChips}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // 카드 클릭 이벤트
+    gridContainer.querySelectorAll('.catalog-card-item').forEach(card => {
+      card.onclick = () => {
+        const topicName = card.getAttribute('data-topic-name');
+        if (!topicName) return;
+
+        const targetElem = document.getElementById(currentCatalogTargetInputId);
+        if (targetElem) {
+          targetElem.value = topicName;
+          targetElem.focus();
+        }
+
+        if (currentCatalogTargetInputId === 'inputMcqTopic') {
+          const badge = document.getElementById('mcqCurrentTopicBadge');
+          if (badge) badge.innerText = `현재 주제: ${topicName}`;
+        }
+
+        closeCatalog();
+
+        // 선택 안내 토스트
+        if (typeof showToast === 'function') {
+          showToast(`'${topicName}' 주제가 선택되었습니다! 0초 인출 준비 완료.`);
+        }
+      };
+    });
+  }
+
+  if (searchInput) {
+    searchInput.oninput = () => renderCatalogCards();
+  }
+}
+
+// ⛏️ 1,000단어 대량 마이닝 센터 모달 설정
+function setupWordBankMinerModal() {
+  const modal = document.getElementById('modalWordBankMiner');
+  const btnOpenNav = document.getElementById('btnModeWordBank');
+  const btnClose = document.getElementById('btnCloseWordBankMiner');
+  const topicSelect = document.getElementById('minerTopicSelect');
+  const targetBtns = document.querySelectorAll('.miner-target-btn');
+  const btnStart = document.getElementById('btnStartMining');
+  const btnStop = document.getElementById('btnStopMining');
+  const statusBadge = document.getElementById('minerStatusBadge');
+  const collectedElem = document.getElementById('minerCollectedCount');
+  const targetCountElem = document.getElementById('minerTargetCount');
+  const progressBar = document.getElementById('minerProgressBar');
+  const currentSubElem = document.getElementById('minerCurrentSub');
+  const lastWordElem = document.getElementById('minerLastWord');
+  const chipsBox = document.getElementById('minerHarvestedChips');
+
+  if (!modal) return;
+
+  window.openWordBankMiner = function(prefTopic) {
+    modal.style.display = 'flex';
+    populateTopicSelect(prefTopic);
+    checkActiveMiningTask();
+  };
+
+  if (btnOpenNav) {
+    btnOpenNav.onclick = () => window.openWordBankMiner();
+  }
+
+  function closeMiner() {
+    modal.style.display = 'none';
+  }
+
+  if (btnClose) btnClose.onclick = closeMiner;
+  modal.onclick = (e) => {
+    if (e.target === modal) closeMiner();
+  };
+
+  // 106대 카탈로그 옵션 구성
+  function populateTopicSelect(prefTopic) {
+    if (!topicSelect) return;
+    const catalog = window.TOPICS_CATALOG_106 || [];
+    const currentInputVal = prefTopic || 
+      document.getElementById('inputTopic')?.value || 
+      document.getElementById('inputMcqTopic')?.value || 
+      '전기기사 전자기학';
+
+    const grouped = {};
+    catalog.forEach(t => {
+      if (!grouped[t.category]) grouped[t.category] = [];
+      grouped[t.category].push(t);
+    });
+
+    let html = '';
+    for (const [cat, list] of Object.entries(grouped)) {
+      html += `<optgroup label="${cat}">`;
+      list.forEach(t => {
+        const sel = t.name === currentInputVal ? 'selected' : '';
+        html += `<option value="${t.name}" ${sel}>${t.icon} ${t.name}</option>`;
+      });
+      html += `</optgroup>`;
+    }
+    topicSelect.innerHTML = html;
+  }
+
+  // 목표 수량 버튼 전환
+  targetBtns.forEach(btn => {
+    btn.onclick = () => {
+      targetBtns.forEach(b => {
+        b.classList.remove('active');
+        b.style.border = '1px solid var(--border-color)';
+        b.style.background = 'var(--bg-card)';
+        b.style.color = 'var(--text-secondary)';
+      });
+      btn.classList.add('active');
+      btn.style.border = '1px solid #f59e0b';
+      btn.style.background = 'rgba(245, 158, 11, 0.2)';
+      btn.style.color = '#f59e0b';
+
+      minerSelectedTarget = parseInt(btn.getAttribute('data-target'), 10) || 100;
+      if (targetCountElem) targetCountElem.innerText = minerSelectedTarget;
+    };
+  });
+
+  // 마이닝 시작
+  if (btnStart) {
+    btnStart.onclick = async () => {
+      const topic = topicSelect?.value || '전기기사 전자기학';
+      currentMiningTopic = topic;
+      const target = minerSelectedTarget || 100;
+
+      const provider = SERVERLESS_CONFIG.getProvider();
+      const model = provider === 'ollama' ? SERVERLESS_CONFIG.getOllamaModel() : SERVERLESS_CONFIG.getModel();
+
+      try {
+        const res = await fetch('/api/word-bank/mine', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            topic: topic,
+            target: target,
+            provider: provider,
+            model: model
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            updateMinerRunningUI(true);
+            startMinerPolling(topic);
+          } else {
+            alert('마이닝 시작 실패: ' + (data.message || '알 수 없는 오류'));
+          }
+        }
+      } catch (err) {
+        alert('마이닝 서버 연결 실패: 백엔드 서버가 구동 중인지 확인하세요.');
+      }
+    };
+  }
+
+  // 마이닝 중지
+  if (btnStop) {
+    btnStop.onclick = async () => {
+      const topic = currentMiningTopic || topicSelect?.value || '';
+      try {
+        await fetch('/api/word-bank/mine-stop', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ topic: topic })
+        });
+      } catch (e) {}
+      stopMinerPolling();
+      updateMinerRunningUI(false);
+      if (statusBadge) {
+        statusBadge.innerText = '⏸️ 일시정지됨';
+        statusBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+        statusBadge.style.color = '#ef4444';
+      }
+    };
+  }
+
+  function updateMinerRunningUI(isRunning) {
+    if (btnStart) btnStart.style.display = isRunning ? 'none' : 'block';
+    if (btnStop) btnStop.style.display = isRunning ? 'block' : 'none';
+    if (statusBadge) {
+      if (isRunning) {
+        statusBadge.innerText = '⚡ 마이닝 가동 중...';
+        statusBadge.style.background = 'rgba(245, 158, 11, 0.25)';
+        statusBadge.style.color = '#f59e0b';
+      }
+    }
+  }
+
+  function startMinerPolling(topic) {
+    stopMinerPolling();
+    minerPollTimer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/word-bank/mine-status?topic=${encodeURIComponent(topic)}`);
+        if (res.ok) {
+          const data = await res.json();
+          const st = data.status || {};
+
+          if (collectedElem) collectedElem.innerText = st.collected || 0;
+          if (targetCountElem) targetCountElem.innerText = st.target || minerSelectedTarget;
+
+          const pct = Math.min(100, Math.round(((st.collected || 0) / (st.target || 1)) * 100));
+          if (progressBar) progressBar.style.width = `${pct}%`;
+
+          if (currentSubElem) currentSubElem.innerText = st.current_sub_domain || '탐구 영역 회전 중...';
+          if (lastWordElem) lastWordElem.innerText = st.last_word || '-';
+
+          // 실시간 수집된 단어 칩 갱신
+          if (chipsBox && st.recent_words && st.recent_words.length > 0) {
+            chipsBox.innerHTML = st.recent_words.slice(-20).map(w => {
+              return `<span style="font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 12px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3);">${w}</span>`;
+            }).join('');
+          }
+
+          updateWordBankNavStats();
+
+          // 완료 시
+          if (!st.is_running && st.status === 'finished') {
+            stopMinerPolling();
+            updateMinerRunningUI(false);
+            if (statusBadge) {
+              statusBadge.innerText = '✅ 1,000단어 마이닝 달성!';
+              statusBadge.style.background = 'rgba(16, 185, 129, 0.25)';
+              statusBadge.style.color = '#10b981';
+            }
+          }
+        }
+      } catch (pollErr) {}
+    }, 1500);
+  }
+
+  function stopMinerPolling() {
+    if (minerPollTimer) {
+      clearInterval(minerPollTimer);
+      minerPollTimer = null;
+    }
+  }
+
+  async function checkActiveMiningTask() {
+    try {
+      const res = await fetch('/api/word-bank/mine-status');
+      if (res.ok) {
+        const data = await res.json();
+        const st = data.status;
+        if (st && st.is_running) {
+          currentMiningTopic = st.topic;
+          if (topicSelect) topicSelect.value = st.topic;
+          updateMinerRunningUI(true);
+          startMinerPolling(st.topic);
+        }
+      }
+    } catch (e) {}
   }
 }

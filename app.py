@@ -15,6 +15,7 @@ if sys.platform == "win32":
 import database as db
 import ai_service as ai
 import pdf_service as pdf_svc
+import topics_catalog as tc
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 os.chdir(BASE_DIR) # IDE에서 Run 버튼 클릭 시 작업 디렉토리 강제 고정
@@ -355,6 +356,45 @@ class MemoryAppHandler(SimpleHTTPRequestHandler):
                 "ollama_url": ollama_url
             })
 
+        # 📚 14. [신규] 100+ 주제별 단어 은행 무작위 인출 API (0초 인출 & 중복 배제)
+        elif path == "/api/word-bank/random":
+            topic = (data.get("topic") or "").strip()
+            count = int(data.get("count", 10))
+            exclude_words = data.get("exclude_words", [])
+            words = db.get_random_words_from_bank(topic, count=count, exclude_words=exclude_words)
+            return self._send_json({
+                "success": True,
+                "topic": topic,
+                "count": len(words),
+                "quiz_data": words
+            })
+
+        elif path == "/api/word-bank/insert":
+            topic = (data.get("topic") or "").strip()
+            words = data.get("words", [])
+            sub_category = data.get("sub_category", "")
+            inserted = db.insert_words_to_bank(topic, words, sub_category=sub_category)
+            return self._send_json({
+                "success": True,
+                "topic": topic,
+                "inserted": inserted
+            })
+
+        # ⛏️ 15. [신규] 1,000단어 대량 마이닝 시작 API
+        elif path == "/api/word-bank/mine":
+            topic = (data.get("topic") or "").strip()
+            target = int(data.get("target", 1000))
+            provider = data.get("provider", "ollama")
+            model = data.get("model", None)
+            res = ai.word_bank_miner.start_mining(topic, target_count=target, provider=provider, model=model)
+            return self._send_json(res)
+
+        # ⏹️ 16. [신규] 1,000단어 대량 마이닝 중단 API
+        elif path == "/api/word-bank/mine-stop":
+            topic = (data.get("topic") or "").strip()
+            stopped = ai.word_bank_miner.stop_mining(topic)
+            return self._send_json({"success": True, "stopped": stopped})
+
 
         return self._send_json({"error": "Not Found"}, status=404)
 
@@ -365,8 +405,26 @@ class MemoryAppHandler(SimpleHTTPRequestHandler):
         user_id = int(query.get("user_id", [1])[0])
 
 
+        # 📚 [신규] 100+ 주제 카탈로그 및 DB 단어 수량 집계 조회 API
+        if path == "/api/word-bank/topics":
+            topics = [dict(t) for t in tc.get_topics_list()]
+            stats = db.get_word_bank_stats()["topic_counts"]
+            for t in topics:
+                t["word_count"] = stats.get(t["name"], 0)
+            return self._send_json({
+                "success": True,
+                "total_topics": len(topics),
+                "topics": topics
+            })
+
+        # ⛏️ [신규] 1,000단어 마이닝 상태 실시간 조회 API
+        elif path == "/api/word-bank/mine-status":
+            topic = query.get("topic", [""])[0].strip()
+            status = ai.word_bank_miner.get_status(topic)
+            return self._send_json({"success": True, "status": status})
+
         # 14. 🦙 Ollama 로컬 모델 태그 목록 조회 API (CORS 방지 프록시)
-        if path == "/api/ollama-tags":
+        elif path == "/api/ollama-tags":
             ollama_url = query.get("url", ["http://localhost:11434"])[0].rstrip("/")
             try:
                 tags_url = f"{ollama_url}/api/tags"

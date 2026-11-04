@@ -31,7 +31,8 @@
         <button id="btnModeQuiz" class="mode-nav-btn" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 800;">🎯 4지선다 객관식 퀴즈</button>
         <button id="btnModeConcept" class="mode-nav-btn">🧠 AI 개념 연상술</button>
         <button id="btnModeSpatial" class="mode-nav-btn">⚡ 공간 순간 기억력</button>
-        <button id="btnModeFinetune" class="mode-nav-btn" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(99, 102, 241, 0.2)); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.4); font-weight: 800;">🤖 AI 파인튜닝 데이터셋 (<span id="navFinetuneCount">0</span>)</button>
+        <button id="btnModeFinetune" class="mode-nav-btn" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(99, 102, 241, 0.2)); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.4); font-weight: 800;">🤖 AI 파인튜닝 (<span id="navFinetuneCount">0</span>)</button>
+        <button id="btnModeWordBank" class="mode-nav-btn" style="background: linear-gradient(135deg, rgba(234, 179, 8, 0.2), rgba(249, 115, 22, 0.2)); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.5); font-weight: 800;">⛏️ 1,000단어 마이닝 (<span id="navBankWordCount">0</span>)</button>
       </div>
 
       <!-- [우측 상단] 마스터 로그인 정보 & 글로벌 도구 -->
@@ -326,7 +327,10 @@
           <div class="tab-content">
             <!-- 단일 주제 탭 -->
             <div id="tabTopic" class="tab-pane active">
-              <label for="inputTopic" class="input-label">공부할 단일 주제를 입력하세요</label>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label for="inputTopic" class="input-label" style="margin-bottom:0;">공부할 단일 주제를 입력하세요</label>
+                <button type="button" id="btnOpenTopicCatalog" class="btn-catalog-pill" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); color: #60a5fa; font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 6px; cursor: pointer;">📚 106대 추천 주제 라이브러리</button>
+              </div>
               <input type="text" id="inputTopic" placeholder="예: 전기기사 전자기학, 거시경제학, 운영체제" value="전기기사 전자기학">
             </div>
 
@@ -560,6 +564,7 @@
             <div class="mcq-topic-input-row">
               <span class="mcq-label">🎯 퀴즈 주제:</span>
               <input type="text" id="inputMcqTopic" placeholder="공부할 주제 입력 (예: 전자기학, 거시경제학, 민법, 네트워크, AI)" value="전기기사 전자기학">
+              <button type="button" id="btnOpenMcqTopicCatalog" class="btn-catalog-pill" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); color: #60a5fa; font-size: 13px; font-weight: 800; padding: 10px 14px; border-radius: 8px; cursor: pointer; white-space: nowrap;">📚 106대 주제</button>
               <button id="btnGenerateMcqTopic" class="btn-primary btn-generate-mcq">
                 ⚡ 새 단어 생성
               </button>
@@ -1043,6 +1048,97 @@
       </main>
     </div> <!-- .app-layout -->
 
+    <!-- 📚 [신규] 106대 국가자격·전공·학문 핵심 주제 라이브러리 모달 -->
+    <div id="modalTopicCatalog" class="modal-overlay" style="display:none; z-index: 10000;">
+      <div class="modal-card" style="max-width: 960px; width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+        <div class="modal-header" style="flex-shrink: 0;">
+          <div>
+            <h3 style="font-size: 20px; font-weight: 800; color: #60a5fa; margin-bottom: 4px;">📚 106대 국가자격·전공·학문 주제 라이브러리</h3>
+            <p style="font-size: 13px; color: var(--text-secondary); margin: 0;">주제를 선택하면 단어 은행(Word Bank)에서 0초 즉시 랜덤 인출되어 훈련을 시작합니다.</p>
+          </div>
+          <button id="btnCloseTopicCatalog" class="btn-icon">✕</button>
+        </div>
+        <div class="modal-body" style="overflow-y: auto; flex: 1; padding: 16px;">
+          <!-- 검색창 및 빠른 카운터 -->
+          <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+            <input type="text" id="catalogSearchInput" placeholder="🔍 주제명, 자격증, 과목명 검색 (예: 전기, 회로, 민법, 알고리즘, 해부학, 한국사...)" style="flex: 1; padding: 12px 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 14px;">
+            <button id="btnOpenMinerFromCatalog" class="btn-primary" style="background: linear-gradient(135deg, #f59e0b, #ef4444); font-weight: 800; white-space: nowrap; padding: 0 18px;">⛏️ 1,000단어 마이닝 센터 ➔</button>
+          </div>
+          <!-- 카테고리 필터 칩 -->
+          <div class="catalog-category-chips" id="catalogCategoryChips" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px;">
+            <!-- JS 동적 생성 -->
+          </div>
+          <!-- 카드 그리드 -->
+          <div class="catalog-cards-grid" id="catalogCardsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
+            <!-- JS 동적 생성 -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ⛏️ [신규] 1,000단어 대량 마이닝 센터 모달 -->
+    <div id="modalWordBankMiner" class="modal-overlay" style="display:none; z-index: 10001;">
+      <div class="modal-card" style="max-width: 680px; width: 95%;">
+        <div class="modal-header">
+          <div>
+            <h3 style="font-size: 20px; font-weight: 800; color: #f59e0b; margin-bottom: 4px;">⛏️ AI 대량 단어 마이닝 센터 (1,000단어 자동 구축)</h3>
+            <p style="font-size: 13px; color: var(--text-secondary); margin: 0;">원하는 주제의 전문 용어를 백그라운드로 100~1,000개 자동 수집하여 0초 인출 DB를 구축합니다.</p>
+          </div>
+          <button id="btnCloseWordBankMiner" class="btn-icon">✕</button>
+        </div>
+        <div class="modal-body" style="max-height: 80vh; overflow-y: auto;">
+          <!-- 주제 선택 -->
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label class="input-label">마이닝할 주제 선택 (106대 카탈로그)</label>
+            <select id="minerTopicSelect" style="width: 100%; padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 14px; font-weight: 700;">
+              <!-- JS 동적 생성 -->
+            </select>
+          </div>
+          <!-- 목표 수량 선택 -->
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label class="input-label">목표 수집 수량</label>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="miner-target-btn active" data-target="100" style="flex:1; padding: 10px; border-radius: 8px; border: 1px solid #f59e0b; background: rgba(245, 158, 11, 0.2); color: #f59e0b; font-weight: 800; cursor: pointer;">100개 (맛보기)</button>
+              <button type="button" class="miner-target-btn" data-target="300" style="flex:1; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-secondary); font-weight: 700; cursor: pointer;">300개</button>
+              <button type="button" class="miner-target-btn" data-target="500" style="flex:1; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-secondary); font-weight: 700; cursor: pointer;">500개</button>
+              <button type="button" class="miner-target-btn" data-target="1000" style="flex:1; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-secondary); font-weight: 700; cursor: pointer;">1,000개 (완전정복)</button>
+            </div>
+          </div>
+          <!-- 실시간 마이닝 대시보드 카드 -->
+          <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <span id="minerStatusBadge" style="padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 800; background: rgba(107, 114, 128, 0.2); color: #9ca3af;">대기 중 (Idle)</span>
+              <span style="font-size: 14px; color: var(--text-secondary);">현재 수집량: <strong id="minerCollectedCount" style="color: #f59e0b; font-size: 18px;">0</strong> / <span id="minerTargetCount">100</span>개</span>
+            </div>
+            <!-- 프로그레스 바 -->
+            <div style="width: 100%; height: 12px; background: rgba(255,255,255,0.08); border-radius: 6px; overflow: hidden; margin-bottom: 10px;">
+              <div id="minerProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #f59e0b, #ef4444); transition: width 0.3s ease;"></div>
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between;">
+              <span>현재 탐색 영역: <strong id="minerCurrentSub" style="color: var(--text-primary);">-</strong></span>
+              <span>방금 수집 단어: <strong id="minerLastWord" style="color: #10b981;">-</strong></span>
+            </div>
+          </div>
+          <!-- 마이닝 컨트롤 버튼 -->
+          <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+            <button id="btnStartMining" class="btn-primary" style="flex: 1; padding: 14px; font-weight: 800; font-size: 15px; background: linear-gradient(135deg, #f59e0b, #ef4444);">
+              🚀 마이닝 시작
+            </button>
+            <button id="btnStopMining" class="btn-secondary" style="display:none; padding: 14px 20px; font-weight: 800; background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4);">
+              ⏹️ 일시정지
+            </button>
+          </div>
+          <!-- 방금 수집된 단어 칩 리스트 -->
+          <div>
+            <label class="input-label" style="font-size: 12px;">실시간 수집된 단어 현황</label>
+            <div id="minerHarvestedChips" style="max-height: 120px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; background: var(--bg-card); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+              <span style="font-size: 12px; color: var(--text-muted);">마이닝이 시작되면 실시간으로 수집된 단어들이 여기에 표시됩니다.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ⚙️ AI 엔진 및 구글 시트 DB 설정 모달 -->
     <div id="settingsModal" class="modal-overlay" style="display:none;">
       <div class="modal-card" style="max-width: 560px; width: 95%;">
@@ -1178,6 +1274,7 @@
 
   </div>
 
+  <script src="topics_catalog.js?v=20261104"></script>
   <script src="app.js?v=20260903_v2"></script>
 </body>
 </html>

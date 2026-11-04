@@ -207,6 +207,25 @@ def init_db():
     else:
         # 기존 admin이 있으면 마스터 권한 및 승인 강제 부여
         cur.execute("UPDATE users SET role = 'admin', is_approved = 1 WHERE username = 'admin'")
+
+    # 7. 📚 [신규] 100+ 주제별 1,000단어 대량 단어 은행 (Word Bank) 테이블
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS word_bank (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        topic TEXT NOT NULL,
+        sub_category TEXT,
+        word TEXT NOT NULL,
+        definition TEXT NOT NULL,
+        importance_reason TEXT,
+        visual_anchor TEXT,
+        chosung TEXT,
+        difficulty TEXT DEFAULT 'normal',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(topic, word)
+    )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_word_bank_topic ON word_bank(topic)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_word_bank_sub ON word_bank(sub_category)")
     
     conn.commit()
     conn.close()
@@ -688,3 +707,136 @@ def clear_finetune_dataset(user_id=1):
     conn.close()
     return True
 
+
+
+# =================================================================
+# 📚 [신규] 100+ 주제별 1,000단어 대용량 단어 은행 (Word Bank) API
+# =================================================================
+def extract_chosung(text):
+    """한글 단어 초성 분리"""
+    chosungs = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"]
+    res = []
+    for ch in text or "":
+        code = ord(ch) - 44032
+        if 0 <= code <= 11171:
+            res.append(chosungs[code // 588])
+        else:
+            res.append(ch)
+    return "".join(res)
+
+def insert_words_to_bank(topic, words_list, sub_category=None):
+    """주제별 단어 목록을 SQLite word_bank 테이블에 영구 저장 (중복 단어 자동 무시)"""
+    if not words_list or not topic:
+        return 0, 0
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    inserted = 0
+    for w in words_list:
+        word = (w.get("word") or "").strip()
+        if not word:
+            continue
+        definition = (w.get("definition") or "").strip()
+        importance = (w.get("importance_reason") or "").strip()
+        visual = (w.get("visual_anchor") or "").strip()
+        chosung = w.get("chosung") or extract_chosung(word)
+        sub_cat = w.get("category") or sub_category or topic
+        difficulty = w.get("difficulty") or "normal"
+        try:
+            cur.execute("""
+                INSERT OR IGNORE INTO word_bank 
+                (topic, sub_category, word, definition, importance_reason, visual_anchor, chosung, difficulty)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (topic, sub_cat, word, definition, importance, visual, chosung, difficulty))
+            if cur.rowcount > 0:
+                inserted += 1
+        except Exception:
+            pass
+    conn.commit()
+    cur.execute("SELECT COUNT(*) FROM word_bank WHERE topic = ?", (topic,))
+    total_for_topic = cur.fetchone()[0]
+    conn.close()
+    return inserted, total_for_topic
+
+def get_random_words_from_bank(topic, count=10, exclude_words=None):
+    """주제별 단어 은행에서 무작위 n개 단어 즉시 인출 (0초 인출 & 중복 배제)"""
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    
+    exclude_set = set(exclude_words or [])
+    clean_topic = (topic or "").strip()
+    
+    # 1. 완벽 일치 토픽 검색
+    query = "SELECT word, definition, importance_reason, visual_anchor, chosung, sub_category, difficulty FROM word_bank WHERE topic = ?"
+    params = [clean_topic]
+    if exclude_set:
+        placeholders = ','.join('?' for _ in exclude_set)
+        query += f" AND word NOT IN ({placeholders})"
+        params.extend(list(exclude_set))
+    query += " ORDER BY RANDOM() LIMIT ?"
+    params.append(count)
+    
+    cur.execute(query, params)
+    rows = [dict(r) for r in cur.fetchall()]
+    
+    # 2. 결과가 부족하면 토픽 부분 검색(LIKE)으로 유연하게 보충
+    if len(rows) < count:
+        remaining = count - len(rows)
+        existing_words = exclude_set.union({r["word"] for r in rows})
+        sub_query = "SELECT word, definition, importance_reason, visual_anchor, chosung, sub_category, difficulty FROM word_bank WHERE topic LIKE ?"
+        sub_params = [f"%{clean_topic}%"]
+        if existing_words:
+            placeholders = ','.join('?' for _ in existing_words)
+            sub_query += f" AND word NOT IN ({placeholders})"
+            sub_params.extend(list(existing_words))
+        sub_query += " ORDER BY RANDOM() LIMIT ?"
+        sub_params.append(remaining)
+        cur.execute(sub_query, sub_params)
+        extra = [dict(r) for r in cur.fetchall()]
+        rows.extend(extra)
+        
+    conn.close()
+    return rows
+
+def get_word_bank_stats():
+    """모든 주제별 저장된 단어 수량 및 총 통계 반환"""
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("SELECT topic, COUNT(*) FROM word_bank GROUP BY topic")
+    stats = {row[0]: row[1] for row in cur.fetchall()}
+    cur.execute("SELECT COUNT(*) FROM word_bank")
+    total_words = cur.fetchone()[0]
+    conn.close()
+    return {
+        "topic_counts": stats,
+        "total_words": total_words
+    }
+
+def get_topic_word_count(topic):
+    """특정 주제의 현재 단어 수 반환"""
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM word_bank WHERE topic = ?", (topic,))
+    row = cur.fetchone()
+    count = row[0] if row else 0
+    conn.close()
+    return count
+
+def get_all_words_for_topic(topic):
+    """특정 주제의 이미 저장된 단어 텍스트 목록 전체 조회 (마이닝 중복 회피용)"""
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("SELECT word FROM word_bank WHERE topic = ?", (topic,))
+    words = [row[0] for row in cur.fetchall()]
+    conn.close()
+    return words
+
+def clear_topic_words(topic):
+    """특정 주제의 단어 은행 초기화"""
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("DELETE FROM word_bank WHERE topic = ?", (topic,))
+    deleted = cur.rowcount
+    conn.commit()
+    conn.close()
+    return deleted

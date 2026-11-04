@@ -4,6 +4,11 @@ import urllib.request
 import urllib.error
 from utils import extract_chosung
 import sys
+import threading
+import time
+import random
+import database as db
+import topics_catalog as tc
 
 if sys.platform == "win32":
     try:
@@ -287,8 +292,21 @@ def get_or_create_word_pool(mode: str, user_input: str, difficulty: str = "norma
     WORD_POOL_CACHE[cache_key] = pool
     return pool
 
-def generate_words(mode: str, user_input: str, word_count: int = 5, exclude_words: list = None, difficulty: str = "normal", provider: str = "gemini", model: str = None) -> dict:
-    """단어 풀에서 무작위 셔플링(Random Sampling)하여 신선한 단어 조합 반환 (모델/공급자별)"""
+def generate_words(mode: str, user_input: str, word_count: int = 5, exclude_words: list = None, difficulty: str = "normal", provider: str = "gemini", model: str = None, count: int = None) -> dict:
+    """단어 풀에서 무작위 셔플링(Random Sampling)하여 신선한 단어 조합 반환 (Word Bank 우선 인출)"""
+    if count is not None:
+        word_count = count
+    clean_input = (user_input or "").strip()
+    
+    # 0. 📚 [신규] SQLite 대용량 단어 은행(Word Bank)에서 0초 즉시 랜덤 인출
+    bank_words = db.get_random_words_from_bank(clean_input, count=word_count, exclude_words=exclude_words)
+    if len(bank_words) >= word_count:
+        print(f"[Word Bank] 주제 '{clean_input}'의 단어 은행에서 {len(bank_words)}개 단어를 0초 즉시 인출 완료!")
+        return {
+            "source_name": clean_input,
+            "quiz_data": bank_words,
+            "from_bank": True
+        }
     target_provider = provider or "gemini"
     target_model = model or (OLLAMA_MODEL if target_provider == "ollama" else DEFAULT_GEMINI_MODEL)
     cache_key = f"{target_provider}:{target_model}:{mode}:{difficulty}:{user_input.strip()}"
@@ -459,3 +477,160 @@ def evaluate_story(user_story: str, quiz_words: list, results: list, memorize_se
             "weak_points": "동일 분야 기술 단어는 설명식으로 나열하면 쉽게 잊혀집니다.",
             "actionable_tip": "추상적인 전공 용어를 '성격 있는 캐릭터'로 의인화하고 서로 부딪히는 동작을 넣어보세요."
         }
+
+
+# =================================================================
+# ⛏️ [신규] 100+ 주제별 1,000단어 대량 마이닝 엔진 (Bulk Mining Engine)
+# =================================================================
+class WordBankMiner:
+    _instance = None
+    _lock = threading.Lock()
+    
+    def __new__(cls):
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = super().__new__(cls)
+                cls._instance.active_tasks = {}
+            return cls._instance
+
+    def get_status(self, topic):
+        clean_topic = (topic or "").strip()
+        count = db.get_topic_word_count(clean_topic)
+        task = self.active_tasks.get(clean_topic, {})
+        status_val = task.get("status", "idle")
+        recent = [w['word'] for w in db.get_random_words_from_bank(clean_topic, count=15)] if count > 0 else []
+        return {
+            "topic": clean_topic,
+            "status": status_val,
+            "is_running": status_val == "running",
+            "collected": count,
+            "target": task.get("target", 1000),
+            "current_sub_domain": task.get("current_sub_domain", ""),
+            "last_word": task.get("last_word", ""),
+            "recent_words": recent,
+            "last_updated": task.get("last_updated", 0),
+            "error": task.get("error", None)
+        }
+
+    def stop_mining(self, topic):
+        clean_topic = (topic or "").strip()
+        if clean_topic in self.active_tasks:
+            self.active_tasks[clean_topic]["status"] = "stopped"
+            return True
+        return False
+
+    def start_mining(self, topic, target_count=1000, provider="ollama", model=None):
+        clean_topic = (topic or "").strip()
+        if not clean_topic:
+            return {"success": False, "error": "주제를 입력해주세요."}
+
+        curr = self.active_tasks.get(clean_topic, {})
+        if curr.get("status") == "running":
+            return {"success": True, "message": "이미 마이닝이 진행 중입니다.", "status": self.get_status(clean_topic)}
+
+        task = {
+            "status": "running",
+            "target": target_count,
+            "current_sub_domain": "",
+            "last_word": "",
+            "last_updated": time.time(),
+            "error": None
+        }
+        self.active_tasks[clean_topic] = task
+
+        t = threading.Thread(
+            target=self._worker,
+            args=(clean_topic, target_count, provider, model),
+            daemon=True
+        )
+        t.start()
+        return {"success": True, "message": f"'{clean_topic}' 1000단어 마이닝이 시작되었습니다."}
+
+    def _worker(self, topic, target_count, provider, model):
+        topic_meta = tc.get_topic_by_name(topic)
+        sub_domains = topic_meta.get("sub_domains", []) if topic_meta else [
+            "기초 핵심 이론 및 정의", "심화 메커니즘 및 계산 공식", "응용 기술 및 실무 사례", "표준 규격 및 기출 핵심", "부품 및 구조 분석"
+        ]
+
+        batch_idx = 0
+        consecutive_errors = 0
+
+        while True:
+            task = self.active_tasks.get(topic)
+            if not task or task.get("status") != "running":
+                break
+
+            existing_words = set(db.get_all_words_for_topic(topic))
+            current_count = len(existing_words)
+            task["collected"] = current_count
+            task["last_updated"] = time.time()
+
+            if current_count >= target_count:
+                task["status"] = "completed"
+                break
+
+            sub = sub_domains[batch_idx % len(sub_domains)]
+            task["current_sub_domain"] = sub
+            batch_size = min(25, target_count - current_count)
+
+            exclude_sample = list(existing_words)[-40:] if existing_words else []
+            exclude_str = f"\n⚠️ [절대 중복 금지 목록]: 다음 단어들은 이미 수집 완료되었으므로 절대로 다시 포함하지 마세요:\n[{', '.join(exclude_sample)}]" if exclude_sample else ""
+
+            prompt = f"""[역할]: '{topic}' 전공 석학 교수
+[세부 영역]: '{sub}'
+[추론모드 OFF]: <thought> 태그나 중간 생각/추론 과정을 일절 출력하지 마세요.
+{exclude_str}
+
+주제 '{topic}'의 세부 영역인 '{sub}'에서 시험/실무 핵심 전문 용어 정확히 {batch_size}개를 엄선하세요.
+[필수 JSON 포맷]:
+{{
+  "quiz_data": [
+    {{
+      "word": "핵심전문용어",
+      "definition": "1문장 핵심 정의 (15자 이내)",
+      "importance_reason": "출제 포인트 (15자 이내)",
+      "visual_anchor": "💡 연상 사물"
+    }}
+  ]
+}}
+- 불필요한 사족 없이 첫 글자부터 끝 글자까지 오직 완성된 JSON만 즉시 출력하세요.
+"""
+            try:
+                if provider == "ollama":
+                    target_model = model or OLLAMA_MODEL
+                    res = call_ollama(prompt, "JSON Format", model=target_model, temperature=0.85)
+                else:
+                    target_model = model or DEFAULT_GEMINI_MODEL
+                    res = call_gemini_rest(prompt, model=target_model, temperature=0.85)
+
+                quiz_data = res.get("quiz_data", []) if isinstance(res, dict) else []
+                valid_items = []
+                for item in quiz_data:
+                    w = (item.get("word") or "").strip()
+                    if w and w not in existing_words:
+                        valid_items.append(item)
+
+                if valid_items:
+                    inserted, total = db.insert_words_to_bank(topic, valid_items, sub_category=sub)
+                    task["last_word"] = valid_items[-1].get("word", "")
+                    task["collected"] = total
+                    consecutive_errors = 0
+                else:
+                    consecutive_errors += 1
+
+                batch_idx += 1
+                if consecutive_errors > 6:
+                    task["status"] = "stopped"
+                    task["error"] = "연속 유효 단어 추출 실패로 마이닝 일시 정지"
+                    break
+
+                time.sleep(0.5)
+            except Exception as e:
+                consecutive_errors += 1
+                task["error"] = str(e)
+                if consecutive_errors > 6:
+                    task["status"] = "error"
+                    break
+                time.sleep(2.0)
+
+word_bank_miner = WordBankMiner()
