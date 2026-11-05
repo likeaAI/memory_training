@@ -3384,3 +3384,53 @@ textarea:focus {
   border-color: #10b981;
   box-shadow: 0 0 0 1px #10b981 inset;
 }
+
+
+/* 🎯 106대 표준 주제 선택 드롭다운 & 정보 카드 스타일 */
+.topic-select-dropdown {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  appearance: auto;
+  cursor: pointer;
+}
+.topic-select-dropdown:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+.topic-select-dropdown optgroup {
+  background: var(--bg-surface);
+  color: #60a5fa;
+  font-weight: 800;
+  font-size: 13px;
+  padding: 6px 0;
+}
+.topic-select-dropdown option {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 8px 12px;
+}
+.topic-detail-card {
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+.topic-detail-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+.topic-sub-chip {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}

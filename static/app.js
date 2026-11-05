@@ -2449,6 +2449,7 @@ function setupMcqTopicSelector() {
       const topic = chip.getAttribute('data-topic');
       if (inputTopic && topic) {
         inputTopic.value = topic;
+        inputTopic.dispatchEvent(new Event('change'));
         if (btnGen) btnGen.click();
       }
     };
@@ -5004,21 +5005,157 @@ let minerPollTimer = null;
 let currentMiningTopic = '';
 let minerSelectedTarget = 100;
 
-// 상단 네비게이션 단어 은행 총 보유량 업데이트
+// 상단 네비게이션 단어 은행 총 보유량 업데이트 & 선택 드롭다운 동기화
 async function updateWordBankNavStats() {
   const badge = document.getElementById('navBankWordCount');
-  if (!badge) return;
+  let stats = window.WORD_BANK_TOPIC_STATS || {};
   try {
     const res = await fetch('/api/word-bank/topics');
     if (res.ok) {
       const data = await res.json();
       if (data && typeof data.total_words === 'number') {
-        badge.innerText = data.total_words.toLocaleString();
+        if (badge) badge.innerText = data.total_words.toLocaleString();
         window.WORD_BANK_TOPIC_STATS = data.topic_counts || {};
+        stats = window.WORD_BANK_TOPIC_STATS;
       }
     }
   } catch (e) {
-    // 오프라인이거나 서버 미연결 시 로컬스토리지 카운트로 대체
+    // 오프라인이거나 서버 미연결 시 기본값 유지
+  }
+  populateTopicSelects(stats);
+}
+
+// 🎯 [핵심] 자유 입력창 ➔ 106대 표준 주제 & 생성된 단어 은행 드롭다운 동적 구성
+function populateTopicSelects(stats = {}) {
+  const catalog = window.TOPICS_CATALOG_106 || [];
+  if (catalog.length === 0) return;
+
+  const conceptSelect = document.getElementById('inputTopic');
+  const mcqSelect = document.getElementById('inputMcqTopic');
+  const minerSelect = document.getElementById('minerTopicSelect');
+
+  const prevConceptVal = conceptSelect?.value || '전기기사 전자기학';
+  const prevMcqVal = mcqSelect?.value || '전기기사 전자기학';
+  const prevMinerVal = minerSelect?.value || '전기기사 전자기학';
+
+  // 단어 은행에 이미 단어가 생성/보유된 주제 목록 (count > 0)
+  const readyTopics = catalog.filter(t => (stats[t.name] || 0) > 0);
+
+  // 8대 카테고리별 그룹화
+  const grouped = {};
+  catalog.forEach(t => {
+    if (!grouped[t.category]) grouped[t.category] = [];
+    grouped[t.category].push(t);
+  });
+
+  function buildOptionsHTML(selectedVal) {
+    let html = '';
+
+    // 1순위: 단어 은행 보유 주제 (0초 즉시 인출 가능)
+    if (readyTopics.length > 0) {
+      html += `<optgroup label="🌟 단어 은행 보유 주제 (0초 즉시 인출)">`;
+      readyTopics.forEach(t => {
+        const count = stats[t.name] || 0;
+        const isSel = t.name === selectedVal ? 'selected' : '';
+        html += `<option value="${t.name}" ${isSel}>${t.icon} ${t.name} (⛏️ ${count}단어 준비됨)</option>`;
+      });
+      html += `</optgroup>`;
+    }
+
+    // 2순위: 8대 표준 카테고리 전체 주제
+    for (const [cat, list] of Object.entries(grouped)) {
+      html += `<optgroup label="${cat}">`;
+      list.forEach(t => {
+        const count = stats[t.name] || 0;
+        const isSel = t.name === selectedVal ? 'selected' : '';
+        const countSuffix = count > 0 ? ` (${count}단어)` : '';
+        html += `<option value="${t.name}" ${isSel}>${t.icon} ${t.name}${countSuffix}</option>`;
+      });
+      html += `</optgroup>`;
+    }
+    return html;
+  }
+
+  // 1) 개념 연상 학습 드롭다운 (#inputTopic)
+  if (conceptSelect && conceptSelect.tagName === 'SELECT') {
+    conceptSelect.innerHTML = buildOptionsHTML(prevConceptVal);
+    updateTopicDetailCard('concept', conceptSelect.value, stats);
+    conceptSelect.onchange = () => {
+      updateTopicDetailCard('concept', conceptSelect.value, window.WORD_BANK_TOPIC_STATS || {});
+    };
+  }
+
+  // 2) 4지선다 퀴즈 드롭다운 (#inputMcqTopic)
+  if (mcqSelect && mcqSelect.tagName === 'SELECT') {
+    mcqSelect.innerHTML = buildOptionsHTML(prevMcqVal);
+    updateTopicDetailCard('mcq', mcqSelect.value, stats);
+    mcqSelect.onchange = () => {
+      updateTopicDetailCard('mcq', mcqSelect.value, window.WORD_BANK_TOPIC_STATS || {});
+      const badge = document.getElementById('mcqCurrentTopicBadge');
+      if (badge) badge.innerText = `현재 주제: ${mcqSelect.value}`;
+    };
+  }
+
+  // 3) 마이닝 센터 드롭다운 (#minerTopicSelect)
+  if (minerSelect) {
+    minerSelect.innerHTML = buildOptionsHTML(prevMinerVal);
+  }
+}
+
+// 📇 선택된 주제 정보 카드 실시간 렌더링
+function updateTopicDetailCard(type, topicName, stats = {}) {
+  const catalog = window.TOPICS_CATALOG_106 || [];
+  const t = catalog.find(item => item.name === topicName) || catalog[0];
+  if (!t) return;
+
+  const count = stats[t.name] || (window.WORD_BANK_TOPIC_STATS && window.WORD_BANK_TOPIC_STATS[t.name]) || 0;
+
+  if (type === 'concept') {
+    const iconEl = document.getElementById('conceptTopicIcon');
+    const nameEl = document.getElementById('conceptTopicName');
+    const catEl = document.getElementById('conceptTopicCategory');
+    const badgeEl = document.getElementById('conceptTopicWordCountBadge');
+    const descEl = document.getElementById('conceptTopicDesc');
+    const subsEl = document.getElementById('conceptTopicSubDomains');
+
+    if (iconEl) iconEl.innerText = t.icon || '📘';
+    if (nameEl) nameEl.innerText = t.name;
+    if (catEl) catEl.innerText = t.category;
+    if (badgeEl) {
+      if (count > 0) {
+        badgeEl.innerText = `⛏️ ${count}단어 보유 (0초 즉시 인출)`;
+        badgeEl.style.background = 'rgba(16, 185, 129, 0.2)';
+        badgeEl.style.color = '#10b981';
+        badgeEl.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+      } else {
+        badgeEl.innerText = `⛏️ 0단어 (마이닝 센터에서 수집 가능)`;
+        badgeEl.style.background = 'rgba(245, 158, 11, 0.15)';
+        badgeEl.style.color = '#f59e0b';
+        badgeEl.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+      }
+    }
+    if (descEl) descEl.innerText = t.desc || '';
+    if (subsEl) {
+      subsEl.innerHTML = (t.sub_domains || []).slice(0, 5).map(s => {
+        const short = s.replace(/^[0-9]+[)\.]\s*/, '');
+        return `<span class="topic-sub-chip">${short}</span>`;
+      }).join('');
+    }
+  } else if (type === 'mcq') {
+    const iconEl = document.getElementById('mcqTopicIcon');
+    const nameEl = document.getElementById('mcqTopicName');
+    const catEl = document.getElementById('mcqTopicCategory');
+    const badgeEl = document.getElementById('mcqTopicWordCountBadge');
+    const descEl = document.getElementById('mcqTopicDescShort');
+
+    if (iconEl) iconEl.innerText = t.icon || '🎯';
+    if (nameEl) nameEl.innerText = t.name;
+    if (catEl) catEl.innerText = t.category;
+    if (badgeEl) {
+      badgeEl.innerText = count > 0 ? `⛏️ ${count}단어 준비됨 (0초)` : `⛏️ 0단어 (마이닝 가능)`;
+      badgeEl.style.color = count > 0 ? '#10b981' : '#f59e0b';
+    }
+    if (descEl) descEl.innerText = t.desc || '';
   }
 }
 
@@ -5176,6 +5313,7 @@ function setupTopicCatalogModal() {
         const targetElem = document.getElementById(currentCatalogTargetInputId);
         if (targetElem) {
           targetElem.value = topicName;
+          targetElem.dispatchEvent(new Event('change'));
           targetElem.focus();
         }
 

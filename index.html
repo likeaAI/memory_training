@@ -327,11 +327,33 @@
           <div class="tab-content">
             <!-- 단일 주제 탭 -->
             <div id="tabTopic" class="tab-pane active">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <label for="inputTopic" class="input-label" style="margin-bottom:0;">공부할 단일 주제를 입력하세요</label>
-                <button type="button" id="btnOpenTopicCatalog" class="btn-catalog-pill" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); color: #60a5fa; font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 6px; cursor: pointer;">📚 106대 추천 주제 라이브러리</button>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <label for="inputTopic" class="input-label" style="margin-bottom:0; font-weight: 800; color: #60a5fa;">🎯 학습할 주제 선택 (106대 표준 라이브러리)</label>
+                <button type="button" id="btnOpenTopicCatalog" class="btn-catalog-pill" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); color: #60a5fa; font-size: 13px; font-weight: 800; padding: 6px 12px; border-radius: 8px; cursor: pointer;">📚 전체 카탈로그 모달</button>
               </div>
-              <input type="text" id="inputTopic" placeholder="예: 전기기사 전자기학, 거시경제학, 운영체제" value="전기기사 전자기학">
+              <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                <select id="inputTopic" class="topic-select-dropdown" style="flex: 1; padding: 12px 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 15px; font-weight: 700; cursor: pointer; outline: none;">
+                  <!-- JS 동적 생성: 106대 주제 목록 & 단어 보유 현황 -->
+                </select>
+              </div>
+
+              <!-- 선택된 주제 상세 정보 프리뷰 카드 -->
+              <div id="conceptTopicDetailCard" class="topic-detail-card" style="padding: 14px; background: rgba(59, 130, 246, 0.06); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: var(--radius-md); margin-top: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span id="conceptTopicIcon" style="font-size: 22px;">⚡</span>
+                    <span id="conceptTopicName" style="font-size: 16px; font-weight: 800; color: var(--text-primary);">전기기사 전자기학</span>
+                    <span id="conceptTopicCategory" style="font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 12px; background: rgba(59, 130, 246, 0.2); color: #60a5fa;">전기/전자/제어</span>
+                  </div>
+                  <span id="conceptTopicWordCountBadge" style="font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 12px; background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4);">⛏️ 보유 단어 확인 중...</span>
+                </div>
+                <div id="conceptTopicDesc" style="font-size: 13px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 8px;">
+                  쿨롱의 법칙, 가우스 법칙, 정전계/정자계, 맥스웰 방정식, 유전율 및 투자율
+                </div>
+                <div id="conceptTopicSubDomains" style="display: flex; flex-wrap: wrap; gap: 4px;">
+                  <!-- 서브 챕터 태그 -->
+                </div>
+              </div>
             </div>
 
             <!-- [신규] 다중 주제 믹스 탭 -->
@@ -562,12 +584,27 @@
           <!-- ⚡ 콤팩트 퀴즈 주제 & 단어 수 빠른 설정 바 -->
           <div class="mcq-topic-selector-card">
             <div class="mcq-topic-input-row">
-              <span class="mcq-label">🎯 퀴즈 주제:</span>
-              <input type="text" id="inputMcqTopic" placeholder="공부할 주제 입력 (예: 전자기학, 거시경제학, 민법, 네트워크, AI)" value="전기기사 전자기학">
-              <button type="button" id="btnOpenMcqTopicCatalog" class="btn-catalog-pill" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); color: #60a5fa; font-size: 13px; font-weight: 800; padding: 10px 14px; border-radius: 8px; cursor: pointer; white-space: nowrap;">📚 106대 주제</button>
+              <span class="mcq-label">🎯 퀴즈 주제 선택:</span>
+              <select id="inputMcqTopic" class="topic-select-dropdown" style="flex: 1; padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 14px; font-weight: 700; cursor: pointer; outline: none;">
+                <!-- JS 동적 생성: 106대 주제 목록 & 단어 보유 현황 -->
+              </select>
+              <button type="button" id="btnOpenMcqTopicCatalog" class="btn-catalog-pill" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); color: #60a5fa; font-size: 13px; font-weight: 800; padding: 10px 14px; border-radius: 8px; cursor: pointer; white-space: nowrap;">📚 전체 카탈로그</button>
               <button id="btnGenerateMcqTopic" class="btn-primary btn-generate-mcq">
-                ⚡ 새 단어 생성
+                ⚡ 퀴즈 단어 인출 (0초)
               </button>
+            </div>
+
+            <!-- 선택된 MCQ 주제 간이 정보 바 -->
+            <div id="mcqTopicDetailCard" class="topic-detail-card" style="padding: 10px 14px; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: var(--radius-md); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span id="mcqTopicIcon" style="font-size: 20px;">⚡</span>
+                <strong id="mcqTopicName" style="color: var(--text-primary); font-size: 14px;">전기기사 전자기학</strong>
+                <span id="mcqTopicCategory" style="font-size: 11px; padding: 2px 6px; border-radius: 8px; background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700;">전기/전자/제어</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span id="mcqTopicWordCountBadge" style="font-size: 12px; font-weight: 800; color: #10b981;">⛏️ 24단어 준비됨</span>
+                <span id="mcqTopicDescShort" style="font-size: 12px; color: var(--text-muted); max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">쿨롱의 법칙, 가우스 법칙, 맥스웰 방정식 등</span>
+              </div>
             </div>
 
             <!-- 빠른 주제 프리셋 칩 & 문제 수 선택 (한 줄 콤팩트 배치) -->
@@ -575,13 +612,13 @@
               <div class="mcq-chips-wrap">
                 <span class="quick-chip-label">⚡ 빠른 주제:</span>
                 <button type="button" class="mcq-preset-chip" data-topic="전기기사 전자기학">🔬 전자기학</button>
-                <button type="button" class="mcq-preset-chip" data-topic="거시경제학 원론">💼 거시경제학</button>
-                <button type="button" class="mcq-preset-chip" data-topic="인지심리학 및 뇌과학">🧠 뇌과학·심리</button>
-                <button type="button" class="mcq-preset-chip" data-topic="민법총칙 핵심개념">⚖️ 민법총칙</button>
-                <button type="button" class="mcq-preset-chip" data-topic="컴퓨터 네트워크">💻 네트워크</button>
-                <button type="button" class="mcq-preset-chip" data-topic="인공지능 핵심개념">🤖 인공지능</button>
+                <button type="button" class="mcq-preset-chip" data-topic="거시경제학">💼 거시경제학</button>
+                <button type="button" class="mcq-preset-chip" data-topic="인지심리학">🧠 뇌과학·심리</button>
+                <button type="button" class="mcq-preset-chip" data-topic="민법총칙">⚖️ 민법총칙</button>
+                <button type="button" class="mcq-preset-chip" data-topic="컴퓨터네트워크 (Computer Networks)">💻 네트워크</button>
+                <button type="button" class="mcq-preset-chip" data-topic="인공지능 및 머신러닝">🤖 인공지능</button>
                 <button type="button" class="mcq-preset-chip" data-topic="기억술 및 메타인지">🏛️ 기억술</button>
-                <button type="button" class="mcq-preset-chip" data-topic="한국사 핵심인물·사건">📜 한국사</button>
+                <button type="button" class="mcq-preset-chip" data-topic="한국사 (선사~조선전기)">📜 한국사</button>
                 <button type="button" id="btnOpenCustomWordModal" class="mcq-preset-chip mcq-custom-chip">✏️ 내 단어 직접 등록</button>
               </div>
 
