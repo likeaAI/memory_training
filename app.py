@@ -16,6 +16,7 @@ import database as db
 import ai_service as ai
 import pdf_service as pdf_svc
 import topics_catalog as tc
+import rl_engine as rle
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 os.chdir(BASE_DIR) # IDE에서 Run 버튼 클릭 시 작업 디렉토리 강제 고정
@@ -395,6 +396,44 @@ class MemoryAppHandler(SimpleHTTPRequestHandler):
             stopped = ai.word_bank_miner.stop_mining(topic)
             return self._send_json({"success": True, "stopped": stopped})
 
+        # 🧠 17. [NeuroRL v2] 강화학습 우선순위 단어 인출 + Bandit 추천 기법 API
+        elif path == "/api/rl/fetch-words":
+            topic = (data.get("topic") or "전기기사 전자기학").strip()
+            topic_category = (data.get("topic_category") or "ALL").strip()
+            count = int(data.get("count", 5))
+            exclude_words = data.get("exclude_words", [])
+            words = db.get_prioritized_words_from_bank(topic, count=count, exclude_words=exclude_words)
+            if len(words) < count:
+                try:
+                    gen = ai.generate_words(mode="topic", user_input=topic, word_count=count, exclude_words=exclude_words)
+                    gen_list = gen.get("quiz_data", [])
+                    if gen_list:
+                        db.insert_words_to_bank(topic, gen_list)
+                        words = db.get_prioritized_words_from_bank(topic, count=count, exclude_words=exclude_words)
+                except Exception:
+                    pass
+            bandit = db.get_bandit_policy(topic_category)
+            return self._send_json({
+                "success": True,
+                "topic": topic,
+                "topic_category": topic_category,
+                "count": len(words),
+                "words": words,
+                "bandit_policy": bandit
+            })
+
+        # 🧠 18. [NeuroRL v2] 1:1 반응속도 프로브 결과 제출 & 보상(Reward)/Bandit/DPO 업데이트 API
+        elif path == "/api/rl/submit-session":
+            session_id = data.get("session_id") or f"rl_{int(__import__('time').time()*1000)}"
+            topic = (data.get("topic") or "전기기사 전자기학").strip()
+            topic_category = (data.get("topic_category") or "ALL").strip()
+            items = data.get("items", [])
+            result = db.record_rl_session_trajectories(session_id, topic, topic_category, items)
+            return self._send_json({
+                "success": True,
+                "result": result
+            })
+
 
         return self._send_json({"error": "Not Found"}, status=404)
 
@@ -408,13 +447,25 @@ class MemoryAppHandler(SimpleHTTPRequestHandler):
         # 📚 [신규] 100+ 주제 카탈로그 및 DB 단어 수량 집계 조회 API
         if path == "/api/word-bank/topics":
             topics = [dict(t) for t in tc.get_topics_list()]
-            stats = db.get_word_bank_stats()["topic_counts"]
+            wb = db.get_word_bank_stats()
+            stats = wb["topic_counts"]
             for t in topics:
                 t["word_count"] = stats.get(t["name"], 0)
             return self._send_json({
                 "success": True,
                 "total_topics": len(topics),
+                "total_words": wb["total_words"],
+                "topic_counts": stats,
                 "topics": topics
+            })
+
+        # 🧠 [NeuroRL v2] 강화학습 대시보드 & Bandit 정책 & DPO 데이터셋 조회 API
+        elif path == "/api/rl/dashboard":
+            cat = query.get("category", ["ALL"])[0].strip()
+            dash = db.get_rl_dashboard_stats(cat)
+            return self._send_json({
+                "success": True,
+                "dashboard": dash
             })
 
         # ⛏️ [신규] 1,000단어 마이닝 상태 실시간 조회 API

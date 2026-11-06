@@ -840,3 +840,391 @@ def clear_topic_words(topic):
     conn.commit()
     conn.close()
     return deleted
+
+
+# =================================================================
+# 🧠 [NeuroRL v2] 강화학습 궤적(Trajectory), Bandit 정책, DPO 데이터셋 레이어
+# =================================================================
+import rl_engine as rle
+
+def init_rl_tables():
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+
+    # 1. 단어별 강화학습 인출 궤적 테이블 (밀리초 반응속도 + 연상기법 + 보상)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS rl_trajectories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id TEXT NOT NULL,
+        topic TEXT NOT NULL,
+        topic_category TEXT DEFAULT 'ALL',
+        word TEXT NOT NULL,
+        definition TEXT,
+        visual_anchor TEXT,
+        action_type TEXT NOT NULL,
+        user_mnemonic_text TEXT NOT NULL,
+        is_user_modified INTEGER DEFAULT 0,
+        encode_duration_ms REAL NOT NULL,
+        ttfk_ms REAL NOT NULL,
+        typing_duration_ms REAL NOT NULL,
+        is_correct INTEGER NOT NULL,
+        user_answer TEXT,
+        hint_level INTEGER DEFAULT 0,
+        reward_score REAL NOT NULL,
+        speed_score REAL DEFAULT 0.0,
+        encode_score REAL DEFAULT 0.0,
+        grade TEXT DEFAULT 'NEUTRAL',
+        retention_stage INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_rl_traj_topic ON rl_trajectories(topic)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_rl_traj_word ON rl_trajectories(word)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_rl_traj_grade ON rl_trajectories(grade)")
+
+    # 2. Contextual Bandit 정책 가중치 테이블 (주제 카테고리 × 5대 연상기법)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS bandit_policy_state (
+        topic_category TEXT NOT NULL,
+        action_type TEXT NOT NULL,
+        alpha_success REAL DEFAULT 1.0,
+        beta_failure REAL DEFAULT 1.0,
+        avg_ttfk_ms REAL DEFAULT 1800.0,
+        mean_reward REAL DEFAULT 0.0,
+        sample_count INTEGER DEFAULT 0,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (topic_category, action_type)
+    )
+    """)
+
+    # 3. DPO (Direct Preference Optimization) 선호도 쌍 테이블 (Chosen vs Rejected)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS dpo_preference_pairs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        topic TEXT NOT NULL,
+        word TEXT NOT NULL,
+        definition TEXT,
+        prompt TEXT NOT NULL,
+        chosen_action TEXT NOT NULL,
+        chosen_mnemonic TEXT NOT NULL,
+        chosen_ttfk_ms REAL NOT NULL,
+        chosen_reward REAL NOT NULL,
+        rejected_action TEXT NOT NULL,
+        rejected_mnemonic TEXT NOT NULL,
+        rejected_ttfk_ms REAL NOT NULL,
+        rejected_reward REAL NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    conn.commit()
+    conn.close()
+
+init_rl_tables()
+
+
+def get_prioritized_words_from_bank(topic: str, count: int = 10, exclude_words=None):
+    """
+    강화학습 우선순위 경험 재생 (Prioritized Experience Replay):
+    1) 과거 이 주제에서 반응속도가 느렸거나(TTFK > 1800ms) 틀렸던 취약 단어 최대 30% 우선 인출
+    2) 나머지 70%는 단어 은행(word_bank)에서 미학습 신선 단어로 랜덤 인출
+    """
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    exclude_set = set(exclude_words or [])
+    clean_topic = (topic or "").strip()
+    weak_quota = max(1, int(count * 0.3))
+    selected = []
+
+    # 1. 취약 단어(저보상/느린 반응속도) 우선 탐색
+    cur.execute("""
+        SELECT wb.word, wb.definition, wb.importance_reason, wb.visual_anchor, wb.chosung, wb.sub_category, wb.difficulty,
+                MIN(rt.reward_score) as min_reward, MAX(rt.ttfk_ms) as max_ttfk
+        FROM rl_trajectories rt
+        JOIN word_bank wb ON wb.word = rt.word AND wb.topic = rt.topic
+        WHERE rt.topic = ? AND (rt.reward_score < 0.45 OR rt.ttfk_ms > 1800)
+        GROUP BY wb.word
+        ORDER BY min_reward ASC, max_ttfk DESC
+        LIMIT ?
+    """, (clean_topic, weak_quota * 2))
+
+    for r in cur.fetchall():
+        d = dict(r)
+        if d["word"] not in exclude_set and len(selected) < weak_quota:
+            d["rl_tag"] = f"🔥 취약복습 (과거 {int(d['max_ttfk'])}ms)"
+            selected.append(d)
+            exclude_set.add(d["word"])
+
+    conn.close()
+
+    # 2. 나머지 수량을 단어 은행에서 무작위 인출
+    remaining = count - len(selected)
+    if remaining > 0:
+        fresh_words = get_random_words_from_bank(clean_topic, count=remaining, exclude_words=list(exclude_set))
+        for fw in fresh_words:
+            fw["rl_tag"] = "✨ 신규/표준 인출"
+            selected.append(fw)
+
+    # 순서 셔플 후 각 단어별 5대 연상기법 초안 부착
+    import random
+    random.shuffle(selected)
+    for item in selected:
+        item["mnemonic_candidates"] = rle.generate_rule_based_mnemonic_candidates(
+            item["word"], item.get("definition", ""), item.get("visual_anchor", "")
+        )
+    return selected
+
+
+def get_bandit_policy(topic_category: str = "ALL"):
+    """특정 카테고리(또는 전체 ALL)의 Bandit 정책 상태 조회 및 추천 기법 반환"""
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM bandit_policy_state WHERE topic_category = ?", (topic_category,))
+    rows = [dict(r) for r in cur.fetchall()]
+    if not rows and topic_category != "ALL":
+        cur.execute("SELECT * FROM bandit_policy_state WHERE topic_category = 'ALL'")
+        rows = [dict(r) for r in cur.fetchall()]
+
+    conn.close()
+    return rle.select_bandit_action(rows)
+
+
+def record_rl_session_trajectories(session_id: str, topic: str, topic_category: str, items: list):
+    """
+    1:1 반응속도 프로브 결과를 받아:
+    1) 단어별 RL Reward 계산 및 rl_trajectories 저장
+    2) Contextual Bandit (alpha, beta, avg_ttfk, mean_reward) 실시간 업데이트
+    3) 고보상(Chosen)과 저보상(Rejected) 샘플 간 DPO 선호도 쌍 자동 생성
+    """
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    processed_results = []
+    chosen_pool = []
+    rejected_pool = []
+
+    for item in items:
+        word = (item.get("word") or "").strip()
+        if not word:
+            continue
+        definition = (item.get("definition") or "").strip()
+        visual_anchor = (item.get("visual_anchor") or "").strip()
+        action_type = item.get("action_type") or "ACT_COLLISION"
+        if action_type not in rle.MNEMONIC_ACTIONS:
+            action_type = "ACT_COLLISION"
+
+        user_mnemonic = (item.get("user_mnemonic_text") or visual_anchor or word).strip()
+        is_modified = 1 if item.get("is_user_modified") else 0
+        encode_ms = float(item.get("encode_duration_ms") or 3000.0)
+        ttfk_ms = float(item.get("ttfk_ms") or 2500.0)
+        typing_ms = float(item.get("typing_duration_ms") or 800.0)
+        is_correct = bool(item.get("is_correct"))
+        user_answer = (item.get("user_answer") or "").strip()
+        hint_level = int(item.get("hint_level") or 0)
+
+        # 보상 계산
+        rw = rle.compute_rl_reward(
+            is_correct=is_correct,
+            ttfk_ms=ttfk_ms,
+            encode_duration_ms=encode_ms,
+            hint_level=hint_level
+        )
+        reward_score = rw["reward"]
+        grade = rw["grade"]
+
+        cur.execute("""
+            INSERT INTO rl_trajectories (
+                session_id, topic, topic_category, word, definition, visual_anchor,
+                action_type, user_mnemonic_text, is_user_modified,
+                encode_duration_ms, ttfk_ms, typing_duration_ms,
+                is_correct, user_answer, hint_level,
+                reward_score, speed_score, encode_score, grade
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            session_id, topic, topic_category or "ALL", word, definition, visual_anchor,
+            action_type, user_mnemonic, is_modified,
+            encode_ms, ttfk_ms, typing_ms,
+            1 if is_correct else 0, user_answer, hint_level,
+            reward_score, rw["speed_score"], rw["encode_score"], grade
+        ))
+
+        traj_record = {
+            "word": word,
+            "definition": definition,
+            "action_type": action_type,
+            "action_name": rle.MNEMONIC_ACTIONS[action_type]["name"],
+            "user_mnemonic_text": user_mnemonic,
+            "encode_duration_ms": round(encode_ms, 1),
+            "ttfk_ms": round(ttfk_ms, 1),
+            "typing_duration_ms": round(typing_ms, 1),
+            "is_correct": is_correct,
+            "user_answer": user_answer,
+            "hint_level": hint_level,
+            "reward_score": reward_score,
+            "speed_score": rw["speed_score"],
+            "grade": grade
+        }
+        processed_results.append(traj_record)
+
+        if grade == "CHOSEN":
+            chosen_pool.append(traj_record)
+        elif grade in ("REJECTED", "LOW_REWARD"):
+            rejected_pool.append(traj_record)
+
+        # Bandit Policy 업데이트 ('ALL' 및 해당 카테고리 모두 반영)
+        for cat_key in set(["ALL", topic_category or "ALL"]):
+            cur.execute("""
+                SELECT alpha_success, beta_failure, avg_ttfk_ms, mean_reward, sample_count
+                FROM bandit_policy_state
+                WHERE topic_category = ? AND action_type = ?
+            """, (cat_key, action_type))
+            row = cur.fetchone()
+            if row:
+                alpha = float(row["alpha_success"])
+                beta = float(row["beta_failure"])
+                old_ttfk = float(row["avg_ttfk_ms"])
+                old_rw = float(row["mean_reward"])
+                cnt = int(row["sample_count"])
+            else:
+                alpha, beta, old_ttfk, old_rw, cnt = 1.0, 1.0, 1800.0, 0.0, 0
+
+            new_cnt = cnt + 1
+            if reward_score >= 0.45:
+                alpha += reward_score
+            else:
+                beta += abs(reward_score) if reward_score < 0 else 0.5
+
+            # 지수 이동 평균(EMA) + 누적 평균 결합
+            new_ttfk = ((old_ttfk * cnt) + ttfk_ms) / new_cnt if is_correct else old_ttfk
+            new_rw = ((old_rw * cnt) + reward_score) / new_cnt
+
+            cur.execute("""
+                INSERT INTO bandit_policy_state (
+                    topic_category, action_type, alpha_success, beta_failure, avg_ttfk_ms, mean_reward, sample_count, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(topic_category, action_type) DO UPDATE SET
+                    alpha_success = excluded.alpha_success,
+                    beta_failure = excluded.beta_failure,
+                    avg_ttfk_ms = excluded.avg_ttfk_ms,
+                    mean_reward = excluded.mean_reward,
+                    sample_count = excluded.sample_count,
+                    updated_at = CURRENT_TIMESTAMP
+            """, (cat_key, action_type, round(alpha, 4), round(beta, 4), round(new_ttfk, 1), round(new_rw, 4), new_cnt))
+
+    # DPO 선호도 쌍(Chosen vs Rejected) 자동 구축
+    dpo_created = 0
+    # 1) 동일 단어에 대해 과거 고보상/저보상 이력이 있으면 최우선 매칭
+    for ch in chosen_pool:
+        for rj in rejected_pool:
+            prompt_str = f"[주제: {topic}] 단어 '{ch['word']}'({ch['definition']})를 뇌에 즉각 각인시키는 고효율 연상 문장을 작성하세요."
+            cur.execute("""
+                INSERT INTO dpo_preference_pairs (
+                    topic, word, definition, prompt,
+                    chosen_action, chosen_mnemonic, chosen_ttfk_ms, chosen_reward,
+                    rejected_action, rejected_mnemonic, rejected_ttfk_ms, rejected_reward
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                topic, ch["word"], ch["definition"], prompt_str,
+                ch["action_type"], ch["user_mnemonic_text"], ch["ttfk_ms"], ch["reward_score"],
+                rj["action_type"], f"[비효율 연상 - {rj['word']}] {rj['user_mnemonic_text']}", rj["ttfk_ms"], rj["reward_score"]
+            ))
+            dpo_created += 1
+
+    conn.commit()
+    conn.close()
+
+    # 업데이트된 최신 Bandit 정책 조회
+    updated_policy = get_bandit_policy(topic_category or "ALL")
+    return {
+        "session_id": session_id,
+        "topic": topic,
+        "trajectories": processed_results,
+        "dpo_pairs_created": dpo_created,
+        "updated_bandit_policy": updated_policy
+    }
+
+
+def get_rl_dashboard_stats(topic_category: str = "ALL"):
+    """강화학습 종합 텔레메트리 및 대시보드 통계 반환"""
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT
+            COUNT(*) as total_trajectories,
+            AVG(CASE WHEN is_correct = 1 THEN ttfk_ms ELSE NULL END) as avg_ttfk_ms,
+            MIN(CASE WHEN is_correct = 1 THEN ttfk_ms ELSE NULL END) as best_ttfk_ms,
+            AVG(encode_duration_ms) as avg_encode_ms,
+            AVG(reward_score) as mean_reward,
+            SUM(CASE WHEN is_correct = 1 THEN 1 ELSE 0 END) as correct_count,
+            SUM(CASE WHEN grade = 'CHOSEN' THEN 1 ELSE 0 END) as chosen_count,
+            SUM(CASE WHEN grade = 'REJECTED' THEN 1 ELSE 0 END) as rejected_count
+        FROM rl_trajectories
+    """)
+    agg = dict(cur.fetchone() or {})
+    total_traj = int(agg.get("total_trajectories") or 0)
+    correct_cnt = int(agg.get("correct_count") or 0)
+    accuracy = round((correct_cnt / total_traj) * 100, 1) if total_traj > 0 else 0.0
+
+    # 최근 40개 궤적
+    cur.execute("""
+        SELECT id, session_id, topic, word, definition, action_type, user_mnemonic_text,
+               encode_duration_ms, ttfk_ms, typing_duration_ms, is_correct, hint_level,
+               reward_score, grade, created_at
+        FROM rl_trajectories
+        ORDER BY id DESC LIMIT 40
+    """)
+    recent_trajectories = []
+    for r in cur.fetchall():
+        d = dict(r)
+        act_code = d.get("action_type", "ACT_COLLISION")
+        d["action_name"] = rle.MNEMONIC_ACTIONS.get(act_code, {}).get("short", act_code)
+        recent_trajectories.append(d)
+
+    # DPO 쌍 개수 및 최근 목록
+    cur.execute("SELECT COUNT(*) FROM dpo_preference_pairs")
+    dpo_count = cur.fetchone()[0]
+
+    cur.execute("SELECT * FROM dpo_preference_pairs ORDER BY id DESC LIMIT 20")
+    dpo_pairs = [dict(r) for r in cur.fetchall()]
+
+    # 침팬지 공간기억 요약
+    cur.execute("""
+        SELECT COUNT(*) as total_games,
+               MAX(CASE WHEN is_success = 1 THEN target_count ELSE 0 END) as max_span,
+               AVG(CASE WHEN is_success = 1 THEN reaction_time_ms ELSE NULL END) as avg_rt_ms
+        FROM spatial_memory_sessions
+    """)
+    spatial_summary = dict(cur.fetchone() or {})
+
+    conn.close()
+
+    bandit_info = get_bandit_policy(topic_category)
+    wb_stats = get_word_bank_stats()
+
+    return {
+        "total_trajectories": total_traj,
+        "accuracy": accuracy,
+        "avg_ttfk_ms": round(float(agg.get("avg_ttfk_ms") or 0.0), 1),
+        "best_ttfk_ms": round(float(agg.get("best_ttfk_ms") or 0.0), 1),
+        "avg_encode_ms": round(float(agg.get("avg_encode_ms") or 0.0), 1),
+        "mean_reward": round(float(agg.get("mean_reward") or 0.0), 3),
+        "chosen_count": int(agg.get("chosen_count") or 0),
+        "rejected_count": int(agg.get("rejected_count") or 0),
+        "dpo_pairs_count": dpo_count,
+        "bandit_policy": bandit_info,
+        "recent_trajectories": recent_trajectories,
+        "dpo_pairs": dpo_pairs,
+        "spatial_summary": {
+            "total_games": int(spatial_summary.get("total_games") or 0),
+            "max_span": int(spatial_summary.get("max_span") or 5),
+            "avg_rt_ms": round(float(spatial_summary.get("avg_rt_ms") or 0.0), 1)
+        },
+        "word_bank_total": wb_stats["total_words"]
+    }

@@ -1,1149 +1,618 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="ko" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#4f46e5">
-  <link rel="manifest" href="/manifest.json">
-  <title>BrainLock - 초집중 AI 기억술 훈련</title>
-  <link rel="preconnect" href="https://cdn.jsdelivr.net">
-  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260903_v2">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BrainLock NeuroRL v2 — 강화학습 연상·반응속도 기억 훈련 시스템</title>
+  <link rel="stylesheet" href="style.css?v=20261106_rl_v2">
 </head>
 <body>
   <div class="app-container">
-    
-    <!-- 앱 헤더 -->
+    <!-- ============================================================= -->
+    <!-- 1. 상단 글로벌 헤더 & 모드 네비게이션 -->
+    <!-- ============================================================= -->
     <header class="app-header">
-      <div class="logo-area">
+      <div class="logo-area" id="logoHomeBtn" style="cursor:pointer;">
         <span class="logo-icon">🧠</span>
-        <h1>BrainLock</h1>
-        <span class="badge">Focus AI</span>
+        <h1>BrainLock <span class="version-tag">NeuroRL v2</span></h1>
       </div>
 
-      <!-- [개편] 훈련 대분류 & 대시보드 모드 전환 네비게이션 -->
-      <div class="nav-mode-switcher">
-        <button id="btnModeDashboard" class="mode-nav-btn active">🏠 종합 대시보드</button>
-        <button id="btnModeFast" class="mode-nav-btn btn-mode-fast" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(239, 68, 68, 0.2)); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.6); font-weight: 900; box-shadow: 0 0 12px rgba(245, 158, 11, 0.2);">⚡ FAST 집중 훈련</button>
-        <button id="btnModeConcept" class="mode-nav-btn">🧠 AI 개념 연상술</button>
-        <button id="btnModeSpatial" class="mode-nav-btn">⚡ 공간 순간 기억력</button>
-        <button id="btnModeFinetune" class="mode-nav-btn" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(99, 102, 241, 0.2)); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.4); font-weight: 800;">🤖 AI 파인튜닝 (<span id="navFinetuneCount">0</span>)</button>
-        <button id="btnModeWordBank" class="mode-nav-btn" style="background: linear-gradient(135deg, rgba(234, 179, 8, 0.2), rgba(249, 115, 22, 0.2)); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.5); font-weight: 800;">⛏️ 1,000단어 마이닝 (<span id="navBankWordCount">0</span>)</button>
-      </div>
+      <nav class="nav-mode-switcher">
+        <button id="btnNavRLTrain" class="mode-nav-btn active">⚡ RL 연상·반응속도 훈련</button>
+        <button id="btnNavRLDash" class="mode-nav-btn">📊 강화학습·DPO 데이터셋 (<span id="navTrajCount">0</span>)</button>
+        <button id="btnNavSpatial" class="mode-nav-btn">🐒 침팬지 공간기억</button>
+        <button id="btnModeWordBank" class="mode-nav-btn nav-btn-amber">⛏️ 1,000단어 마이닝 (<span id="navBankWordCount">0</span>)</button>
+      </nav>
 
-      <!-- [우측 상단] 마스터 로그인 정보 & 글로벌 도구 -->
       <div class="header-actions">
-        <div class="user-auth-bar" id="userAuthBar">
-          <div class="user-profile-chip" id="userProfileChip" style="display:none;">
-            <span class="user-avatar">👑</span>
-            <span class="user-name" id="displayUsername">마스터</span>
-            <button id="btnLogout" class="btn-logout-chip" title="로그아웃">로그아웃</button>
-          </div>
-        </div>
-        <button id="btnOpenSettings" class="btn-icon" title="구글 시트 DB 웹훅 설정">⚙️</button>
-        <button id="btnToggleSound" class="btn-icon" title="효과음 켜기/끄기 (Web Audio)">🔊</button>
-        <button id="btnToggleTheme" class="btn-icon" title="다크/라이트 테마 변경">🌓</button>
+        <button id="btnToggleSound" class="btn-icon" title="효과음 켜기/끄기">🔊</button>
+        <button id="btnToggleTheme" class="btn-icon" title="다크/라이트 테마 전환">🌙</button>
+        <button id="btnOpenSettings" class="btn-icon" title="AI 엔진 및 로컬 LLM 설정">⚙️</button>
       </div>
     </header>
 
-    <!-- [마스터 게이트웨이] 마스터 전용 로그인 뷰 (미인증 시 이 화면만 노출) -->
-    <section id="viewAuth" class="view active">
-      <div class="auth-hero-card">
-        <div class="auth-hero-header">
-          <span class="auth-logo-icon">👑</span>
-          <h2>BrainLock 마스터 게이트웨이</h2>
-          <p class="subtitle">마스터 관리자 권한 계정으로 로그인하세요</p>
-        </div>
+    <main class="main-content">
+      <!-- ============================================================= -->
+      <!-- [VIEW 1] ⚡ 강화학습(RL) 연상·반응속도 핵심 훈련 파이프라인 -->
+      <!-- ============================================================= -->
+      <section id="viewRLTrain" class="view active">
 
-        <div class="auth-card-box">
-          <form id="authForm" class="auth-form">
-            <div class="form-group">
-              <label for="authUsername">마스터 아이디</label>
-              <input type="text" id="authUsername" placeholder="아이디를 입력하세요 (기본: admin)" value="admin" required autofocus>
-            </div>
-            <div class="form-group">
-              <label for="authPassword">비밀번호</label>
-              <input type="password" id="authPassword" placeholder="비밀번호를 입력하세요 (기본: admin1234)" value="admin1234" required>
-            </div>
-            <button type="submit" id="btnSubmitAuth" class="btn-primary btn-hero">
-              👑 마스터 접속하기 ➔
-            </button>
-          </form>
-        </div>
-      </div>
-    </section>
-
-    <!-- 메인 컨텐츠 영역 (2열 레이아웃 - 로그인 성공 시에만 활성화) -->
-    <div class="app-layout" id="mainAppLayout" style="display:none;">
-      
-      <!-- [좌측 패널] 훈련 기록 + 저장된 단어장 라이브러리 (상시 노출) -->
-      <aside class="history-sidebar">
-        <!-- 1. 실시간 훈련 세션 기록 -->
-        <div class="sidebar-header">
-          <h3>📊 실시간 훈련 기록</h3>
-          <span class="history-badge" id="historyCount">0회</span>
-        </div>
-        <div class="history-summary" id="historySummaryBox">
-          <div class="summary-stat">
-            <span class="stat-label">평균 정답률</span>
-            <strong id="avgAccuracy">-%</strong>
+        <!-- 상단 파이프라인 스텝 인디케이터 -->
+        <div class="rl-stepper">
+          <div class="rl-step active" id="stepInd1">
+            <span class="step-num">1</span>
+            <span class="step-label">주제 & 단어 인출</span>
           </div>
-          <div class="summary-stat">
-            <span class="stat-label">평균 암기속도</span>
-            <strong id="avgMemTime">-초</strong>
+          <div class="step-line"></div>
+          <div class="rl-step" id="stepInd2">
+            <span class="step-num">2</span>
+            <span class="step-label">연상 기법(Action) 각인</span>
+          </div>
+          <div class="step-line"></div>
+          <div class="rl-step" id="stepInd3">
+            <span class="step-num">3</span>
+            <span class="step-label">1:1 반응속도(ms) 프로브</span>
+          </div>
+          <div class="step-line"></div>
+          <div class="rl-step" id="stepInd4">
+            <span class="step-num">4</span>
+            <span class="step-label">보상(Reward) & RL 업데이트</span>
           </div>
         </div>
-        <div class="history-list" id="sidebarHistoryList" style="max-height: 220px; overflow-y: auto;">
-          <p class="empty-history">아직 훈련 기록이 없습니다.<br>첫 단어장을 생성해보세요!</p>
-        </div>
 
-        <!-- 2. [좌측 하단] 영구 저장된 단어장 보관함 -->
-        <div class="sidebar-header" style="margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--border-color);">
-          <h3>📁 저장된 단어장</h3>
-          <span class="history-badge" id="sidebarSavedCount" style="background: rgba(59,130,246,0.15); color: #3b82f6;">0개</span>
-        </div>
-        <div class="history-list" id="sidebarSavedList" style="max-height: 220px; overflow-y: auto;">
-          <p class="empty-history">저장된 단어장이 없습니다.</p>
-        </div>
-      </aside>
-
-      <!-- [우측 메인 영역] 뷰 전환 영역 -->
-      <main class="main-content">
-        
-        <!-- ============================================================= -->
-        <!-- [신규 뷰 0] 🏠 메인 종합 대시보드 (DB 데이터 시각화 & 퀵 런처) -->
-        <!-- ============================================================= -->
-        <section id="viewDashboard" class="view active">
-          <div class="hero-text">
-            <h2>종합 인지 훈련 센터 & <span class="highlight">DB 분석 대시보드</span></h2>
-            <p class="subtitle">축적된 뇌 훈련 데이터를 한눈에 분석하고 매일 최적화된 인지 훈련을 시작하세요</p>
-          </div>
-
-          <!-- 4대 핵심 인지 지표 KPI 카드 -->
-          <div class="dashboard-kpi-grid">
-            <div class="kpi-card">
-              <div class="kpi-icon-wrap icon-blue">🎯</div>
-              <div class="kpi-info">
-                <span class="kpi-label">개념 연상 평균 정답률</span>
-                <strong class="kpi-value" id="dashAvgAcc">-%</strong>
-                <span class="kpi-sub">누적 개념 훈련 기반</span>
+        <!-- --------------------------------------------------------- -->
+        <!-- [STAGE 1] 주제 선택 & 강화학습 우선순위 단어 인출 -->
+        <!-- --------------------------------------------------------- -->
+        <div id="rlStageSetup" class="rl-stage-panel">
+          <div class="rl-card">
+            <div class="rl-card-header">
+              <div>
+                <h2>🎯 STEP 1. 학습 주제 선택 및 강화학습 샘플링</h2>
+                <p class="subtitle">단어 은행(Word Bank)에서 0.001초 만에 인출하며, 과거 반응속도가 느렸던 취약 단어(30%)를 우선 복습합니다.</p>
               </div>
+              <button type="button" id="btnOpenTopicCatalog" class="btn-catalog-pill">
+                📚 106대 전체 주제 카탈로그 열기
+              </button>
             </div>
 
-            <div class="kpi-card">
-              <div class="kpi-icon-wrap icon-purple">⚡</div>
-              <div class="kpi-info">
-                <span class="kpi-label">최대 순간 기억 용량</span>
-                <strong class="kpi-value" id="dashMaxSpan">-개</strong>
-                <span class="kpi-sub">침팬지 공간 지각 Span</span>
+            <!-- Contextual Bandit 실시간 최적 연상 기법 추천 배너 -->
+            <div class="bandit-recommend-banner" id="setupBanditBanner">
+              <div class="bandit-banner-left">
+                <span class="bandit-badge">🤖 Contextual Bandit 정책 추천</span>
+                <strong id="setupBanditActionName">💥 물리적 충돌·동작 기법</strong>
+                <span id="setupBanditActionDesc" class="bandit-desc">두 사물이 부딪히거나 폭발하는 역동적 인과관계로 연결할 때 인출 반응속도가 가장 빠릅니다.</span>
               </div>
-            </div>
-
-            <div class="kpi-card">
-              <div class="kpi-icon-wrap icon-emerald">⚡</div>
-              <div class="kpi-info">
-                <span class="kpi-label">평균 반응 속도</span>
-                <strong class="kpi-value" id="dashAvgRt">-ms</strong>
-                <span class="kpi-sub">순간 시각 인출 속도</span>
-              </div>
-            </div>
-
-            <div class="kpi-card">
-              <div class="kpi-icon-wrap icon-amber">🔥</div>
-              <div class="kpi-info">
-                <span class="kpi-label">총 누적 훈련 횟수</span>
-                <strong class="kpi-value" id="dashTotalPlays">0회</strong>
-                <span class="kpi-sub">영구 DB 자동 기록</span>
-              </div>
-            </div>
-
-            <div class="kpi-card" id="kpiFinetuneCard" style="cursor: pointer; border: 1px solid rgba(168, 85, 247, 0.4); background: linear-gradient(135deg, rgba(168, 85, 247, 0.08), rgba(99, 102, 241, 0.05));" title="클릭하여 AI 파인튜닝 데이터셋 허브로 이동합니다">
-              <div class="kpi-icon-wrap" style="background: rgba(168, 85, 247, 0.2); color: #a855f7;">🤖</div>
-              <div class="kpi-info">
-                <span class="kpi-label">AI 파인튜닝 학습 데이터</span>
-                <strong class="kpi-value" id="dashFinetuneKpiCount" style="color: #a855f7;">0건</strong>
-                <span class="kpi-sub">Gemma 4 / Qwen 학습용</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 훈련 퀵 런처 그리드 -->
-          <div class="quick-launcher-grid">
-            <!-- [신규 VIP 런처] ⚡ FAST 올인원 집중 훈련 (랜덤 주제 + 연상법/퀴즈 융합) -->
-            <div class="launcher-card launcher-fast-hero" id="launchFastCard" style="grid-column: 1 / -1; background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(239, 68, 68, 0.08)); border: 2px solid rgba(245, 158, 11, 0.6); box-shadow: 0 4px 20px rgba(245, 158, 11, 0.15);">
-              <div class="launcher-header">
-                <span class="launcher-badge" style="background: linear-gradient(135deg, #f59e0b, #ef4444); color: white; font-weight: 900; border: none;">⚡ ZERO-SETUP 몰입 모드</span>
-                <span class="launcher-icon">🔥</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
-                <div style="flex: 1; min-width: 280px;">
-                  <h3 style="font-size: 20px; font-weight: 800; color: #f59e0b; margin-bottom: 6px;">⚡ FAST 올인원 집중 훈련 (연상+퀴즈 무한 루프)</h3>
-                  <p style="margin: 0; color: var(--text-secondary); font-size: 14px; line-height: 1.5;">주제 고민/설정 제로! 30+개 분야 랜덤 선정 ➔ <strong>AI 연상 사슬 초고속 각인</strong> ➔ <strong>즉시 4지선다 스피드 퀴즈</strong>로 순수 기억력 훈련에만 100% 몰입하세요.</p>
+              <div class="bandit-banner-right">
+                <div class="bandit-mini-stat">
+                  <span>기대 승률</span>
+                  <strong id="setupBanditWinRate">50.0%</strong>
                 </div>
-                <button class="btn-primary btn-launcher" id="btnLaunchFast" style="background: linear-gradient(135deg, #f59e0b, #ef4444); font-size: 16px; font-weight: 800; padding: 14px 28px; white-space: nowrap; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);">
-                  ⚡ 1초 만에 바로 시작 (Zero-Setup) ➔
+                <div class="bandit-mini-stat">
+                  <span>평균 TTFK</span>
+                  <strong id="setupBanditAvgTtfk">- ms</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="setup-grid-row">
+              <!-- 주제 드롭다운 -->
+              <div class="form-group" style="flex: 2;">
+                <label for="inputTopic" class="input-label">106대 국가자격·전공·학문 표준 주제 선택</label>
+                <select id="inputTopic" class="topic-select-dropdown"></select>
+              </div>
+
+              <!-- 라운드 단어 수 선택 -->
+              <div class="form-group" style="flex: 1;">
+                <label class="input-label">훈련 단어 수 (1라운드)</label>
+                <div class="word-count-pills" id="rlWordCountPills">
+                  <button type="button" class="count-pill active" data-count="5">5단어 (고속)</button>
+                  <button type="button" class="count-pill" data-count="10">10단어 (표준)</button>
+                  <button type="button" class="count-pill" data-count="15">15단어 (심화)</button>
+                  <button type="button" class="count-pill" data-count="20">20단어</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 선택된 주제 상세 프리뷰 카드 -->
+            <div id="conceptTopicDetailCard" class="topic-detail-card">
+              <div class="topic-detail-top">
+                <div class="topic-detail-title">
+                  <span id="conceptTopicIcon" style="font-size: 24px;">⚡</span>
+                  <strong id="conceptTopicName" style="font-size: 17px;">전기기사 전자기학</strong>
+                  <span id="conceptTopicCategory" class="cat-pill">전기/전자/제어</span>
+                </div>
+                <span id="conceptTopicWordCountBadge" class="bank-count-pill">⛏️ 보유 단어 확인 중...</span>
+              </div>
+              <p id="conceptTopicDesc" class="topic-detail-desc">쿨롱의 법칙, 가우스 법칙, 정전계/정자계, 맥스웰 방정식, 유전율 및 투자율</p>
+              <div id="conceptTopicSubDomains" class="topic-sub-chips"></div>
+            </div>
+
+            <div class="rl-action-footer">
+              <button id="btnStartEncodeStage" class="btn-primary btn-xl">
+                ⚡ 0.001초 단어 인출 & 연상 각인(Encoding) 시작 ➔
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- --------------------------------------------------------- -->
+        <!-- [STAGE 2] 연상 기술(Mnemonic Action) 각인 & 각인 시간 측정 -->
+        <!-- --------------------------------------------------------- -->
+        <div id="rlStageEncode" class="rl-stage-panel" style="display:none;">
+          <div class="rl-card">
+            <div class="encode-sticky-header">
+              <div>
+                <h2>🧩 STEP 2. 연상 기법(Action Space) 선택 및 뇌내 각인</h2>
+                <p class="subtitle">각 단어별로 사용할 <strong>연상 기술(Action)</strong>을 선택하거나 나만의 연상 문장을 적으세요. 카드별 <strong>각인 소요 시간(ms)</strong>이 자동 측정됩니다.</p>
+              </div>
+              <div class="encode-header-right">
+                <div class="timer-pill">
+                  <span>⏱️ 총 각인 시간:</span>
+                  <strong id="encodeTotalTimer">0.0s</strong>
+                </div>
+                <button id="btnStartProbeStageTop" class="btn-primary btn-pulse">
+                  🎯 각인 완료! 1:1 반응속도 프로브 시작 (Ctrl+Enter) ➔
                 </button>
               </div>
             </div>
 
-            <div class="launcher-card" id="launchConceptCard">
-              <div class="launcher-header">
-                <span class="launcher-badge">기억술 훈련</span>
-                <span class="launcher-icon">🧠</span>
-              </div>
-              <h3>AI 개념 연상술 훈련</h3>
-              <p>단일/다중 융합 단어, AI 시각 닻, 1-Card 암기 및 백지 인출 시험으로 장기기억 형성</p>
-              <button class="btn-primary btn-launcher" id="btnLaunchConcept">
-                🚀 개념 연상 훈련 시작 ➔
+            <!-- 단어별 연상 각인 카드 리스트 -->
+            <div id="encodeCardsContainer" class="encode-cards-list"></div>
+
+            <div class="rl-action-footer" style="margin-top: 20px;">
+              <button id="btnBackToSetup" class="btn-secondary">⬅️ 주제 다시 선택</button>
+              <button id="btnStartProbeStageBottom" class="btn-primary btn-xl btn-pulse">
+                🎯 각인 완료! 1:1 밀리초(ms) 반응속도 프로브 돌입 ➔
               </button>
-            </div>
-
-            </div>
-<!-- DB 데이터 종합 관리: 저장된 단어장 & 훈련 로그 분리 테이블 -->
-          <div class="db-visual-card">
-            <div class="visual-header">
-              <div class="visual-tabs">
-                <button class="visual-tab-btn active" id="tabDashSavedBtn">📁 저장된 단어장 보관함 (<span id="dashSavedCount">0</span>개)</button>
-                <button class="visual-tab-btn" id="tabDashLogsBtn">📊 실시간 훈련 세션 로그</button>
-                <button class="visual-tab-btn" id="tabDashFinetuneBtn">🤖 AI 파인튜닝 데이터셋 (<span id="dashFinetuneTabCount">0</span>건)</button>
-              </div>
-              <span class="visual-badge">SQLite 영구 보관소</span>
-            </div>
-
-            <!-- 1. [독립 테이블] 📁 영구 저장된 단어장 보관함 -->
-            <div class="db-table-container" id="dashSavedTableContainer">
-              <table class="db-log-table">
-                <thead>
-                  <tr>
-                    <th>단어장 제목</th>
-                    <th>단어 수</th>
-                    <th>연상 스토리</th>
-                    <th>생성 일시</th>
-                    <th>액션</th>
-                  </tr>
-                </thead>
-                <tbody id="dashSavedTableBody">
-                  <tr>
-                    <td colspan="5" class="empty-table-msg">저장된 단어장이 없습니다. 상단 훈련에서 '💾 이 세트 영구 저장'을 눌러보세요!</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <!-- 2. [독립 테이블] 📊 최근 훈련 세션 통합 로그 -->
-            <div class="db-table-container" id="dashLogsTableContainer" style="display:none;">
-              <table class="db-log-table">
-                <thead>
-                  <tr>
-                    <th>일시</th>
-                    <th>훈련 유형</th>
-                    <th>주제 / 설정</th>
-                    <th>성과 / 정답률</th>
-                    <th>소요 시간</th>
-                  </tr>
-                </thead>
-                <tbody id="dashLogTableBody">
-                  <tr>
-                    <td colspan="5" class="empty-table-msg">아직 훈련 기록이 없습니다. 위 훈련 카드를 눌러 첫 훈련을 시작하세요!</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
-        <!-- [뷰 1] 생성 & 난이도 설정 뷰 (AI 개념 연상술) -->
-        <section id="viewSetup" class="view">
-          <div class="hero-text">
-            <h2>브레인포그를 뚫는 <span class="highlight">초집중 연상 기억술</span></h2>
-            <p class="subtitle">작업기억의 부하를 덜어주는 AI 시각 앵커와 3단계 힌트 사다리 훈련</p>
-          </div>
-
-        <!-- 난이도 선택 (ADHD 맞춤형) -->
-        <div class="difficulty-card">
-          <label class="section-label">🎯 오늘의 뇌 컨디션 (난이도 선택)</label>
-          <div class="difficulty-options">
-            <div class="diff-option selected" data-level="easy">
-              <div class="diff-icon">🌱</div>
-              <div class="diff-info">
-                <div class="diff-title">쉬움 (회복 / 웜업)</div>
-                <div class="diff-desc">초성 힌트 + 시각 앵커 상시 노출. 뇌 피로도가 심할 때 추천</div>
-              </div>
-            </div>
-            <div class="diff-option" data-level="normal">
-              <div class="diff-icon">⚡</div>
-              <div class="diff-info">
-                <div class="diff-title">보통 (표준 훈련)</div>
-                <div class="diff-desc">기본 블라인드, 막힐 때 [힌트 열기] 버튼으로 초성 확인</div>
-              </div>
-            </div>
-            <div class="diff-option" data-level="hard">
-              <div class="diff-icon">🔥</div>
-              <div class="diff-info">
-                <div class="diff-title">어려움 (마스터 도전)</div>
-                <div class="diff-desc">힌트 완전 차단. 맑은 집중 상태에서 순수 기억 인출</div>
-              </div>
             </div>
           </div>
         </div>
 
-        <!-- 단어 추출 설정 폼 -->
-        <div class="setup-form-card">
-          <div class="tab-buttons">
-            <button class="tab-btn active" data-tab="topic">💡 단일 주제</button>
-            <button class="tab-btn" data-tab="multi">🔀 다중 주제 믹스 (10단어)</button>
-            <button class="tab-btn" data-tab="text">📝 학습 원문 추출</button>
-            <button class="tab-btn" data-tab="pdf">📄 PDF 교재 업로드</button>
+        <!-- --------------------------------------------------------- -->
+        <!-- [STAGE 3] 1:1 밀리초(ms) 정밀 반응속도 인출 프로브 (Recall Probe) -->
+        <!-- --------------------------------------------------------- -->
+        <div id="rlStageProbe" class="rl-stage-panel" style="display:none;">
+          <div class="probe-arena-card">
+            <!-- 상단 프로브 진행 바 -->
+            <div class="probe-top-bar">
+              <div class="probe-progress-text">
+                <span class="badge-step">1:1 RECALL PROBE</span>
+                <strong>단어 <span id="probeCurrentIdx">1</span> / <span id="probeTotalCount">5</span></strong>
+              </div>
+              <div class="probe-live-timers">
+                <div class="probe-metric-pill" id="probeTtfkPill">
+                  <span>⚡ 첫 타건 반응속도(TTFK):</span>
+                  <strong id="probeLiveTtfk">측정 대기...</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="probe-progress-track">
+              <div class="probe-progress-fill" id="probeProgressFill" style="width: 20%;"></div>
+            </div>
+
+            <!-- 자극(Stimulus) 제시 영역 -->
+            <div class="probe-stimulus-box">
+              <div class="stimulus-action-tag" id="probeActionBadge">💥 물리적 충돌·동작</div>
+              <div class="stimulus-mnemonic-cue" id="probeMnemonicCue">연상 단서가 여기에 표시됩니다</div>
+              <div class="stimulus-definition" id="probeDefinition">핵심 개념 정의가 여기에 표시됩니다</div>
+              <div class="stimulus-hint-box" id="probeHintDisplay" style="display:none;"></div>
+            </div>
+
+            <!-- 1:1 즉각 타건 입력창 -->
+            <div class="probe-input-zone">
+              <input type="text" id="probeAnswerInput" class="probe-input" placeholder="떠오른 단어를 즉시 타이핑 후 Enter!" autocomplete="off" spellcheck="false">
+              <div class="probe-buttons-row">
+                <button type="button" id="btnProbeHintChosung" class="btn-hint">
+                  💡 초성 힌트 보기 (보상 일부 감점)
+                </button>
+                <button type="button" id="btnProbeSkipWord" class="btn-skip">
+                  ⏭️ 기억 안남 (오답 처리 후 다음)
+                </button>
+                <button type="button" id="btnProbeSubmitWord" class="btn-primary">
+                  제출 (Enter) ↵
+                </button>
+              </div>
+            </div>
+
+            <!-- 즉각 보상(Reward) 피드백 오버레이 바 -->
+            <div id="probeInstantFeedback" class="probe-feedback-banner" style="display:none;"></div>
+          </div>
+        </div>
+
+        <!-- --------------------------------------------------------- -->
+        <!-- [STAGE 4] 강화학습(RL) 보상 산출 & Bandit/DPO 결과 리포트 -->
+        <!-- --------------------------------------------------------- -->
+        <div id="rlStageReport" class="rl-stage-panel" style="display:none;">
+          <div class="rl-card">
+            <div class="rl-card-header">
+              <div>
+                <h2>🏆 STEP 4. 강화학습(RL) 보상 산출 & 신경 반응속도 분석 리포트</h2>
+                <p class="subtitle">단어별 순수 인출 반응속도(TTFK)와 정확도를 바탕으로 <strong>Contextual Bandit 가중치</strong>와 <strong>DPO 선호도 데이터셋</strong>이 실시간 업데이트되었습니다.</p>
+              </div>
+              <div class="report-action-btns">
+                <button id="btnNextRLRound" class="btn-primary btn-pulse">
+                  🔄 다음 라운드 즉시 시작 (취약 단어 우선 복습) ➔
+                </button>
+              </div>
+            </div>
+
+            <!-- 4대 핵심 세션 결과 KPI -->
+            <div class="rl-kpi-grid">
+              <div class="rl-kpi-card kpi-emerald">
+                <span class="kpi-title">⚡ 평균 첫 타건 반응속도 (TTFK)</span>
+                <strong class="kpi-big" id="repAvgTtfk">0 ms</strong>
+                <span class="kpi-sub" id="repSpeedComment">순수 뇌 인출 지연 시간</span>
+              </div>
+              <div class="rl-kpi-card kpi-blue">
+                <span class="kpi-title">🎯 능동 회상 정확도</span>
+                <strong class="kpi-big" id="repAccuracy">0%</strong>
+                <span class="kpi-sub" id="repCorrectCount">0 / 0 단어 성공</span>
+              </div>
+              <div class="rl-kpi-card kpi-purple">
+                <span class="kpi-title">🧠 평균 강화학습 보상 (Reward R)</span>
+                <strong class="kpi-big" id="repMeanReward">+0.00</strong>
+                <span class="kpi-sub">범위: -1.00 (오답) ~ +1.00 (초고속)</span>
+              </div>
+              <div class="rl-kpi-card kpi-amber">
+                <span class="kpi-title">⚖️ DPO 데이터셋 판정</span>
+                <strong class="kpi-big" id="repChosenRejected">0 / 0</strong>
+                <span class="kpi-sub">고보상(Chosen) / 저보상(Rejected)</span>
+              </div>
+            </div>
+
+            <!-- 단어별 반응속도 & 보상 상세 궤적 테이블 -->
+            <h3 class="section-subtitle">📋 단어별 인출 반응속도(TTFK) 및 강화학습 보상(Reward) 명세</h3>
+            <div class="table-responsive">
+              <table class="rl-table">
+                <thead>
+                  <tr>
+                    <th>단어</th>
+                    <th>적용 연상 기법 (Action)</th>
+                    <th>사용한 연상 문장 (Mnemonic)</th>
+                    <th>각인 시간</th>
+                    <th>첫 타건 반응속도 (TTFK)</th>
+                    <th>입력 답안 / 결과</th>
+                    <th>보상 점수 (R)</th>
+                    <th>RL 판정 등급</th>
+                  </tr>
+                </thead>
+                <tbody id="repTrajectoryTableBody"></tbody>
+              </table>
+            </div>
+
+            <!-- 업데이트된 Contextual Bandit 기법별 성적표 -->
+            <h3 class="section-subtitle" style="margin-top: 24px;">🤖 실시간 업데이트된 Contextual Bandit 연상 기법 정책 (Thompson Sampling)</h3>
+            <div id="repBanditPolicyGrid" class="bandit-policy-grid"></div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- [VIEW 2] 📊 강화학습(RL) 텔레메트리 & DPO 데이터셋 센터 -->
+      <!-- ============================================================= -->
+      <section id="viewRLDashboard" class="view">
+        <div class="rl-card">
+          <div class="rl-card-header">
+            <div>
+              <h2>📊 NeuroRL 강화학습 텔레메트리 & DPO 파인튜닝 데이터셋 센터</h2>
+              <p class="subtitle">누적된 반응속도(TTFK)와 회상 보상(Reward)을 기반으로 나만의 최적 연상 정책을 분석하고, 로컬 LLM 강화학습용 <strong>DPO (Chosen vs Rejected) 데이터셋</strong>을 추출합니다.</p>
+            </div>
+            <div class="dash-export-btns">
+              <button id="btnExportDpoJsonl" class="btn-primary" style="background: linear-gradient(135deg, #8b5cf6, #6366f1);">
+                📥 DPO 선호도 데이터셋 (.jsonl)
+              </button>
+              <button id="btnExportSftJsonl" class="btn-secondary">
+                📥 고보상 Chosen SFT (.jsonl)
+              </button>
+              <button id="btnExportTrajCsv" class="btn-secondary">
+                📥 전체 RL 궤적 (.csv)
+              </button>
+              <button id="btnOpenDpoCodeModal" class="btn-secondary" style="border-color:#a855f7; color:#c084fc;">
+                💻 Unsloth DPO 학습 코드
+              </button>
+            </div>
           </div>
 
-          <div class="tab-content">
-            <!-- 단일 주제 탭 -->
-            <div id="tabTopic" class="tab-pane active">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <label for="inputTopic" class="input-label" style="margin-bottom:0; font-weight: 800; color: #60a5fa;">🎯 학습할 주제 선택 (106대 표준 라이브러리)</label>
-                <button type="button" id="btnOpenTopicCatalog" class="btn-catalog-pill" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); color: #60a5fa; font-size: 13px; font-weight: 800; padding: 6px 12px; border-radius: 8px; cursor: pointer;">📚 전체 카탈로그 모달</button>
-              </div>
-              <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-                <select id="inputTopic" class="topic-select-dropdown" style="flex: 1; padding: 12px 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 15px; font-weight: 700; cursor: pointer; outline: none;">
-                  <!-- JS 동적 생성: 106대 주제 목록 & 단어 보유 현황 -->
+          <!-- 누적 KPI 4종 -->
+          <div class="rl-kpi-grid">
+            <div class="rl-kpi-card kpi-blue">
+              <span class="kpi-title">누적 인출 프로브 궤적</span>
+              <strong class="kpi-big" id="dashTotalTraj">0건</strong>
+              <span class="kpi-sub" id="dashOverallAcc">전체 회상 정답률: 0%</span>
+            </div>
+            <div class="rl-kpi-card kpi-emerald">
+              <span class="kpi-title">평균 신경 반응속도 (TTFK)</span>
+              <strong class="kpi-big" id="dashAvgTtfk">0 ms</strong>
+              <span class="kpi-sub" id="dashBestTtfk">최고 반응 기록: 0 ms</span>
+            </div>
+            <div class="rl-kpi-card kpi-purple">
+              <span class="kpi-title">평균 강화학습 보상 (R)</span>
+              <strong class="kpi-big" id="dashMeanReward">+0.000</strong>
+              <span class="kpi-sub" id="dashChosenRatio">고보상(Chosen): 0건 / 교정(Rejected): 0건</span>
+            </div>
+            <div class="rl-kpi-card kpi-amber">
+              <span class="kpi-title">생성된 DPO 선호도 페어</span>
+              <strong class="kpi-big" id="dashDpoPairsCount">0 쌍</strong>
+              <span class="kpi-sub">Chosen(고속회상) vs Rejected(실패/지연)</span>
+            </div>
+          </div>
+
+          <!-- 5대 연상 기법별 Bandit 정책 현황 -->
+          <h3 class="section-subtitle">🤖 5대 연상 기술(Action Space) Contextual Bandit 학습 현황</h3>
+          <div id="dashBanditPolicyGrid" class="bandit-policy-grid"></div>
+
+          <!-- 최근 RL 궤적 테이블 -->
+          <h3 class="section-subtitle" style="margin-top: 24px;">🕒 최근 강화학습 인출 궤적 로그 (최근 40건)</h3>
+          <div class="table-responsive">
+            <table class="rl-table">
+              <thead>
+                <tr>
+                  <th>시각</th>
+                  <th>주제</th>
+                  <th>단어</th>
+                  <th>연상 기법</th>
+                  <th>연상 문장 (Mnemonic)</th>
+                  <th>각인(ms)</th>
+                  <th>반응속도 TTFK(ms)</th>
+                  <th>보상 (R)</th>
+                  <th>판정</th>
+                </tr>
+              </thead>
+              <tbody id="dashRecentTrajBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- [VIEW 3] 🐒 침팬지 공간 순간 기억력 훈련 (기존 보존) -->
+      <!-- ============================================================= -->
+      <section id="viewSpatial" class="view">
+        <div class="rl-card">
+          <div class="rl-card-header">
+            <div>
+              <h2>🐒 순간 시공간 지각 — 침팬지 작업기억(Working Memory) 훈련</h2>
+              <p class="subtitle">숫자의 공간적 위치를 0.8~3초 만에 뇌에 각인하고 순서대로 인출하여 시공간 작업기억과 반응속도를 확장하세요.</p>
+            </div>
+          </div>
+
+          <div class="spatial-control-card">
+            <div class="spatial-ctrl-grid">
+              <div class="ctrl-group">
+                <label for="spatialGridSelect" class="input-label">격자 크기</label>
+                <select id="spatialGridSelect" class="custom-select">
+                  <option value="3">3 x 3 (9칸 / 웜업)</option>
+                  <option value="4" selected>4 x 4 (16칸 / 표준)</option>
+                  <option value="5">5 x 5 (25칸 / 프로)</option>
+                  <option value="6">6 x 6 (36칸 / 마스터)</option>
                 </select>
               </div>
 
-              <!-- 선택된 주제 상세 정보 프리뷰 카드 -->
-              <div id="conceptTopicDetailCard" class="topic-detail-card" style="padding: 14px; background: rgba(59, 130, 246, 0.06); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: var(--radius-md); margin-top: 8px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
-                  <div style="display: flex; align-items: center; gap: 8px;">
-                    <span id="conceptTopicIcon" style="font-size: 22px;">⚡</span>
-                    <span id="conceptTopicName" style="font-size: 16px; font-weight: 800; color: var(--text-primary);">전기기사 전자기학</span>
-                    <span id="conceptTopicCategory" style="font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 12px; background: rgba(59, 130, 246, 0.2); color: #60a5fa;">전기/전자/제어</span>
-                  </div>
-                  <span id="conceptTopicWordCountBadge" style="font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 12px; background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4);">⛏️ 보유 단어 확인 중...</span>
-                </div>
-                <div id="conceptTopicDesc" style="font-size: 13px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 8px;">
-                  쿨롱의 법칙, 가우스 법칙, 정전계/정자계, 맥스웰 방정식, 유전율 및 투자율
-                </div>
-                <div id="conceptTopicSubDomains" style="display: flex; flex-wrap: wrap; gap: 4px;">
-                  <!-- 서브 챕터 태그 -->
-                </div>
+              <div class="ctrl-group">
+                <label for="spatialModeSelect" class="input-label">훈련 룰</label>
+                <select id="spatialModeSelect" class="custom-select">
+                  <option value="adaptive" selected>🚀 적응형 레벨업 (성공시 +1개)</option>
+                  <option value="chimp">🐒 침팬지 룰 (1번 터치시 즉시 블라인드)</option>
+                  <option value="timed">⏱️ 시간제 블라인드 (노출시간 후 숨김)</option>
+                </select>
               </div>
-            </div>
 
-            <!-- [신규] 다중 주제 믹스 탭 -->
-            <div id="tabMulti" class="tab-pane">
-              <label for="inputMultiTopics" class="input-label">융합할 여러 주제를 쉼표(,)로 입력하세요</label>
-              <input type="text" id="inputMultiTopics" placeholder="예: 전자기학, 거시경제학, 운영체제, 민법, 인지심리학" value="전자기학, 거시경제학, 운영체제, 민법, 심리학">
-              
-              <div class="preset-chips-container">
-                <span class="preset-label">⚡ 빠른 융합 프리셋:</span>
-                <div class="preset-chips">
-                  <button type="button" class="chip-preset" data-preset="전자기학, 양자물리학, 컴퓨터네트워크, 유기화학">🔬 이공계 올스타</button>
-                  <button type="button" class="chip-preset" data-preset="거시경제학, 재무회계, 상법총칙, 마케팅원론">💼 비즈니스 & 법률</button>
-                  <button type="button" class="chip-preset" data-preset="인지심리학, 뇌신경과학, 서양철학사, 언어학">🧠 뇌과학 & 인문</button>
-                  <button type="button" class="chip-preset" data-preset="천문학, 건축공학, 형사소송법, 미생물학, 행동경제학">🎲 완전 무작위 10선</button>
+              <div class="ctrl-group">
+                <label for="spatialTimeSelect" class="input-label">노출 시간</label>
+                <select id="spatialTimeSelect" class="custom-select">
+                  <option value="5.0">5.0초 (여유)</option>
+                  <option value="3.0" selected>3.0초 (표준)</option>
+                  <option value="1.5">1.5초 (스피드)</option>
+                  <option value="0.8">0.8초 (순간 각인)</option>
+                </select>
+              </div>
+
+              <div class="ctrl-group">
+                <label class="input-label">현재 기억 용량</label>
+                <div class="target-span-display">
+                  <strong id="displayTargetCount">5</strong>개 숫자
                 </div>
               </div>
             </div>
 
-            <div id="tabText" class="tab-pane">
-              <label for="inputText" class="input-label">요약할 텍스트나 원문을 붙여넣으세요</label>
-              <textarea id="inputText" rows="4" placeholder="교재, 논문, 아티클 원문을 입력하면 AI가 핵심 개념을 추려냅니다."></textarea>
-            </div>
-
-            <div id="tabPdf" class="tab-pane">
-              <label class="input-label">PDF 교재 파일 선택 (드래그 & 드롭)</label>
-              <div class="pdf-dropzone" id="pdfDropzone">
-                <input type="file" id="inputPdfFile" accept="application/pdf" style="display:none;">
-                <div class="dropzone-icon">📄</div>
-                <div class="dropzone-text" id="pdfDropText">PDF 파일을 여기에 끌어다 놓거나 클릭하여 선택하세요</div>
-                <div class="pdf-file-info" id="pdfFileInfo" style="display:none;"></div>
-              </div>
-
-              <div class="pdf-page-range">
-                <div class="range-field">
-                  <label for="inputStartPage">시작 페이지</label>
-                  <input type="number" id="inputStartPage" min="1" value="1" placeholder="1">
-                </div>
-                <div class="range-field">
-                  <label for="inputEndPage">끝 페이지 (선택)</label>
-                  <input type="number" id="inputEndPage" min="1" placeholder="전체">
-                </div>
-              </div>
+            <div class="spatial-action-row">
+              <button id="btnStartSpatial" class="btn-primary">⚡ 공간 기억 훈련 시작</button>
+              <button id="btnResetSpatial" class="btn-secondary">⏹️ 정지 / 초기화</button>
+              <label class="spatial-nosave-toggle" for="spatialNoSaveCheck">
+                <input type="checkbox" id="spatialNoSaveCheck">
+                <span>🚫 연습 모드 (DB 미저장)</span>
+              </label>
             </div>
           </div>
 
-          <div class="form-row">
-            <div class="count-selector">
-              <label for="wordCount" class="input-label">단어 개수</label>
-              <div class="counter-control">
-                <button type="button" class="btn-count" id="btnCountMinus">-</button>
-                <input type="number" id="wordCount" min="3" max="15" value="5" readonly>
-                <button type="button" class="btn-count" id="btnCountPlus">+</button>
-              </div>
-              <span class="count-hint">💡 ADHD 집중에는 3~5개가 가장 효과적입니다</span>
-            </div>
-
-            <div class="setup-action-group">
-              <button id="btnStartGenerate" class="btn-primary btn-hero">
-                <span class="btn-text">🚀 AI 시각 단어장 생성</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- 하단 메인 대시보드 복귀 버튼 -->
-          <div class="return-home-row">
-            <button class="btn-return-dashboard btn-text-link">
-              🏠 메인 대시보드로 돌아가기
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <!-- [뷰 2] 단어 확인 & 연상 스토리 작성 뷰 -->
-      <section id="viewPrepare" class="view">
-        <div class="prepare-header-card">
-          <div class="prepare-title-area">
-            <span class="step-badge">STEP 1</span>
-            <h2>단어 확인 및 시각 앵커 검토</h2>
-          </div>
-          <div class="prepare-controls">
-            <div class="live-timer-chip">
-              <span class="live-timer-icon">⏱️</span>
-              <span>연상/암기 시간: <strong id="prepareTimerText">00.0s</strong></span>
-            </div>
-            <div class="prepare-action-buttons">
-              <button id="btnStartMcqQuiz" class="btn-primary" style="background: linear-gradient(135deg, #10b981, #059669);" title="방금 외운 단어들로 4지선다 객관식 퀴즈를 바로 시작합니다">
-                🎯 4지선다 퀴즈 ➔
-              </button>
-              <button id="btnExpandAndMcqQuiz" class="btn-primary" style="background: linear-gradient(135deg, #059669, #047857); font-weight: 800;" title="퀴즈 효과를 극대화하기 위해 동일 주제 단어 5개를 즉시 추가 보강하여 10문제로 도전합니다">
-                ⚡ +5단어 추가하여 10문제 퀴즈 ➔
-              </button>
-              <button id="btnDirectToTest" class="btn-primary" title="직접 타이핑하며 깊은 인출 훈련을 진행합니다">
-                ✍️ 주관식 백지 인출 ➔
-              </button>
-              <button id="btnGoToMemorize" class="btn-secondary" title="한 장씩 집중해서 카드를 넘기며 외웁니다">
-                📇 1-Card 암기 ➔
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 단어 카드 리스트 (메인) -->
-        <div class="word-cards-container" id="prepareCardsList"></div>
-
-        <!-- 콤팩트 연상 스토리 메모 카드 (1000자 제한) -->
-        <div class="story-editor-card">
-          <div class="editor-header">
-            <div class="editor-title-wrap">
-              <span class="editor-icon">✍️</span>
-              <h3>나만의 연상 스토리 작성 <span class="editor-sub" style="color:#a855f7; font-weight:700;">(🤖 AI 파인튜닝 데이터셋 자동 수집)</span></h3>
-            </div>
-            <span class="char-count" id="storyCharCount">0 / 1000자</span>
-          </div>
-          <textarea id="inputUserStory" maxlength="1000" rows="3" placeholder="단어들의 시각 앵커를 엮은 한 줄 스토리를 직접 작성해보세요. (예: ⚡ 번개 전계가 🧲 자석 자계를 내리치자 ⚖️ 저울 쿨롱의법칙이 솟구쳤다...)&#10;※ 작성한 글은 Gemma 4 파인튜닝용 고품질 데이터셋으로 자동 변환·보존됩니다."></textarea>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-            <span style="font-size: 11px; color: var(--text-muted);">💡 다음 단계로 넘어가면 파인튜닝 학습 데이터셋으로 자동 수집됩니다.</span>
-            <button type="button" id="btnSavePrepareFinetune" class="btn-secondary btn-sm" style="color: #a855f7; border-color: rgba(168,85,247,0.4); font-weight: 700; background: rgba(168,85,247,0.08);">
-              💾 파인튜닝 데이터셋에 즉시 등록
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <!-- [뷰 3] 초집중 1-Card 암기 뷰 (스톱워치) -->
-      <section id="viewMemorize" class="view">
-        <div class="memorize-header">
-          <div class="timer-display">
-            <span class="timer-icon">⏱️</span>
-            <span id="memorizeTimer">00.0s</span>
-            <button id="btnToggleZen" class="btn-icon-sub" title="타이머 숨기기 (불안 방지 Zen 모드)">👁️</button>
-          </div>
-          <div class="card-progress">
-            <span id="cardProgressText">단어 1 / 5</span>
-          </div>
-        </div>
-
-        <!-- 1-Card Focus 인터랙션 카드 -->
-        <div class="focus-card-arena">
-          <button id="btnPrevCard" class="card-nav-btn" title="이전 단어 (←)">◀</button>
-          
-          <div class="focus-card" id="focusCard">
-            <div class="focus-num" id="focusNum">01</div>
-            <div class="focus-word" id="focusWord">
-              <span class="focus-emoji">🧲</span> 자계
-            </div>
-            <div class="focus-def" id="focusDef">자기력이 작용하는 공간</div>
-            <div class="focus-anchor" id="focusAnchor">💡 연상 힌트: 🌍 지구본(지구장)</div>
-          </div>
-
-          <button id="btnNextCard" class="card-nav-btn" title="다음 단어 (→)">▶</button>
-        </div>
-
-        <!-- 하단 액션 바 -->
-        <div class="memorize-actions">
-          <div class="user-story-preview" id="storyPreviewBar">
-            <span class="story-tag">내 연상법:</span>
-            <span id="storyPreviewText">스토리 없음</span>
-          </div>
-          <button id="btnFinishMemorize" class="btn-hero-action">
-            ✨ 다 외웠습니다! 시험 보기 (Enter / Space)
-          </button>
-        </div>
-      </section>
-
-      <!-- [뷰 4] 인출 테스트 뷰 (일괄 태그 입력) -->
-      <section id="viewTest" class="view">
-        <div class="test-header-card">
-          <div class="test-title-wrap">
-            <span class="step-badge step-test">STEP 2</span>
-            <h2>기억한 단어들을 백지 인출하세요</h2>
-            <p class="subtitle">단어를 입력하고 <strong>Enter</strong> 또는 <strong>쉼표(,)</strong>를 누르면 단어가 쏙쏙 들어갑니다</p>
-          </div>
-          <div class="test-timer-badge">
-            <span class="timer-icon">⏱️</span>
-            <span>인출 시간: <strong id="testTimer">00.0s</strong></span>
-          </div>
-        </div>
-
-        <!-- 힌트 사다리 영역 (독립 분리된 아일랜드) -->
-        <div id="hintLadderBox" class="hint-ladder-box">
-          <div class="hint-header">
-            <div class="hint-title-group">
-              <span class="hint-icon">💡</span>
-              <span class="hint-title">뇌정지 방지 힌트 사다리</span>
-            </div>
-            <button id="btnOpenHint" class="btn-hint">❓ 힌트 열기 (Tab)</button>
-          </div>
-          <div class="hints-grid" id="hintsGrid"></div>
-        </div>
-
-        <!-- 메인 답안 인출 아레나 카드 -->
-        <div class="test-arena-card">
-          <div class="arena-progress-header">
-            <div class="progress-info">
-              <span class="progress-label">🎯 인출 달성도</span>
-              <span class="progress-count"><strong id="tagCountNum">0</strong> / <span id="targetCountNum">5</span>개</span>
-            </div>
-            <div class="input-progress-bar-wrap">
-              <div class="input-progress-bar" id="inputProgressBar"></div>
-            </div>
-          </div>
-
-          <!-- 태그 입력 영역 -->
-          <div class="tags-input-arena" id="tagsContainer">
-            <!-- 단어 태그 칩들이 여기에 팝업 애니메이션과 함께 렌더링됨 -->
-            <div class="tag-input-row">
-              <span class="input-cursor-icon">✍️</span>
-              <input type="text" id="tagInput" placeholder="단어를 입력하고 Enter를 누르세요..." autocomplete="off" autofocus>
-            </div>
-          </div>
-
-          <!-- 하단 액션 제출 바 -->
-          <div class="test-arena-footer">
-            <span class="input-guide-text">💡 오타가 나도 AI가 자비롭게 채점해주니 편하게 입력하세요!</span>
-            <button id="btnSubmitTest" class="btn-primary btn-submit-test">
-              🚀 답안 제출 및 AI 채점 받기
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <!-- [뷰 4-3] ⚡ FAST 집중 훈련 뷰 (연상+퀴즈 융합 / 랜덤 주제 / 제로 세팅) -->
-      <section id="viewFastMode" class="view">
-        <div class="fast-header-bar">
-          <div class="fast-header-left">
-            <span class="fast-mode-pill">⚡ FAST FOCUS</span>
-            <span class="fast-topic-pill" id="fastTopicBadge">🎲 랜덤 주제: 로딩 중...</span>
-            <span class="fast-streak-pill" id="fastStreakBadge">🔥 0 STREAK</span>
-          </div>
-          <div class="fast-header-right">
-            <div class="fast-timer-pill">
-              <span class="fast-timer-icon">⏱️</span>
-              <span id="fastTimerDisplay">00.0s</span>
-            </div>
-            <button id="btnExitFastMode" class="btn-fast-exit" title="대시보드로 나가기">✕ 대시보드</button>
-          </div>
-        </div>
-
-        <!-- [페이즈 1] ⚡ FAST 연상 각인 (Association Flash) -->
-        <div id="fastPhasePreview" class="fast-phase-container">
-          <div class="fast-title-card">
-            <h2>⚡ 초고속 연상 각인 (Association Flash)</h2>
-            <p>시각 앵커와 <strong>[AI 원클릭 연상 사슬]</strong>을 눈으로 훑고 뇌에 각인하세요! 준비되면 즉시 퀴즈로 돌입합니다.</p>
-          </div>
-
-          <!-- 🔗 AI 원클릭 연상 사슬 카드 (연상법 결합 핵심!) -->
-          <div class="fast-story-chain-card" id="fastStoryChainCard">
-            <div class="chain-header">
-              <span class="chain-icon">🔗</span>
-              <strong>AI 원클릭 연상 사슬 (핵심 시각 스토리 결합)</strong>
-            </div>
-            <p class="chain-story-text" id="fastStoryChainText">
-              단어들을 불러오는 중입니다...
-            </p>
-          </div>
-
-          <!-- 단어 카드 그리드 (5개) -->
-          <div class="fast-words-grid" id="fastWordsGrid">
-            <!-- 5개 단어 카드 동적 생성 -->
-          </div>
-
-          <!-- 바로 퀴즈 시작 액션 버튼 -->
-          <div class="fast-action-center">
-            <button id="btnFastStartQuiz" class="btn-fast-cta">
-              🎯 4지선다 스피드 퀴즈 시작 (Space/Enter) ➔
-            </button>
-            <span class="fast-key-hint">💡 키보드 [스페이스바] 또는 [엔터]를 누르면 즉시 퀴즈로 전환됩니다</span>
-          </div>
-        </div>
-
-        <!-- [페이즈 2] 🎯 FAST 4지선다 스피드 퀴즈 (Speed MCQ) -->
-        <div id="fastPhaseQuiz" class="fast-phase-container" style="display:none;">
-          <div class="fast-quiz-progress-bar-wrap">
-            <div class="fast-quiz-progress-bar" id="fastQuizProgressBar" style="width: 20%;"></div>
-          </div>
-          <div class="fast-quiz-meta">
-            <span class="fast-quiz-qnum"><strong id="fastQuizCurrentNum">1</strong> / <span id="fastQuizTotalNum">5</span>문제</span>
-            <span class="fast-quiz-combo" id="fastQuizComboText">🔥 연속 정답 도전 중!</span>
-          </div>
-
-          <!-- 문제 카드 -->
-          <div class="fast-question-card">
-            <div class="fast-question-anchor" id="fastQuizAnchor">💡 연상 힌트</div>
-            <h3 class="fast-question-def" id="fastQuizDef">문제 정의</h3>
-            <div class="fast-question-reason" id="fastQuizReason"></div>
-          </div>
-
-          <!-- 4개 선택지 (단축키 1,2,3,4 지원) -->
-          <div class="fast-options-grid" id="fastQuizOptionsGrid">
-            <!-- 동적 버튼 4개 -->
-          </div>
-
-          <div class="fast-feedback-bar" id="fastQuizFeedbackBar" style="display:none;"></div>
-        </div>
-
-        <!-- [페이즈 3] 🏆 FAST 3초 퀵 리포트 & 즉시 다음 라운드 무한 루프 -->
-        <div id="fastPhaseSummary" class="fast-phase-container" style="display:none;">
-          <div class="fast-summary-card">
-            <div class="fast-summary-badge" id="fastSummaryBadge">🎉 PERFECT CLEAR!</div>
-            <h2 id="fastSummaryTitle">놀라운 집중력입니다! 뇌 회로가 활성화되었습니다 🔥</h2>
-            
-            <div class="fast-summary-stats">
-              <div class="fast-stat-box">
-                <span class="stat-label">정답률</span>
-                <strong class="stat-val text-emerald" id="fastSummaryScore">100%</strong>
-              </div>
-              <div class="fast-stat-box">
-                <span class="stat-label">총 소요시간</span>
-                <strong class="stat-val text-blue" id="fastSummaryTime">14.8초</strong>
-              </div>
-              <div class="fast-stat-box">
-                <span class="stat-label">연속 달성 스트릭</span>
-                <strong class="stat-val text-amber" id="fastSummaryStreak">🔥 1 STREAK</strong>
+          <div class="spatial-arena-card">
+            <div class="arena-header">
+              <div class="arena-status" id="spatialStatusText">훈련 설정 후 [시작] 버튼을 누르세요.</div>
+              <div class="arena-timer-bar">
+                <div class="timer-progress" id="spatialProgressBar"></div>
               </div>
             </div>
 
-            <!-- 틀린 단어 한 줄 복습 (틀렸을 때만) -->
-            <div class="fast-wrong-recap" id="fastWrongRecap" style="display:none;"></div>
+            <div class="spatial-grid-wrapper">
+              <div class="spatial-grid" id="spatialGridArea"></div>
+            </div>
 
-            <div class="fast-next-action-wrap">
-              <button id="btnFastNextRound" class="btn-fast-next">
-                ⚡ 다음 랜덤 라운드 바로 시작 (Space/Enter) ➔
-              </button>
-              <p class="fast-auto-countdown" id="fastAutoCountdown">⏱️ <strong>5초</strong> 후 다음 랜덤 주제 라운드가 자동 시작됩니다...</p>
-              <button id="btnFastPause" class="btn-fast-pause">⏸️ 자동 진행 일시정지</button>
+            <div class="spatial-live-stats">
+              <div class="live-stat-pill"><span>최고 연속 기억:</span> <strong id="statSpatialMaxSpan">5개</strong></div>
+              <div class="live-stat-pill"><span>최근 반응속도:</span> <strong id="statSpatialAvgRt">0ms</strong></div>
+              <div class="live-stat-pill"><span>연속 스트리크:</span> <strong id="statSpatialStreak">0연승</strong></div>
             </div>
           </div>
         </div>
       </section>
+    </main>
 
-      <!-- [뷰 5] 채점 리포트 & 피드백 뷰 -->
-      <section id="viewResult" class="view">
-        <div class="result-header-card">
-          <div class="result-score-circle">
-            <span class="score-number" id="resultScore">80%</span>
-            <span class="score-label">정답률</span>
-            <span id="resultGradeBadge" class="grade-pill grade-s">🏆 S등급</span>
-          </div>
-          <div class="result-stats">
-            <h2 id="resultTitle">멋집니다! 성공적인 인출 훈련이었습니다 🎉</h2>
-            <div class="stats-row">
-              <div class="stat-item">
-                <span class="stat-label">⏱️ 암기 시간</span>
-                <strong id="statMemTime">24.5초</strong>
-              </div>
-              <div class="stat-item">
-                <span class="stat-label">⚡ 인출 시간</span>
-                <strong id="statTestTime">8.2초</strong>
-              </div>
-              <div class="stat-item">
-                <span class="stat-label">✅ 맞힌 개수</span>
-                <strong id="statCorrect">4 / 5개</strong>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 상세 채점 결과 테이블 -->
-        <div class="result-details-card">
-          <h3>📊 단어별 채점 및 피드백</h3>
-          <div class="result-table" id="resultTable"></div>
-        </div>
-
-        <!-- [실험적] AI 연상법 정밀 코칭 카드 -->
-        <div class="ai-coaching-card" id="aiCoachingCard">
-          <div class="coaching-header">
-            <div class="coaching-title">
-              <span class="coaching-icon">🧠</span>
-              <h3>AI 기억술 코치 정밀 분석 <span class="exp-badge">실험적</span></h3>
-            </div>
-            <div class="technique-score-badge" id="techScoreBadge">
-              연상법 점수: <strong id="techScoreNum">-점</strong>
-            </div>
-          </div>
-          <div class="coaching-body">
-            <div class="coaching-section">
-              <span class="coach-label">📝 스토리 종합 평가:</span>
-              <p id="coachSummaryText">분석 중...</p>
-            </div>
-            <div class="coaching-section" id="coachWeakSection">
-              <span class="coach-label">⚠️ 약했던 연결고리 & 원인:</span>
-              <p id="coachWeakText">-</p>
-            </div>
-            <div class="coaching-section tip-section">
-              <span class="coach-label">💡 다음을 위한 실전 팁:</span>
-              <p id="coachTipText">-</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- 복기용 연상 스토리 -->
-        <div class="review-story-card" id="reviewStoryCard">
-          <h3>📖 내가 사용한 연상 스토리</h3>
-          <p id="reviewStoryText"></p>
-        </div>
-
-        <!-- 하단 액션 버튼들 -->
-        <div class="result-actions">
-          <button id="btnTransferToConcept" class="btn-primary" style="background: linear-gradient(135deg, #6366f1, #4f46e5); font-weight: 800;" title="방금 푼 단어들로 AI 연상 스토리텔링 및 심화 기억술 훈련으로 직행합니다">
-            🧠 이 단어들로 AI 개념 연상술(스토리) 심화 훈련 ➔
-          </button>
-          <button id="btnNextSetExclude" class="btn-primary" title="동일한 주제로 생성하되 이미 맞힌 단어는 제외하고 새로운 핵심 단어를 가져옵니다">
-            ⚡ 맞힌 단어 제외하고 다음 단어 도전 ➔
-          </button>
-          <button id="btnRetryWrong" class="btn-secondary btn-highlight-wrong" title="방금 틀렸던 단어들만 모아서 집중 재도전합니다">
-            ⚠️ 오답 단어만 집중 재도전 (<span id="wrongCountBadge">0</span>)
-          </button>
-          <button id="btnExportResultCsv" class="btn-secondary" title="현재 세트의 단어와 설명을 CSV 파일로 내보냅니다">
-            📥 단어장 CSV 내보내기
-          </button>
-          <button id="btnRetrySame" class="btn-secondary">🔁 전체 단어 재도전</button>
-          <button id="btnSaveSet" class="btn-secondary">💾 이 세트 영구 저장</button>
-          <button id="btnNewTraining" class="btn-secondary">🏠 새로운 주제로 이동</button>
-        </div>
-      </section>
-
-      <!-- ============================================================= -->
-      <!-- [뷰 5] ⚡ 순간 공간 기억력 훈련 뷰 (침팬지 테스트 & 뇌 가소성 훈련) -->
-      <!-- ============================================================= -->
-      <section id="viewSpatial" class="view">
-        <div class="hero-text">
-          <h2>순간 시공간 지각 <span class="highlight">침팬지 기억력 훈련</span></h2>
-          <p class="subtitle">숫자의 공간적 위치를 0.8~3초 만에 뇌에 각인하고 순서대로 인출하여 작업기억을 확장하세요</p>
-        </div>
-
-        <!-- 게임 컨트롤 패널 -->
-        <div class="spatial-control-card">
-          <div class="spatial-ctrl-grid">
-            <div class="ctrl-group">
-              <label for="spatialGridSelect" class="input-label">격자 크기</label>
-              <select id="spatialGridSelect" class="custom-select">
-                <option value="3">3 x 3 (9칸 / 웜업)</option>
-                <option value="4" selected>4 x 4 (16칸 / 표준)</option>
-                <option value="5">5 x 5 (25칸 / 프로)</option>
-                <option value="6">6 x 6 (36칸 / 마스터)</option>
-              </select>
-            </div>
-
-            <div class="ctrl-group">
-              <label for="spatialModeSelect" class="input-label">훈련 룰</label>
-              <select id="spatialModeSelect" class="custom-select">
-                <option value="adaptive" selected>🚀 적응형 레벨업 (성공시 +1개)</option>
-                <option value="chimp">🐒 침팬지 룰 (1번 터치시 숨김)</option>
-                <option value="timed">⏱️ 시간제 블라인드 (초 후 숨김)</option>
-              </select>
-            </div>
-
-            <div class="ctrl-group">
-              <label for="spatialTimeSelect" class="input-label">노출 시간</label>
-              <select id="spatialTimeSelect" class="custom-select">
-                <option value="5.0">5.0초 (여유)</option>
-                <option value="3.0" selected>3.0초 (표준)</option>
-                <option value="1.5">1.5초 (스피드)</option>
-                <option value="0.8">0.8초 (순간 각인)</option>
-              </select>
-            </div>
-
-            <div class="ctrl-group">
-              <label class="input-label">현재 기억 용량</label>
-              <div class="target-span-display">
-                <strong id="displayTargetCount">5</strong>개 숫자
-              </div>
-            </div>
-          </div>
-
-          <div class="spatial-action-row">
-            <button id="btnStartSpatial" class="btn-primary btn-hero">
-              ⚡ 공간 기억 훈련 시작
-            </button>
-            <button id="btnResetSpatial" class="btn-secondary btn-hero">
-              ⏹️ 정지 / 초기화
-            </button>
-            <label class="spatial-nosave-toggle" for="spatialNoSaveCheck" title="체크 시 이번 훈련 결과를 DB에 저장하지 않는 연습 모드로 작동합니다">
-              <input type="checkbox" id="spatialNoSaveCheck">
-              <span>🚫 DB에 저장 안함 (연습 모드)</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- 훈련 아레나 카드 -->
-        <div class="spatial-arena-card">
-          <div class="arena-header">
-            <div class="arena-status" id="spatialStatusText">
-              훈련 설정 후 [시작] 버튼을 누르세요.
-            </div>
-            <div class="arena-timer-bar">
-              <div class="timer-progress" id="spatialProgressBar"></div>
-            </div>
-          </div>
-
-          <!-- 동적 타일 격자 판 -->
-          <div class="spatial-grid-wrapper">
-            <div class="spatial-grid" id="spatialGridArea"></div>
-          </div>
-
-          <!-- 실시간 반응속도 및 스코어 피드백 -->
-          <div class="spatial-live-stats">
-            <div class="live-stat-pill">
-              <span>최고 연속 기억:</span> <strong id="statSpatialMaxSpan">0개</strong>
-            </div>
-            <div class="live-stat-pill">
-              <span>평균 반응속도:</span> <strong id="statSpatialAvgRt">0ms</strong>
-            </div>
-            <div class="live-stat-pill">
-              <span>승률:</span> <strong id="statSpatialWinRate">0%</strong>
-            </div>
-          </div>
-        </div>
-
-        <!-- 카드 밖 하단 독립 메인 대시보드 복귀 영역 -->
-        <div class="return-home-row" style="margin-top: 24px;">
-          <button class="btn-return-dashboard btn-text-link">
-            🏠 메인 대시보드로 돌아가기
-          </button>
-        </div>
-      </section>
-
-      
-
-      
-    <!-- ✏️ [상용 기능] 나만의 맞춤 단어장 직접 등록 모달 -->
-    <div id="customWordModal" class="modal-overlay" style="display:none;">
-      <div class="modal-card" style="max-width: 580px;">
+    <!-- ============================================================= -->
+    <!-- 모달 1: 📚 106대 표준 주제 카탈로그 모달 -->
+    <!-- ============================================================= -->
+    <div id="modalTopicCatalog" class="modal-overlay" style="display:none;">
+      <div class="modal-card modal-xl">
         <div class="modal-header">
-          <h3>✏️ 나만의 맞춤 단어장 등록</h3>
-          <button id="btnCloseCustomWordModal" class="btn-icon">✕</button>
-        </div>
-        <div class="modal-body">
-          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5;">
-            직접 외우고 싶은 단어와 설명을 자유롭게 입력하거나 붙여넣으세요.<br>
-            <span style="color: #10b981; font-weight: 700;">형식 예시:</span> <code>단어: 설명</code> 또는 <code>단어 - 설명</code> (줄바꿈 구분)
-          </p>
-          <input type="text" id="inputCustomSetName" placeholder="단어장 제목 (예: 전기기사 실기 핵심용어)" style="width: 100%; padding: 11px 14px; margin-bottom: 10px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 14px; font-weight: 700;">
-          <textarea id="inputCustomWordsText" rows="9" placeholder="전계: 전하가 전기력을 미치는 공간 영역&#10;자계: 자극이나 전류에 의해 자기력이 작용하는 공간&#10;쿨롱의법칙: 두 전하 사이 작용하는 정전기력 크기 공식&#10;맥스웰방정식: 전기장과 자기장의 상호작용을 통합한 4대 방정식&#10;로렌츠힘: 자기장 속 하전입자가 받는 힘" style="width: 100%; padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 13px; font-family: inherit; resize: vertical; line-height: 1.5;"></textarea>
-          <div style="display: flex; gap: 10px; margin-top: 14px;">
-            <button id="btnApplyCustomWords" class="btn-primary" style="flex: 1; padding: 13px; font-weight: 800; font-size: 14px; background: linear-gradient(135deg, #10b981, #059669); border-radius: var(--radius-md); cursor: pointer;">
-              🚀 이 단어들로 즉시 4지선다 퀴즈 시작 ➔
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-      
-    <!-- 📖 [모달] Gemma 4 E4B 파인튜닝 10줄 퀵 가이드 모달 -->
-    <div id="finetuneGuideModal" class="modal-overlay" style="display:none;">
-      <div class="modal-card" style="max-width: 680px;">
-        <div class="modal-header">
-          <h3>📖 Gemma 4 / Qwen 로컬 파인튜닝 퀵 가이드</h3>
-          <button id="btnCloseFinetuneGuide" class="btn-icon">✕</button>
-        </div>
-        <div class="modal-body" style="font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
-          <p style="margin-bottom: 12px;">
-            내보낸 <strong><code>gemma4_memory_finetune.jsonl</code></strong> 파일을 사용하여, Google Colab(무료 T4 GPU) 또는 로컬 PC(VRAM 8GB)에서 <strong>Unsloth</strong>로 초고속 QLoRA 파인튜닝을 진행할 수 있습니다.
-          </p>
-
-          <div style="background: #1e1e2e; color: #cdd6f4; padding: 14px; border-radius: var(--radius-md); font-family: Consolas, monospace; font-size: 12px; overflow-x: auto; margin-bottom: 14px;">
-            <span style="color: #6c7086;"># 1. Unsloth 설치</span><br>
-            <span style="color: #89b4fa;">pip install</span> <span style="color: #a6e3a1;">"unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"</span><br><br>
-            <span style="color: #6c7086;"># 2. Gemma 4 E4B 베이스 로드 & LoRA 적용 (8GB VRAM 최적화)</span><br>
-            <span style="color: #cba6f7;">from</span> unsloth <span style="color: #cba6f7;">import</span> FastLanguageModel, FastVisionModel<br>
-            model, tokenizer = FastVisionModel.from_pretrained(<br>
-            &nbsp;&nbsp;model_name=<span style="color: #a6e3a1;">"unsloth/gemma-4-E4B-it"</span>,<br>
-            &nbsp;&nbsp;max_seq_length=<span style="color: #fab387;">512</span>, load_in_4bit=<span style="color: #fab387;">True</span><br>
-            )<br>
-            model = FastVisionModel.get_peft_model(model, r=<span style="color: #fab387;">16</span>, lora_alpha=<span style="color: #fab387;">16</span>, finetune_vision_layers=<span style="color: #fab387;">False</span>)<br><br>
-            <span style="color: #6c7086;"># 3. 내보낸 JSONL 데이터셋 로드 및 학습 (15분 소요)</span><br>
-            <span style="color: #cba6f7;">from</span> datasets <span style="color: #cba6f7;">import</span> load_dataset<br>
-            <span style="color: #cba6f7;">from</span> trl <span style="color: #cba6f7;">import</span> SFTTrainer<br>
-            dataset = load_dataset(<span style="color: #a6e3a1;">"json"</span>, data_files=<span style="color: #a6e3a1;">"gemma4_memory_finetune.jsonl"</span>)<br>
-            trainer = SFTTrainer(model=model, tokenizer=tokenizer, train_dataset=dataset[<span style="color: #a6e3a1;">"train"</span>], dataset_text_field=<span style="color: #a6e3a1;">"output"</span>)<br>
-            trainer.train()<br><br>
-            <span style="color: #6c7086;"># 4. GGUF 변환 후 Ollama 등록</span><br>
-            model.save_pretrained_gguf(<span style="color: #a6e3a1;">"my_memory_gemma4"</span>, tokenizer, quantization_method=<span style="color: #a6e3a1;">"q4_k_m"</span>)
-          </div>
-
-          <div style="display: flex; justify-content: flex-end; gap: 8px;">
-            <button id="btnCopyGuideCode" class="btn-primary btn-sm" style="background: linear-gradient(135deg, #a855f7, #6366f1); font-weight: 700;">
-              📋 파이썬 학습 코드 복사하기
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-      </main>
-    </div> <!-- .app-layout -->
-
-    <!-- 📚 [신규] 106대 국가자격·전공·학문 핵심 주제 라이브러리 모달 -->
-    <div id="modalTopicCatalog" class="modal-overlay" style="display:none; z-index: 10000;">
-      <div class="modal-card" style="max-width: 960px; width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
-        <div class="modal-header" style="flex-shrink: 0;">
           <div>
-            <h3 style="font-size: 20px; font-weight: 800; color: #60a5fa; margin-bottom: 4px;">📚 106대 국가자격·전공·학문 주제 라이브러리</h3>
-            <p style="font-size: 13px; color: var(--text-secondary); margin: 0;">주제를 선택하면 단어 은행(Word Bank)에서 0초 즉시 랜덤 인출되어 훈련을 시작합니다.</p>
+            <h3>📚 106대 국가자격·전공·학문 주제 라이브러리</h3>
+            <p class="modal-sub">주제를 클릭하면 단어 은행(Word Bank)에서 0.001초 즉시 인출 준비가 완료됩니다.</p>
           </div>
           <button id="btnCloseTopicCatalog" class="btn-icon">✕</button>
         </div>
-        <div class="modal-body" style="overflow-y: auto; flex: 1; padding: 16px;">
-          <!-- 검색창 및 빠른 카운터 -->
-          <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-            <input type="text" id="catalogSearchInput" placeholder="🔍 주제명, 자격증, 과목명 검색 (예: 전기, 회로, 민법, 알고리즘, 해부학, 한국사...)" style="flex: 1; padding: 12px 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 14px;">
-            <button id="btnOpenMinerFromCatalog" class="btn-primary" style="background: linear-gradient(135deg, #f59e0b, #ef4444); font-weight: 800; white-space: nowrap; padding: 0 18px;">⛏️ 1,000단어 마이닝 센터 ➔</button>
+        <div class="modal-body">
+          <div class="catalog-top-bar">
+            <input type="text" id="catalogSearchInput" class="form-input" placeholder="🔍 주제명, 자격증, 세부 과목 검색 (예: 전자기학, 회로, 민법, 운영체제, 해부학, 한국사...)">
+            <button id="btnOpenMinerFromCatalog" class="btn-primary btn-amber">⛏️ 1,000단어 마이닝 센터 ➔</button>
           </div>
-          <!-- 카테고리 필터 칩 -->
-          <div class="catalog-category-chips" id="catalogCategoryChips" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px;">
-            <!-- JS 동적 생성 -->
-          </div>
-          <!-- 카드 그리드 -->
-          <div class="catalog-cards-grid" id="catalogCardsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
-            <!-- JS 동적 생성 -->
-          </div>
+          <div id="catalogCategoryChips" class="catalog-category-chips"></div>
+          <div id="catalogCardsGrid" class="catalog-cards-grid"></div>
         </div>
       </div>
     </div>
 
-    <!-- ⛏️ [신규] 1,000단어 대량 마이닝 센터 모달 -->
-    <div id="modalWordBankMiner" class="modal-overlay" style="display:none; z-index: 10001;">
-      <div class="modal-card" style="max-width: 680px; width: 95%;">
+    <!-- ============================================================= -->
+    <!-- 모달 2: ⛏️ 1,000단어 대량 마이닝 센터 모달 -->
+    <!-- ============================================================= -->
+    <div id="modalWordBankMiner" class="modal-overlay" style="display:none;">
+      <div class="modal-card" style="max-width: 680px;">
         <div class="modal-header">
           <div>
-            <h3 style="font-size: 20px; font-weight: 800; color: #f59e0b; margin-bottom: 4px;">⛏️ AI 대량 단어 마이닝 센터 (1,000단어 자동 구축)</h3>
-            <p style="font-size: 13px; color: var(--text-secondary); margin: 0;">원하는 주제의 전문 용어를 백그라운드로 100~1,000개 자동 수집하여 0초 인출 DB를 구축합니다.</p>
+            <h3 style="color:#f59e0b;">⛏️ AI 대량 단어 마이닝 센터 (주제별 1,000단어 구축)</h3>
+            <p class="modal-sub">추론 모드 OFF(`think: false`) 상태에서 챕터를 순환하며 중복 없이 고속 수집합니다.</p>
           </div>
           <button id="btnCloseWordBankMiner" class="btn-icon">✕</button>
         </div>
-        <div class="modal-body" style="max-height: 80vh; overflow-y: auto;">
-          <!-- 주제 선택 -->
-          <div class="form-group" style="margin-bottom: 14px;">
+        <div class="modal-body">
+          <div class="form-group">
             <label class="input-label">마이닝할 주제 선택 (106대 카탈로그)</label>
-            <select id="minerTopicSelect" style="width: 100%; padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 14px; font-weight: 700;">
-              <!-- JS 동적 생성 -->
-            </select>
+            <select id="minerTopicSelect" class="topic-select-dropdown"></select>
           </div>
-          <!-- 목표 수량 선택 -->
-          <div class="form-group" style="margin-bottom: 14px;">
-            <label class="input-label">목표 수집 수량</label>
-            <div style="display: flex; gap: 8px;">
-              <button type="button" class="miner-target-btn active" data-target="100" style="flex:1; padding: 10px; border-radius: 8px; border: 1px solid #f59e0b; background: rgba(245, 158, 11, 0.2); color: #f59e0b; font-weight: 800; cursor: pointer;">100개 (맛보기)</button>
-              <button type="button" class="miner-target-btn" data-target="300" style="flex:1; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-secondary); font-weight: 700; cursor: pointer;">300개</button>
-              <button type="button" class="miner-target-btn" data-target="500" style="flex:1; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-secondary); font-weight: 700; cursor: pointer;">500개</button>
-              <button type="button" class="miner-target-btn" data-target="1000" style="flex:1; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-secondary); font-weight: 700; cursor: pointer;">1,000개 (완전정복)</button>
+          <div class="form-group">
+            <label class="input-label">목표 누적 단어 수량</label>
+            <div class="miner-target-row">
+              <button type="button" class="miner-target-btn active" data-target="100">100단어</button>
+              <button type="button" class="miner-target-btn" data-target="300">300단어</button>
+              <button type="button" class="miner-target-btn" data-target="500">500단어</button>
+              <button type="button" class="miner-target-btn" data-target="1000">1,000단어 (마스터)</button>
             </div>
           </div>
-          <!-- 실시간 마이닝 대시보드 카드 -->
-          <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; margin-bottom: 16px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-              <span id="minerStatusBadge" style="padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 800; background: rgba(107, 114, 128, 0.2); color: #9ca3af;">대기 중 (Idle)</span>
-              <span style="font-size: 14px; color: var(--text-secondary);">현재 수집량: <strong id="minerCollectedCount" style="color: #f59e0b; font-size: 18px;">0</strong> / <span id="minerTargetCount">100</span>개</span>
+
+          <div class="miner-status-box">
+            <div class="miner-status-top">
+              <span id="minerStatusBadge" class="status-pill">대기 중 (Idle)</span>
+              <span>현재 수집량: <strong id="minerCollectedCount" style="color:#f59e0b; font-size:18px;">0</strong> / <span id="minerTargetCount">100</span>단어</span>
             </div>
-            <!-- 프로그레스 바 -->
-            <div style="width: 100%; height: 12px; background: rgba(255,255,255,0.08); border-radius: 6px; overflow: hidden; margin-bottom: 10px;">
-              <div id="minerProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #f59e0b, #ef4444); transition: width 0.3s ease;"></div>
+            <div class="probe-progress-track">
+              <div id="minerProgressBar" class="probe-progress-fill" style="width:0%; background:linear-gradient(90deg, #f59e0b, #ef4444);"></div>
             </div>
-            <div style="font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between;">
-              <span>현재 탐색 영역: <strong id="minerCurrentSub" style="color: var(--text-primary);">-</strong></span>
-              <span>방금 수집 단어: <strong id="minerLastWord" style="color: #10b981;">-</strong></span>
+            <div class="miner-meta-row">
+              <span>탐색 챕터: <strong id="minerCurrentSub">-</strong></span>
+              <span>최근 수집 단어: <strong id="minerLastWord" style="color:#10b981;">-</strong></span>
             </div>
           </div>
-          <!-- 마이닝 컨트롤 버튼 -->
-          <div style="display: flex; gap: 10px; margin-bottom: 16px;">
-            <button id="btnStartMining" class="btn-primary" style="flex: 1; padding: 14px; font-weight: 800; font-size: 15px; background: linear-gradient(135deg, #f59e0b, #ef4444);">
-              🚀 마이닝 시작
-            </button>
-            <button id="btnStopMining" class="btn-secondary" style="display:none; padding: 14px 20px; font-weight: 800; background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4);">
-              ⏹️ 일시정지
-            </button>
+
+          <div class="miner-btn-row">
+            <button id="btnStartMining" class="btn-primary btn-amber" style="flex:1;">🚀 백그라운드 마이닝 시작</button>
+            <button id="btnStopMining" class="btn-secondary" style="display:none; color:#ef4444; border-color:#ef4444;">⏹️ 마이닝 중지</button>
           </div>
-          <!-- 방금 수집된 단어 칩 리스트 -->
-          <div>
-            <label class="input-label" style="font-size: 12px;">실시간 수집된 단어 현황</label>
-            <div id="minerHarvestedChips" style="max-height: 120px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; background: var(--bg-card); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-              <span style="font-size: 12px; color: var(--text-muted);">마이닝이 시작되면 실시간으로 수집된 단어들이 여기에 표시됩니다.</span>
+
+          <div class="form-group" style="margin-top:12px;">
+            <label class="input-label">실시간 수집 단어 스트림</label>
+            <div id="minerHarvestedChips" class="miner-chips-box">
+              <span style="color:var(--text-muted); font-size:12px;">마이닝 시작 시 실시간 수집 단어가 표시됩니다.</span>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- ⚙️ AI 엔진 및 구글 시트 DB 설정 모달 -->
-    <div id="settingsModal" class="modal-overlay" style="display:none;">
-      <div class="modal-card" style="max-width: 560px; width: 95%;">
+    <!-- ============================================================= -->
+    <!-- 모달 3: 💻 Unsloth DPO 강화학습 스크립트 모달 -->
+    <!-- ============================================================= -->
+    <div id="modalDpoGuide" class="modal-overlay" style="display:none;">
+      <div class="modal-card" style="max-width: 720px;">
         <div class="modal-header">
-          <h3>⚙️ AI 엔진 및 시스템 설정</h3>
+          <h3>💻 Unsloth + TRL DPOTrainer 강화학습 실행 코드</h3>
+          <button id="btnCloseDpoGuide" class="btn-icon">✕</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-sub" style="margin-bottom:12px;">
+            단순 SFT(무조건 암기)가 아니라, <strong>실제 내 뇌에서 반응속도(TTFK)가 빨랐던 연상(`chosen`)</strong>과 <strong>느렸거나 실패한 연상(`rejected`)</strong>의 격차를 학습시키는 진짜 <strong>DPO(Direct Preference Optimization)</strong> 코드입니다.
+          </p>
+          <pre id="dpoCodePre" class="code-block">from unsloth import FastLanguageModel, PatchDPOTrainer
+PatchDPOTrainer()
+from datasets import load_dataset
+from trl import DPOTrainer, DPOConfig
+
+# 1. 로컬 모델 로드 (Gemma 4 / Qwen 2.5 4bit)
+model, tokenizer = FastLanguageModel.from_pretrained(
+    model_name="unsloth/gemma-2-9b-it-bnb-4bit",
+    max_seq_length=1024,
+    load_in_4bit=True,
+)
+model = FastLanguageModel.get_peft_model(model, r=16, lora_alpha=16, target_modules=["q_proj", "k_proj", "v_proj", "o_proj"])
+
+# 2. BrainLock NeuroRL에서 내보낸 DPO 선호도 데이터셋 로드
+dataset = load_dataset("json", data_files="brainlock_dpo_pairs.jsonl", split="train")
+
+# 3. DPO 강화학습 실행 (반응속도 고보상 Chosen 선호 정렬)
+dpo_trainer = DPOTrainer(
+    model=model,
+    ref_model=None,
+    tokenizer=tokenizer,
+    train_dataset=dataset,
+    beta=0.1,
+    args=DPOConfig(per_device_train_batch_size=2, gradient_accumulation_steps=4, num_train_epochs=3, learning_rate=5e-6, output_dir="neuro_rl_dpo_outputs"),
+)
+dpo_trainer.train()
+model.save_pretrained_gguf("brainlock_neurorl_model", tokenizer, quantization_method="q4_k_m")</pre>
+          <button id="btnCopyDpoCode" class="btn-primary" style="width:100%; margin-top:12px;">📋 DPO 강화학습 파이썬 코드 복사하기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================= -->
+    <!-- 모달 4: ⚙️ AI 엔진 및 VRAM 설정 모달 -->
+    <!-- ============================================================= -->
+    <div id="settingsModal" class="modal-overlay" style="display:none;">
+      <div class="modal-card" style="max-width: 520px;">
+        <div class="modal-header">
+          <h3>⚙️ AI 엔진 및 로컬 LLM 설정</h3>
           <button id="btnCloseSettings" class="btn-icon">✕</button>
         </div>
-        <div class="modal-body" style="max-height: 80vh; overflow-y: auto;">
-          <!-- 1. AI Provider Selector -->
-          <div class="form-group" style="margin-bottom: 16px;">
-            <label style="font-weight: 700; display: block; margin-bottom: 8px; font-size: 13px;">🧠 AI 엔진 선택 (Provider)</label>
-            <div class="ai-provider-selector">
-              <button type="button" class="btn-provider-tab active" data-provider="gemini" id="tabProviderGemini">
-                <div style="font-size: 20px; margin-bottom: 2px;">☁️</div>
-                <div style="font-weight: 700; font-size: 12px;">Google Gemini</div>
-                <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">클라우드 API</div>
-              </button>
-              <button type="button" class="btn-provider-tab" data-provider="ollama" id="tabProviderOllama">
-                <div style="font-size: 20px; margin-bottom: 2px;">🦙</div>
-                <div style="font-weight: 700; font-size: 12px;">Ollama 로컬 AI</div>
-                <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Gemma4 / Qwen</div>
-              </button>
-              <button type="button" class="btn-provider-tab" data-provider="offline" id="tabProviderOffline">
-                <div style="font-size: 20px; margin-bottom: 2px;">⚡</div>
-                <div style="font-weight: 700; font-size: 12px;">내장 오프라인</div>
-                <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">100% 무설치</div>
-              </button>
-            </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="input-label">AI 공급자 선택 (추론 모드 100% OFF 보장)</label>
+            <select id="selectAiProvider" class="topic-select-dropdown">
+              <option value="ollama">🦙 로컬 Ollama (무료 / 추론 OFF 초고속)</option>
+              <option value="gemini">✨ Google Gemini API (클라우드)</option>
+            </select>
           </div>
-
-          <!-- 2. Google Gemini Card -->
-          <div id="cardGeminiSettings" class="provider-setting-card">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-              <span style="font-weight: 700; color: #3b82f6; font-size: 13px;">☁️ Google Gemini 클라우드 API</span>
-              <span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; font-size: 11px; padding: 2px 8px; border-radius: 12px;">Cloud AI</span>
-            </div>
-            <div class="form-group" style="margin-bottom: 14px;">
-              <label for="selectAiModel"><strong>🤖 Gemini 모델 선택</strong></label>
-              <select id="selectAiModel" style="width:100%; padding:10px; margin-top:6px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:var(--radius-md); color:var(--text-primary); font-size:13px;">
-                <option value="gemini-2.5-flash">⚡ Gemini 2.5 Flash (초고속 반응 / 일상 훈련 추천)</option>
-                <option value="gemini-3.1-flash-lite">🚀 Gemini 3.1 Flash-Lite (최저 지연시간 경량화)</option>
-                <option value="gemini-3.8-flash">🧠 Gemini 3.8 Flash (최신 모델 / 심층 연상 및 고난도 전공어)</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="inputGeminiKey"><strong>🔑 Gemini API Key (개인 발급 키)</strong></label>
-              <input type="password" id="inputGeminiKey" placeholder="AIzaSy... 키를 입력하세요" style="width:100%; padding:10px; margin-top:6px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:var(--radius-md); color:var(--text-primary); font-size:13px;">
-              <span class="help-text" style="font-size:11px; color:var(--text-muted); display:block; margin-top:4px;">구글 AI 스튜디오(aistudio.google.com)에서 발급받은 무료 키 입력 (브라우저 안전 보관)</span>
-            </div>
+          <div class="form-group">
+            <label class="input-label">Ollama 서버 URL</label>
+            <input type="text" id="inputOllamaUrl" class="form-input" value="http://localhost:11434">
           </div>
-
-          <!-- 3. Ollama Local AI Card -->
-          <div id="cardOllamaSettings" class="provider-setting-card" style="display: none;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-              <span style="font-weight: 700; color: #a855f7; font-size: 13px;">🦙 Ollama 로컬 LLM 연동</span>
-              <span id="ollamaStatusBadge" class="badge" style="background: rgba(100, 116, 139, 0.2); color: var(--text-muted); font-size: 11px; padding: 2px 8px; border-radius: 12px;">연결 확인 대기</span>
-            </div>
-            <div class="form-group" style="margin-bottom: 12px;">
-              <label for="inputOllamaUrl"><strong>🌐 Ollama 서버 주소</strong></label>
-              <div style="display: flex; gap: 8px; margin-top: 6px;">
-                <input type="text" id="inputOllamaUrl" value="http://localhost:11434" placeholder="http://localhost:11434" style="flex: 1; padding: 10px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: var(--radius-md); color: var(--text-primary); font-size: 13px;">
-                <button type="button" id="btnRefreshOllamaModels" class="btn-secondary btn-sm" style="white-space: nowrap; padding: 0 12px; font-weight: 700;">
-                  🔄 모델 검색
-                </button>
-              </div>
-            </div>
-            <div class="form-group" style="margin-bottom: 12px;">
-              <label for="selectOllamaModel"><strong>📦 로컬 모델 선택</strong></label>
-              <select id="selectOllamaModel" style="width: 100%; padding: 10px; margin-top: 6px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: var(--radius-md); color: var(--text-primary); font-size: 13px;">
-                <option value="batiai/gemma4-12b:iq4" selected>🚀 batiai/gemma4-12b:iq4 (Gemma 4 12B IQ4 / 원서번역 최적 세팅 22.5 tps)</option>
-                <option value="gemma4:12b">🧠 gemma4:12b (Gemma 4 12B Q4_K_M 표준)</option>
-                <option value="gemma4:e4b">⚡ gemma4:e4b (Gemma 4 E4B 파인튜닝 특화 / 7.5B)</option>
-                <option value="fauxpaslife/gemma-4-E4B-it-textonly-sysprmpt-Q4_K_M:latest">fauxpaslife/gemma-4-E4B-it-textonly (시스템 프롬프트 특화)</option>
-                <option value="qwen3.5:9b-q4_K_M">qwen3.5:9b-q4_K_M (Qwen 3.5 9B 고성능 추론)</option>
-                <option value="aiconjured/Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-MTP-GGUF-NVFP4:latest">Qwen3.5-9B-Uncensored (무검열 9.2B)</option>
-                <option value="exaone3.5:7.8b">exaone3.5:7.8b (LG EXAONE 3.5 한국어 특화)</option>
-                <option value="custom">✏️ 직접 입력 (커스텀 모델명)</option>
-              </select>
-            </div>
-            <div id="wrapperCustomOllamaModel" class="form-group" style="margin-bottom: 12px; display: none;">
-              <label for="inputCustomOllamaModel"><strong>✏️ 커스텀 모델 태그 입력</strong></label>
-              <input type="text" id="inputCustomOllamaModel" placeholder="예: my_memory_gemma4:latest, qwen2.5:14b" style="width: 100%; padding: 10px; margin-top: 6px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: var(--radius-md); color: var(--text-primary); font-size: 13px;">
-            </div>
-                        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-              <button type="button" id="btnUnloadVram" class="btn-secondary btn-sm" style="flex: 1; border-color: rgba(168, 85, 247, 0.4); color: #a855f7; font-weight: 700; padding: 8px;">
-                🧹 VRAM 즉시 비우기 (GPU 메모리 100% 반환)
-              </button>
-            </div>
-            <div style="font-size: 11px; color: var(--text-muted); line-height: 1.45; background: rgba(0,0,0,0.18); padding: 8px 10px; border-radius: 6px;">
-              💡 <strong>Tip:</strong> PC에서 <code>ollama pull gemma4:e4b</code> 또는 본인이 파인튜닝한 모델을 등록해두면 로컬 오프라인 환경에서도 고성능 연상 암기 스토리를 무제한 생성합니다. (VRAM 8GB 최적)
-            </div>
+          <div class="form-group">
+            <label class="input-label">Ollama 모델명</label>
+            <input type="text" id="inputOllamaModel" class="form-input" value="gemma4:e4b">
           </div>
-
-          <!-- 4. Offline Card -->
-          <div id="cardOfflineNotice" class="provider-setting-card" style="display: none;">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-              <span style="font-size: 18px;">⚡</span>
-              <strong style="color: #10b981; font-size: 13px;">내장 오프라인 고속 엔진</strong>
-            </div>
-            <p style="font-size: 11px; color: var(--text-muted); margin: 0; line-height: 1.5;">
-              외부 API 및 Ollama 연결 없이 8대 전문 전공 분야 내장 단어 풀과 100% 무지연 오프라인 인출 채점기를 사용합니다. 네트워크 없이도 언제 어디서나 즉각 동작합니다.
-            </p>
+          <div class="form-group">
+            <label class="input-label">Gemini API Key (선택)</label>
+            <input type="password" id="inputGeminiKey" class="form-input" placeholder="AIzaSy...">
           </div>
-
-          <!-- 5. Google Sheets Settings -->
-          <div class="form-group" style="margin-bottom: 16px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border-color);">
-            <label for="inputSheetUrl"><strong>🔗 구글 시트 웹 앱 URL</strong></label>
-            <input type="text" id="inputSheetUrl" placeholder="https://script.google.com/macros/s/.../exec" style="width:100%; padding:10px; margin-top:6px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:var(--radius-md); color:var(--text-primary); font-size:13px;">
-            <span class="help-text" style="font-size:11px; color:var(--text-muted); display:block; margin-top:4px;">Google Sheets Apps Script 웹 앱 URL 입력 시 실시간 클라우드 자동 동기화</span>
-          </div>
-
-          <div style="display:flex; gap:10px; margin-bottom: 16px;">
-            <button id="btnTestWebhook" class="btn-secondary btn-sm" style="flex:1;">🔗 시트 연결 핑 테스트</button>
-            <button id="btnSaveSheetUrl" class="btn-primary btn-sm" style="flex:1; background: linear-gradient(135deg, #3b82f6, #6366f1); font-weight: 700;">💾 설정 전체 저장</button>
-          </div>
-
-          <div id="webhookTestResult" class="test-result-box" style="display:none; padding:10px; border-radius:var(--radius-md); font-size:12px; margin-bottom:16px;"></div>
-
-          <div class="modal-divider" style="border-top:1px dashed var(--border-color); padding-top:14px; margin-top:14px;">
-            <label style="color:var(--error); font-weight:800; font-size:13px;">⚠️ 위험 구역 (데이터 초기화)</label>
-            <p style="font-size:11px; color:var(--text-muted); margin:4px 0 10px;">전체 훈련 로그를 초기화합니다 (단어장 및 파인튜닝 데이터는 유지됩니다).</p>
-            <button id="btnClearAllLogs" class="btn-secondary btn-sm" style="color:var(--error); border-color:var(--error); width:100%;">🧹 전체 훈련 세션 로그 초기화</button>
+          <div style="display:flex; gap:8px; margin-top:16px;">
+            <button id="btnUnloadVram" class="btn-secondary" style="flex:1; color:#f59e0b; border-color:#f59e0b;">🧹 Ollama VRAM 즉시 비우기</button>
+            <button id="btnSaveSettings" class="btn-primary" style="flex:1;">💾 설정 저장</button>
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- 로딩 오버레이 -->
-    <div id="loadingOverlay" class="loading-overlay">
-      <div class="spinner"></div>
-      <p id="loadingText">AI가 시각 앵커를 설계하고 있습니다...</p>
     </div>
 
   </div>
 
-  <script src="topics_catalog.js?v=20261104"></script>
-  <script src="app.js?v=20260903_v2"></script>
+  <script src="topics_catalog.js?v=20261106_rl_v2"></script>
+  <script src="app.js?v=20261106_rl_v2"></script>
 </body>
 </html>

@@ -29,8 +29,16 @@ def extract_chosung(text: str) -> str:
 
 def create_desktop_bundle():
     desktop = os.path.join(os.environ['USERPROFILE'], 'Desktop')
-    target = os.path.join(desktop, 'BrainLock_4지선다퀴즈_최신버전.html')
-    target_en = os.path.join(desktop, 'BrainLock_MCQ_Quiz.html')
+    # 구버전 4지선다 퀴즈 파일이 바탕화면에 남아있다면 정리
+    old_mcq_kr = os.path.join(desktop, 'BrainLock_4지선다퀴즈_최신버전.html')
+    if os.path.exists(old_mcq_kr):
+        try:
+            os.remove(old_mcq_kr)
+        except Exception:
+            pass
+
+    target_rl = os.path.join(desktop, 'BrainLock_NeuroRL_v2_최신버전.html')
+    target_recall = os.path.join(desktop, 'BrainLock_기억술훈련_최신버전.html')
 
     # static/ 최신 소스를 루트로 동기화
     shutil.copy2('static/index.html', 'index.html')
@@ -69,13 +77,9 @@ def create_desktop_bundle():
         p2_end = h.find('>', p2) + 1
         h = h[:p2] + '<script>\n' + j + '\n</script>' + h[p2_end:]
 
-    with open(target, 'w', encoding='utf-8') as f:
+    with open(target_rl, 'w', encoding='utf-8') as f:
         f.write(h)
 
-    with open(target_en, 'w', encoding='utf-8') as f:
-        f.write(h)
-
-    target_recall = os.path.join(desktop, 'BrainLock_기억술훈련_최신버전.html')
     with open(target_recall, 'w', encoding='utf-8') as f:
         f.write(h)
 
@@ -87,8 +91,8 @@ def create_desktop_bundle():
         shutil.copy2('topics_catalog.js', os.path.join(desktop, 'topics_catalog.js'))
 
     print('ALL_DESKTOP_FILES_REGENERATED_SUCCESSFULLY!')
-    print('1. BrainLock_MCQ_Quiz.html (올인원):', os.path.getsize(target_en), 'bytes')
-    print('2. index.html:', os.path.getsize(os.path.join(desktop, 'index.html')), 'bytes')
+    print('1. BrainLock_NeuroRL_v2_최신버전.html (올인원):', os.path.getsize(target_rl), 'bytes')
+    print('2. BrainLock_기억술훈련_최신버전.html (올인원):', os.path.getsize(target_recall), 'bytes')
 
 if __name__ == '__main__':
     create_desktop_bundle()
