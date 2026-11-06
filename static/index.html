@@ -28,7 +28,6 @@
       <div class="nav-mode-switcher">
         <button id="btnModeDashboard" class="mode-nav-btn active">🏠 종합 대시보드</button>
         <button id="btnModeFast" class="mode-nav-btn btn-mode-fast" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(239, 68, 68, 0.2)); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.6); font-weight: 900; box-shadow: 0 0 12px rgba(245, 158, 11, 0.2);">⚡ FAST 집중 훈련</button>
-        <button id="btnModeQuiz" class="mode-nav-btn" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 800;">🎯 4지선다 객관식 퀴즈</button>
         <button id="btnModeConcept" class="mode-nav-btn">🧠 AI 개념 연상술</button>
         <button id="btnModeSpatial" class="mode-nav-btn">⚡ 공간 순간 기억력</button>
         <button id="btnModeFinetune" class="mode-nav-btn" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(99, 102, 241, 0.2)); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.4); font-weight: 800;">🤖 AI 파인튜닝 (<span id="navFinetuneCount">0</span>)</button>
@@ -202,32 +201,8 @@
               </button>
             </div>
 
-            <!-- [신규] 🎯 4지선다 객관식 퀴즈 런처 카드 -->
-            <div class="launcher-card launcher-mcq" id="launchMcqCard" style="border: 2px solid rgba(16, 185, 129, 0.4); background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(5, 150, 105, 0.03));">
-              <div class="launcher-header">
-                <span class="launcher-badge" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4);">초스피드 재인</span>
-                <span class="launcher-icon">🎯</span>
-              </div>
-              <h3>4지선다 객관식 인출 퀴즈</h3>
-              <p>주관식 타이핑 부담 제로! 시각 앵커와 설명을 보고 4개 보기 중 정답을 탭하여 도파민 충전</p>
-              <button class="btn-primary btn-launcher" id="btnLaunchMcq" style="background: linear-gradient(135deg, #10b981, #059669);">
-                🎯 객관식 퀴즈 바로 시작 ➔
-              </button>
             </div>
-
-            <div class="launcher-card launcher-spatial" id="launchSpatialCard">
-              <div class="launcher-header">
-                <span class="launcher-badge badge-amber">뇌 가소성 확장</span>
-                <span class="launcher-icon">⚡</span>
-              </div>
-              <h3>공간 순간 기억력 (침팬지 테스트)</h3>
-              <p>0.8~3초 만에 격자 숫자를 시공간적으로 각인하고 순서대로 인출하여 작업기억 확장</p>
-              <button class="btn-primary btn-launcher btn-launcher-amber">
-                ⚡ 순간 기억 훈련 시작 ➔
-              </button>
-            </div></div>
-
-          <!-- DB 데이터 종합 관리: 저장된 단어장 & 훈련 로그 분리 테이블 -->
+<!-- DB 데이터 종합 관리: 저장된 단어장 & 훈련 로그 분리 테이블 -->
           <div class="db-visual-card">
             <div class="visual-header">
               <div class="visual-tabs">
@@ -573,149 +548,6 @@
             </button>
           </div>
         </div>
-      </section>
-
-      <!-- [뷰 4-2] 🎯 4지선다 객관식 퀴즈 뷰 (신규!) -->
-      <section id="viewQuizMCQ" class="view">
-        
-                <!-- [1단계] 📇 퀴즈 대비 단어 각인/암기 프리뷰 영역 -->
-        <div id="mcqPreviewStep">
-
-          <!-- ⚡ 콤팩트 퀴즈 주제 & 단어 수 빠른 설정 바 -->
-          <div class="mcq-topic-selector-card">
-            <div class="mcq-topic-input-row">
-              <span class="mcq-label">🎯 퀴즈 주제 선택:</span>
-              <select id="inputMcqTopic" class="topic-select-dropdown" style="flex: 1; padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 14px; font-weight: 700; cursor: pointer; outline: none;">
-                <!-- JS 동적 생성: 106대 주제 목록 & 단어 보유 현황 -->
-              </select>
-              <button type="button" id="btnOpenMcqTopicCatalog" class="btn-catalog-pill" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); color: #60a5fa; font-size: 13px; font-weight: 800; padding: 10px 14px; border-radius: 8px; cursor: pointer; white-space: nowrap;">📚 전체 카탈로그</button>
-              <button id="btnGenerateMcqTopic" class="btn-primary btn-generate-mcq">
-                ⚡ 퀴즈 단어 인출 (0초)
-              </button>
-            </div>
-
-            <!-- 선택된 MCQ 주제 간이 정보 바 -->
-            <div id="mcqTopicDetailCard" class="topic-detail-card" style="padding: 10px 14px; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: var(--radius-md); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span id="mcqTopicIcon" style="font-size: 20px;">⚡</span>
-                <strong id="mcqTopicName" style="color: var(--text-primary); font-size: 14px;">전기기사 전자기학</strong>
-                <span id="mcqTopicCategory" style="font-size: 11px; padding: 2px 6px; border-radius: 8px; background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700;">전기/전자/제어</span>
-              </div>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span id="mcqTopicWordCountBadge" style="font-size: 12px; font-weight: 800; color: #10b981;">⛏️ 24단어 준비됨</span>
-                <span id="mcqTopicDescShort" style="font-size: 12px; color: var(--text-muted); max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">쿨롱의 법칙, 가우스 법칙, 맥스웰 방정식 등</span>
-              </div>
-            </div>
-
-            <!-- 빠른 주제 프리셋 칩 & 문제 수 선택 (한 줄 콤팩트 배치) -->
-            <div class="mcq-quick-options-row">
-              <div class="mcq-chips-wrap">
-                <span class="quick-chip-label">⚡ 빠른 주제:</span>
-                <button type="button" class="mcq-preset-chip" data-topic="전기기사 전자기학">🔬 전자기학</button>
-                <button type="button" class="mcq-preset-chip" data-topic="거시경제학">💼 거시경제학</button>
-                <button type="button" class="mcq-preset-chip" data-topic="인지심리학">🧠 뇌과학·심리</button>
-                <button type="button" class="mcq-preset-chip" data-topic="민법총칙">⚖️ 민법총칙</button>
-                <button type="button" class="mcq-preset-chip" data-topic="컴퓨터네트워크 (Computer Networks)">💻 네트워크</button>
-                <button type="button" class="mcq-preset-chip" data-topic="인공지능 및 머신러닝">🤖 인공지능</button>
-                <button type="button" class="mcq-preset-chip" data-topic="기억술 및 메타인지">🏛️ 기억술</button>
-                <button type="button" class="mcq-preset-chip" data-topic="한국사 (선사~조선전기)">📜 한국사</button>
-                <button type="button" id="btnOpenCustomWordModal" class="mcq-preset-chip mcq-custom-chip">✏️ 내 단어 직접 등록</button>
-              </div>
-
-              <div class="mcq-count-wrap">
-                <span class="quick-chip-label">문제 수:</span>
-                <button type="button" class="mcq-count-chip active" data-count="10">10개 (기본)</button>
-                <button type="button" class="mcq-count-chip" data-count="15">15개</button>
-                <button type="button" class="mcq-count-chip" data-count="20">20개</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- 🚀 [핵심] 상단 스티키 암기 액션 & 타이머 헤더 바 -->
-          <div class="mcq-action-sticky-bar">
-            <div class="sticky-left-info">
-              <span id="mcqCurrentTopicBadge" class="topic-pill-badge">
-                현재 주제: 전기기사 전자기학 (10문제)
-              </span>
-              <div class="test-timer-badge">
-                <span class="timer-icon">⏱️</span>
-                <span>각인 시간: <strong id="mcqPreviewTimer">00.0s</strong></span>
-              </div>
-            </div>
-
-            <button id="btnStartSolveMcqTop" class="btn-primary btn-instant-solve">
-              🚀 암기 완료! 바로 퀴즈 시작 (Space/Enter) ➔
-            </button>
-          </div>
-
-          <!-- ✍️ [신규] 퀴즈 전 직접 작성하는 연상 암기 스토리 (파인튜닝 데이터 자동 축적) -->
-          <div class="mcq-story-input-card" id="mcqStoryInputCard">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <span style="font-size: 13px; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
-                <span>✍️ 단어 각인용 연상 스토리 작성</span>
-                <span style="font-size: 11px; color: #a855f7; background: rgba(168,85,247,0.12); padding: 2px 8px; border-radius: 8px; font-weight: 700;">🤖 파인튜닝 데이터셋 자동 수집</span>
-              </span>
-              <span id="mcqStoryCharCount" style="font-size: 11px; color: var(--text-muted);">0 / 500자</span>
-            </div>
-            <textarea id="inputMcqStory" maxlength="500" rows="2" placeholder="아래 단어들을 외우기 위해 머릿속에 떠올린 연상 문장을 한 줄로 적어보세요. (작성 후 퀴즈를 시작하면 파인튜닝 데이터셋에 자동 영구 저장됩니다)" style="width: 100%; padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 13px; resize: vertical; line-height: 1.45;"></textarea>
-          </div>
-
-          <!-- 단어 카드 프리뷰 그리드 (단어 즉시 전체 노출!) -->
-          <div class="mcq-preview-grid" id="mcqPreviewGrid">
-            <!-- 자바스크립트로 단어 카드가 즉시 선명하게 렌더링됨 -->
-          </div>
-
-          <!-- 하단 액션 버튼 -->
-          <div id="mcqStartSolveWrap" class="mcq-bottom-solve-wrap">
-            <button id="btnStartSolveMcq" class="btn-primary btn-instant-solve">
-              🚀 암기 완료! 바로 퀴즈 시작 (Space/Enter) ➔
-            </button>
-          </div>
-        </div>
-
-        <!-- [2단계] 🎯 실전 4지선다 퀴즈 풀기 영역 (처음엔 숨김) -->
-        <div id="mcqSolveStep" style="display: none;">
-          <div class="test-header-card">
-            <div class="test-title-wrap">
-              <span class="step-badge" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4);">STEP 2</span>
-              <h2>4지선다 객관식 인출 퀴즈</h2>
-              <p class="subtitle">제시된 설명과 시각 앵커를 보고 방금 외운 단어를 탭하세요</p>
-            </div>
-            <div class="test-timer-badge">
-              <span class="timer-icon">⏱️</span>
-              <span>퀴즈 시간: <strong id="mcqTimer">00.0s</strong></span>
-            </div>
-          </div>
-
-          <div class="mcq-arena-card">
-            <div class="arena-progress-header">
-              <div class="progress-info">
-                <span class="progress-label">🎯 퀴즈 진행도</span>
-                <span class="progress-count"><strong id="mcqCurrentNum">1</strong> / <span id="mcqTotalNum">5</span>문제</span>
-                <span id="mcqComboBadge" class="mcq-combo-pill" style="display:none;">🔥 0 COMBO</span>
-              </div>
-              <div class="input-progress-bar-wrap">
-                <div class="input-progress-bar" id="mcqProgressBar" style="width: 20%; background: linear-gradient(90deg, #10b981, #059669);"></div>
-              </div>
-            </div>
-
-            <!-- 문제 카드 -->
-            <div class="mcq-question-card">
-              <div class="mcq-anchor-badge" id="mcqQuestionAnchor">💡 연상 힌트</div>
-              <h3 class="mcq-question-def" id="mcqQuestionDef">문제 설명이 들어갑니다</h3>
-              <div class="mcq-question-sub" id="mcqQuestionReason"></div>
-            </div>
-
-            <!-- 4지선다 보기 버튼 리스트 (2x2 그리드) -->
-            <div class="mcq-options-grid" id="mcqOptionsGrid">
-              <!-- 4개 선택지 버튼이 동적 생성됨 -->
-            </div>
-
-            <!-- 피드백 메시지 바 -->
-            <div class="mcq-feedback-bar" id="mcqFeedbackBar" style="display:none;"></div>
-          </div>
-        </div>
-
       </section>
 
       <!-- [뷰 4-3] ⚡ FAST 집중 훈련 뷰 (연상+퀴즈 융합 / 랜덤 주제 / 제로 세팅) -->

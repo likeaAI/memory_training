@@ -1309,17 +1309,15 @@ function switchView(viewName) {
   // 상단 네비게이션 액티브 상태 동기화
   const btnDash = document.getElementById('btnModeDashboard');
   const btnFast = document.getElementById('btnModeFast');
-  const btnQuiz = document.getElementById('btnModeQuiz');
-  const btnConcept = document.getElementById('btnModeConcept');
+    const btnConcept = document.getElementById('btnModeConcept');
   const btnSpatial = document.getElementById('btnModeSpatial');
   
-  const navBtns = [btnDash, btnFast, btnQuiz, btnConcept, btnSpatial, btnSudoku].filter(Boolean);
+  const navBtns = [btnDash, btnFast, btnConcept, btnSpatial, btnSudoku].filter(Boolean);
   navBtns.forEach(b => b.classList.remove('active'));
 
   if (viewName === 'viewDashboard' && btnDash) btnDash.classList.add('active');
   else if (viewName === 'viewFastMode' && btnFast) btnFast.classList.add('active');
-  else if (viewName === 'viewQuizMCQ' && btnQuiz) btnQuiz.classList.add('active');
-  else if (['viewSetup', 'viewPrepare', 'viewMemorize', 'viewTest', 'viewResult'].includes(viewName) && btnConcept) btnConcept.classList.add('active');
+    else if (['viewSetup', 'viewPrepare', 'viewMemorize', 'viewTest', 'viewResult'].includes(viewName) && btnConcept) btnConcept.classList.add('active');
   else if (viewName === 'viewSpatial' && btnSpatial) btnSpatial.classList.add('active');
   else if (viewName === 'viewSudoku' && btnSudoku) btnSudoku.classList.add('active');
 }
@@ -1356,8 +1354,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupModeSwitcher() {
   const btnDash = document.getElementById('btnModeDashboard');
   const btnFast = document.getElementById('btnModeFast');
-  const btnQuiz = document.getElementById('btnModeQuiz');
-  const btnConcept = document.getElementById('btnModeConcept');
+    const btnConcept = document.getElementById('btnModeConcept');
   const btnSpatial = document.getElementById('btnModeSpatial');
 
   if (btnDash) {

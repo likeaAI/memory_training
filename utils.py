@@ -75,6 +75,10 @@ def create_desktop_bundle():
     with open(target_en, 'w', encoding='utf-8') as f:
         f.write(h)
 
+    target_recall = os.path.join(desktop, 'BrainLock_기억술훈련_최신버전.html')
+    with open(target_recall, 'w', encoding='utf-8') as f:
+        f.write(h)
+
     # 개별 파일들도 바탕화면에 최신 덮어쓰기
     shutil.copy2('index.html', os.path.join(desktop, 'index.html'))
     shutil.copy2('style.css', os.path.join(desktop, 'style.css'))
